@@ -190,6 +190,7 @@
     checkForUpdates: () => invoke('check-for-updates'),
     downloadLiquidGlass: () => invoke('download-liquid-glass'),
     downloadExpressive: () => invoke('download-expressive'),
+    tryWinUI: () => invoke('try-winui'),
     installUpdate: value => invoke('install-update', value),
     onUpdateAvailable: callback => subscribe('update-available', callback),
     onUpdateDownloadProgress: callback => subscribe('update-download-progress', callback),

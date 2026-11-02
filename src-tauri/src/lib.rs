@@ -1332,6 +1332,77 @@ fn play_system_notification_sound() {
     }
 }
 
+#[cfg(target_os = "windows")]
+async fn try_winui(app: &AppHandle) -> Result<Value, String> {
+    let executable = std::env::current_exe().map_err(|e| format!("Could not locate the current Schoology installation: {e}"))?;
+    let install_dir = executable.parent().ok_or("Could not determine the Schoology installation directory.")?;
+    let uninstaller = install_dir.join("uninstall.exe");
+    if !uninstaller.is_file() {
+        return Err(format!("The current Schoology uninstaller was not found at {}.", uninstaller.display()));
+    }
+    let architecture = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "ARM64",
+        other => return Err(format!("Schoology WinUI does not currently publish an installer for Windows architecture {other}.")),
+    };
+    let release = fetch_release("tling0001/schoology-winui").await?;
+    if release.get("draft").and_then(Value::as_bool).unwrap_or(false)
+        || release.get("prerelease").and_then(Value::as_bool).unwrap_or(false) {
+        return Err("The latest Schoology WinUI release is not a stable release.".into());
+    }
+    let tag = release.get("tag_name").and_then(Value::as_str)
+        .filter(|tag| !tag.is_empty() && tag.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_')))
+        .ok_or("The latest Schoology WinUI release has an invalid version tag.")?;
+    let expected_name = format!("Schoology-WinUI-{tag}-{architecture}-Setup.exe");
+    let asset = release.get("assets").and_then(Value::as_array)
+        .and_then(|assets| assets.iter().find(|asset| asset.get("name").and_then(Value::as_str) == Some(expected_name.as_str())))
+        .ok_or_else(|| format!("The latest Schoology WinUI release does not contain the required {architecture} installer ({expected_name})."))?;
+    let digest = asset.get("digest").and_then(Value::as_str)
+        .filter(|digest| digest.starts_with("sha256:"))
+        .ok_or("GitHub did not provide a SHA-256 digest for the WinUI installer; refusing to run an unverified installer.")?;
+    let info = json!({
+        "url": asset.get("browser_download_url").and_then(Value::as_str).unwrap_or(""),
+        "assetName": expected_name,
+        "size": asset.get("size").and_then(Value::as_u64).unwrap_or(0),
+        "digest": digest,
+        "version": tag,
+        "repository": "tling0001/schoology-winui",
+        "productName": "Schoology WinUI"
+    });
+    let installer = download_update(app, &info).await?;
+    // Wait for this process to exit before uninstalling; NSIS cannot safely
+    // remove the installation directory while Schoology is still running.
+    let ps_quote = |value: &str| format!("'{}'", value.replace('\'', "''"));
+    let log_path = std::env::temp_dir().join("Schoology-WinUI-switch.log");
+    let script = format!(
+        "$ErrorActionPreference = 'Stop'\n\
+         $uninstaller = {}\n\
+         $installer = {}\n\
+         $log = {}\n\
+         try {{\n\
+           Wait-Process -Id {} -ErrorAction SilentlyContinue\n\
+           if (-not (Test-Path -LiteralPath $uninstaller)) {{ throw 'The Schoology uninstaller is missing.' }}\n\
+           & $uninstaller /S\n\
+           if ($LASTEXITCODE -ne 0) {{ throw \"Schoology uninstall failed with exit code $LASTEXITCODE.\" }}\n\
+           & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS /RESTARTAPP=1\n\
+           if ($LASTEXITCODE -ne 0) {{ throw \"Schoology WinUI setup failed with exit code $LASTEXITCODE.\" }}\n\
+         }} catch {{ $_ | Out-String | Out-File -FilePath $log -Append -Encoding utf8; exit 1 }}\n",
+        ps_quote(uninstaller.to_string_lossy().as_ref()),
+        ps_quote(installer.to_string_lossy().as_ref()),
+        ps_quote(log_path.to_string_lossy().as_ref()),
+        std::process::id()
+    );
+    let encoded_script = BASE64.encode(script.encode_utf16().flat_map(u16::to_le_bytes).collect::<Vec<u8>>());
+    Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", &encoded_script])
+        .current_dir(std::env::temp_dir())
+        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+        .spawn().map_err(|error| format!("Could not start the unattended WinUI installation: {error}"))?;
+    let _ = app.emit("update-install-started", json!({"winui":true,"version":tag,"assetName":expected_name}));
+    schedule_app_exit(app.clone(), 500);
+    Ok(json!({"started":true,"version":tag,"assetName":expected_name}))
+}
+
 async fn latest_alternate_release(repo: &str, product_name: &str) -> Result<Value, String> {
     let release = fetch_release(repo).await?;
     let asset = select_update_asset(&release)?;
@@ -1689,6 +1760,8 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "check-for-updates" => check_for_updates().await,
         "download-liquid-glass" => latest_alternate_release("tling0001/SchoologyDesktopLiquidGlass", "Schoology Liquid Glass").await,
         "download-expressive" => latest_alternate_release("tling0001/SchoologyDesktopM3E", "Schoology Expressive").await,
+        #[cfg(target_os = "windows")]
+        "try-winui" => try_winui(&app).await,
         "install-update" => install_update(&app, &args).await,
         "open-chrome-extension-folder" => {
             let mut folder = app.path().resource_dir().map_err(|e| e.to_string())?;

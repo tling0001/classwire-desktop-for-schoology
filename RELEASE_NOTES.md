@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.36]
+
+### Added
+- Add a Windows-only Settings action to switch to Schoology WinUI. It selects the latest stable release installer for the current x64 or ARM64 architecture, verifies its SHA-256 digest, then silently uninstalls the current app and launches WinUI setup with the requested unattended installer switches.
+
+### Changed
+- Bump the package version to 2026.10.0-port.36.
+
+
 ## [2026.10.0-port.35]
 
 ### Fixed
