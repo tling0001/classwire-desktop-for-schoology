@@ -3187,7 +3187,7 @@ function homeAssignmentGradeMap(response){
  }
  const map={};
  for(const grade of rows){
-  const id=grade?.assignment_id??grade?.assignmentId??grade?.grade_item_id??grade?.gradeItemId;
+  const id=grade?.assignment_id??grade?.assignmentId??grade?.id;
   if(id!=null)map[String(id)]=grade;
  }
  return map;
