@@ -1375,18 +1375,34 @@ async fn try_winui(app: &AppHandle) -> Result<Value, String> {
     let ps_quote = |value: &str| format!("'{}'", value.replace('\'', "''"));
     let log_path = std::env::temp_dir().join("Schoology-WinUI-switch.log");
     let script = format!(
-        "$ErrorActionPreference = 'Stop'\n\
-         $uninstaller = {}\n\
-         $installer = {}\n\
-         $log = {}\n\
-         try {{\n\
-           Wait-Process -Id {} -ErrorAction SilentlyContinue\n\
-           if (-not (Test-Path -LiteralPath $uninstaller)) {{ throw 'The Schoology uninstaller is missing.' }}\n\
-           & $uninstaller /S\n\
-           if ($LASTEXITCODE -ne 0) {{ throw \"Schoology uninstall failed with exit code $LASTEXITCODE.\" }}\n\
-           & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS /RESTARTAPP=1\n\
-           if ($LASTEXITCODE -ne 0) {{ throw \"Schoology WinUI setup failed with exit code $LASTEXITCODE.\" }}\n\
-         }} catch {{ $_ | Out-String | Out-File -FilePath $log -Append -Encoding utf8; exit 1 }}\n",
+        r#"$ErrorActionPreference = 'Stop'
+$uninstaller = {}
+$installer = {}
+$log = {}
+try {{
+    "Waiting for Schoology to exit..." | Out-File -FilePath $log -Encoding utf8
+    Wait-Process -Id {} -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath $uninstaller)) {{ throw "The Schoology uninstaller is missing: $uninstaller" }}
+
+    "Starting the current-app uninstaller..." | Out-File -FilePath $log -Append -Encoding utf8
+    $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/S') -Wait -PassThru -WindowStyle Hidden
+    $uninstallExitCode = $uninstallProcess.ExitCode
+    if ($null -ne $uninstallExitCode -and $uninstallExitCode -ne 0) {{ throw "Schoology uninstall failed with exit code $uninstallExitCode." }}
+    "Current-app uninstall finished (exit code: $uninstallExitCode)." | Out-File -FilePath $log -Append -Encoding utf8
+
+    if (-not (Test-Path -LiteralPath $installer)) {{ throw "The downloaded Schoology WinUI installer is missing: $installer" }}
+    "Starting the Schoology WinUI installer..." | Out-File -FilePath $log -Append -Encoding utf8
+    $installerArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CLOSEAPPLICATIONS', '/RESTARTAPP=1')
+    $installProcess = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -WindowStyle Hidden
+    $installExitCode = $installProcess.ExitCode
+    if ($null -ne $installExitCode -and $installExitCode -ne 0) {{ throw "Schoology WinUI setup failed with exit code $installExitCode." }}
+    "Schoology WinUI setup finished (exit code: $installExitCode)." | Out-File -FilePath $log -Append -Encoding utf8
+}} catch {{
+    "Switch failed:" | Out-File -FilePath $log -Append -Encoding utf8
+    $_ | Out-String | Out-File -FilePath $log -Append -Encoding utf8
+    exit 1
+}}
+"#,
         ps_quote(uninstaller.to_string_lossy().as_ref()),
         ps_quote(installer.to_string_lossy().as_ref()),
         ps_quote(log_path.to_string_lossy().as_ref()),

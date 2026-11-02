@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.37]
+
+### Fixed
+- Fix the Windows switch-to-WinUI handoff by waiting for the uninstall and WinUI installer processes directly and checking their process exit codes instead of relying on PowerShell `$LASTEXITCODE`.
+- Record each handoff stage and its exit code in the switch log to make future installer failures diagnosable.
+
+### Changed
+- Bump the package version to 2026.10.0-port.37.
+
+
 ## [2026.10.0-port.36]
 
 ### Added
