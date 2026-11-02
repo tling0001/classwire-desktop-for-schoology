@@ -1,5 +1,18 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.35]
+
+### Fixed
+- Restore Home Recently Completed grades by supporting both the official section-grade response and the legacy user-grade response used by the earlier working implementation; use the legacy request only when the section response has no matching grade records.
+- Keep grade lookup failures from silently masking the fallback path, while preserving assignment completion filtering and row rendering.
+
+### Added
+- Document unattended Windows NSIS installation and uninstallation using the standard `/S` switch, including PowerShell examples.
+
+### Changed
+- Bump the package version to 2026.10.0-port.35.
+
+
 ## [2026.10.0-port.34]
 
 ### Fixed
