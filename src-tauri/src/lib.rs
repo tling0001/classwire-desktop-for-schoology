@@ -1391,11 +1391,22 @@ try {{
     "Current-app uninstall finished (exit code: $uninstallExitCode)." | Out-File -FilePath $log -Append -Encoding utf8
 
     if (-not (Test-Path -LiteralPath $installer)) {{ throw "The downloaded Schoology WinUI installer is missing: $installer" }}
+    $installerLog = Join-Path ([System.IO.Path]::GetTempPath()) 'Schoology-WinUI-setup.log'
     "Starting the Schoology WinUI installer..." | Out-File -FilePath $log -Append -Encoding utf8
-    $installerArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CLOSEAPPLICATIONS', '/RESTARTAPP=1')
+    $installerArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CLOSEAPPLICATIONS', '/RESTARTAPP=1', ('/LOG="' + $installerLog + '"'))
+    "Installer arguments: $($installerArgs -join ' ')" | Out-File -FilePath $log -Append -Encoding utf8
+    "Inno Setup log: $installerLog" | Out-File -FilePath $log -Append -Encoding utf8
     $installProcess = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -WindowStyle Hidden
     $installExitCode = $installProcess.ExitCode
-    if ($null -ne $installExitCode -and $installExitCode -ne 0) {{ throw "Schoology WinUI setup failed with exit code $installExitCode." }}
+    if ($null -ne $installExitCode -and $installExitCode -ne 0) {{
+        if (Test-Path -LiteralPath $installerLog) {{
+            "WinUI installer diagnostic log (last 100 lines):" | Out-File -FilePath $log -Append -Encoding utf8
+            Get-Content -LiteralPath $installerLog -Tail 100 | Out-File -FilePath $log -Append -Encoding utf8
+        }} else {{
+            "The WinUI installer did not create its Inno Setup log." | Out-File -FilePath $log -Append -Encoding utf8
+        }}
+        throw "Schoology WinUI setup failed with exit code $installExitCode. Installer log: $installerLog"
+    }}
     "Schoology WinUI setup finished (exit code: $installExitCode)." | Out-File -FilePath $log -Append -Encoding utf8
 }} catch {{
     "Switch failed:" | Out-File -FilePath $log -Append -Encoding utf8

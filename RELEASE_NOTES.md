@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.38]
+
+### Fixed
+- Keep the requested silent Inno Setup switches for the WinUI handoff and add an explicit installer log so failures during file installation can be diagnosed.
+- Include the last 100 lines of the Inno Setup log in the handoff log when setup exits unsuccessfully, including the path to the full installer log.
+
+### Changed
+- Bump the package version to 2026.10.0-port.38.
+
+
 ## [2026.10.0-port.37]
 
 ### Fixed
