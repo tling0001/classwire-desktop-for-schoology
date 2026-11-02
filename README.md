@@ -10,6 +10,22 @@ Schoology Desktop Port is a cross-platform desktop/mobile wrapper aligned with t
 - Newer pushes cancel older runs of the same workflow/ref.
 - Release notes are maintained in `RELEASE_NOTES.md`. A failed Actions run is not automatically labeled as a failed release in the changelog.
 
+## Windows unattended installation and removal
+
+The Windows NSIS setup executable supports NSIS silent mode. Run the installer with the case-sensitive `/S` switch to install or update without showing the wizard:
+
+```powershell
+Start-Process -FilePath ".\\Schoology-2026.10.0-port.35-Setup-x64.exe" -ArgumentList "/S" -Wait
+```
+
+To uninstall without prompts, run the installed uninstaller with the same switch:
+
+```powershell
+Start-Process -FilePath "$env:LOCALAPPDATA\\Programs\\Schoology\\uninstall.exe" -ArgumentList "/S" -Wait
+```
+
+Use the actual setup artifact name/architecture produced by the release. NSIS also accepts `/D=<directory>` as the final installer argument when a custom installation directory is required. Silent mode suppresses installer/uninstaller UI; it does not bypass Windows security policy or elevation requirements.
+
 ## Implementation notes
 
 The active native host is Tauri v2 (`src-tauri`) with the compatibility bridge in `src/tauri-bridge.js`. The legacy Electron implementation remains in the repository as reference/compatibility code; it is not the current release runtime.
