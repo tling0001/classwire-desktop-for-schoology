@@ -3174,12 +3174,20 @@ function homeAssignmentIsVisible(a){
  return true;
 }
 function homeAssignmentGradeMap(response){
- // Official GradesHolder shape: grades.grade[], each Grade is keyed by assignment_id.
- const grades=response?.grades?.grade??response?.grades?.grades?.grade??response?.grade??response?.data?.grades?.grade??[];
- const rows=Array.isArray(grades)?grades:(grades?[grades]:[]);
+ // Support both the official Android GradesHolder response (grades.grade[])
+ // and the legacy user-grades response previously used by Home (section/period/assignment).
+ const asRows=value=>Array.isArray(value)?value:(value?[value]:[]);
+ const direct=response?.grades?.grade??response?.grades?.grades?.grade??response?.grade??response?.data?.grades?.grade;
+ const rows=asRows(direct);
+ const sections=asRows(response?.section??response?.sections??response?.data?.section??response?.data?.sections);
+ for(const section of sections){
+  for(const period of asRows(section?.period??section?.periods)){
+   rows.push(...asRows(period?.assignment??period?.assignments));
+  }
+ }
  const map={};
  for(const grade of rows){
-  const id=grade?.assignment_id??grade?.assignmentId;
+  const id=grade?.assignment_id??grade?.assignmentId??grade?.grade_item_id??grade?.gradeItemId;
   if(id!=null)map[String(id)]=grade;
  }
  return map;
@@ -3208,12 +3216,21 @@ async function loadHomeAssignmentData(force=false){
  await Promise.all((Array.isArray(sections)?sections:(sections?[sections]:[])).map(async section=>{
   const sectionId=section.id??section.section_id??section.sectionId;
   if(!sectionId)return;
-  const [assignmentsResponse,gradesResponse]=await Promise.all([
+  const [assignmentsResponse,gradesResult]=await Promise.all([
    loadHomeSectionAssignments(sectionId),
-   // The official Android client obtains a section's grade data from sections/{id}/grades.
-   A.api({path:`sections/${sectionId}/grades`,params:{}}).catch(()=>({}))
+   // Prefer the official Android section-grade endpoint. Some accounts/API responses
+   // still expose the previously working user-grade collection, so use it when needed.
+   A.api({path:`sections/${sectionId}/grades`,params:{}}).then(response=>({response,error:null})).catch(error=>({response:null,error}))
   ]);
-  const grades=homeAssignmentGradeMap(gradesResponse);
+  let grades=homeAssignmentGradeMap(gradesResult.response);
+  if(!Object.keys(grades).length){
+   try{
+    const legacyResponse=await A.api({path:`users/${uid}/grades`,params:{section_id:sectionId}});
+    grades=homeAssignmentGradeMap(legacyResponse);
+   }catch(error){
+    if(gradesResult.error)console.warn('Schoology grade data could not be loaded for section',sectionId,gradesResult.error,error);
+   }
+  }
   for(const assignment of assignmentsResponse){
    const id=assignment.id??assignment.assignment_id??assignment.assignmentId;
    if(id==null)continue;
