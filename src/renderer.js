@@ -1558,7 +1558,13 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
       }finally{b.disabled=false}
       return;
     }
-    if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
+    if(String(f.type||'').toLowerCase()==='assignment'){showAssignment(sid,f.id);return}
+    // Schoology's official Android CourseMaterialRouter passes the discussion
+    // item ID and the containing section ID to the discussion destination.
+    if(String(f.type||'').toLowerCase()==='discussion'){
+      showDiscussionNative('sections',sid,f.id,f.title||'Discussion');
+      return;
+    }
     const directDocType=String(f.document_type||f.documentType||'').toLowerCase();
     const target=f.web_url||f.webUrl||f.url||f.href||f.launch_url||f.launchUrl||f.location;
     // Android FolderItem maps link/video documents to ACTION_VIEW, while embed

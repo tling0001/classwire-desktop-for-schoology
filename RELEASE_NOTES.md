@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.41]
+
+### Fixed
+- Open course-material discussions in the native discussion page instead of attempting to download them.
+
+### Changed
+- Bump the package version to 2026.10.0-port.41.
+
+
 ## [2026.10.0-port.40]
 
 ### Changed
