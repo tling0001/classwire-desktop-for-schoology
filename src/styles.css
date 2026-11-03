@@ -4379,3 +4379,17 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail .messageThreadHeader b,
 :root[data-theme="dark"] .messagesAndroidPage.messagesSplitLayout .messagesSplitContentPane>.messageDetail .messageThreadBody{color:var(--theme-text,#e6e8eb)!important}
 @media(prefers-reduced-motion:reduce){.messagesAndroidPage.messagesSplitLayout .messagesSplitHeading *{transition:none!important;animation:none!important}}
+
+
+/* Expandable course-material folders: nested rows stay in the current list. */
+.materialRow[data-material-depth]{--material-indent:0px}
+.materialRow[data-material-depth]:not([data-material-depth="0"]){
+  margin-left:calc(8px + var(--material-indent))!important;
+  width:calc(100% - 16px - var(--material-indent))!important;
+}
+.materialNestedList{width:100%;min-width:0;animation:materialFolderReveal .16s ease both}
+.materialNestedEmpty{padding:13px 18px 13px 34px;color:var(--theme-muted,#7b858e);font-size:13px}
+.materialFolderChevron{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;font-size:23px;line-height:1;transform:rotate(0deg);transition:transform .18s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+.materialFolderRow.is-expanded .materialFolderChevron{transform:rotate(180deg)}
+@keyframes materialFolderReveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+:root[data-theme="dark"] .materialNestedEmpty{color:var(--theme-muted,#a9afb7)}

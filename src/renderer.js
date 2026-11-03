@@ -1510,19 +1510,54 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
   try{ const x=await A.api({path:`courses/${sid}/folder/${folderId||0}`,params:{}});
   const items=x['folder-item']||x.folder_item||x.folderItems||x.items||[];
   const parent=folderId?`<button class="materialBackRow" id="materialBack"><span class="materialIcon">${officialBackIcon()}</span><span><b>Back to ${esc(backFolderTitle)}</b></span></button>`:'';
-  const rows=items.map((f,i)=>{
-    const type=String(f.type||'');
+  window.__schoologyMaterialItems=new Map();
+  window.__schoologyMaterialNextIndex=0;
+  window.__schoologyMaterialFolderCache=new Map([[Number(folderId||0),items]]);
+  const renderMaterialRows=(list,depth=0)=>list.map(f=>{
+    const index=window.__schoologyMaterialNextIndex++;
+    window.__schoologyMaterialItems.set(index,f);
+    const type=String(f.type||'').toLowerCase();
     const icon=materialIconForType(f);
-    const rawDescription=f.description||f.folder_description||f.folderDescription||(String(f.type||'').toLowerCase()==='folder'?f.body:'')||'';
+    const rawDescription=f.description||f.folder_description||f.folderDescription||(type==='folder'?f.body:'')||'';
     const description=materialDescriptionText(rawDescription);
-    return `<button class="materialRow" data-material-index="${i}"><span class="materialIcon officialMaterialIcon"><img src="../assets/icons/${icon}" alt=""></span><span class="materialRowText"><b>${esc(f.title||'Untitled')}</b>${description?`<small>${esc(description)}</small>`:''}</span><span>›</span></button>`;
+    const folder=type==='folder';
+    return `<button class="materialRow${folder?' materialFolderRow':''}" data-material-index="${index}" data-material-depth="${depth}" style="--material-indent:${depth*18}px" ${folder?'aria-expanded="false"':''}><span class="materialIcon officialMaterialIcon"><img src="../assets/icons/${icon}" alt=""></span><span class="materialRowText"><b>${esc(f.title||'Untitled')}</b>${description?`<small>${esc(description)}</small>`:''}</span><span>${folder?'<span class="materialFolderChevron" aria-hidden="true">⌄</span>':'›'}</span></button>`;
   }).join('');
-  el.innerHTML=parent+(items.length?`<div class="materialList">${rows}</div>`:'<div class="empty"><h2>This folder is empty</h2></div>');
-  window.__schoologyFolderItems=items;
+  el.innerHTML=parent+(items.length?`<div class="materialList">${renderMaterialRows(items,0)}</div>`:'<div class="empty"><h2>This folder is empty</h2></div>');
   document.getElementById('materialBack')?.addEventListener('click',e=>{const b=e.currentTarget;if(b.disabled)return;b.disabled=true;navigateBack()});
-  document.querySelectorAll('[data-material-index]').forEach(b=>b.onclick=async()=>{
-    const f=window.__schoologyFolderItems[+b.dataset.materialIndex];
-    if(String(f.type)==='folder'){if(b.disabled)return;b.disabled=true;loadFolder(course,f.id,true,f.title||'Folder').catch(e=>showSchoologyRequestError(e,()=>loadFolder(course,f.id,false,f.title||'Folder')));return}
+  el.removeEventListener('click',el.__schoologyMaterialClickHandler);
+  el.__schoologyMaterialClickHandler=async event=>{
+    const b=event.target?.closest?.('[data-material-index]');
+    if(!b||!el.contains(b))return;
+    const f=window.__schoologyMaterialItems?.get(Number(b.dataset.materialIndex));
+    if(!f)return;
+    if(String(f.type||'').toLowerCase()==='folder'){
+      const childFolderId=Number(f.id??f.folder_id??f.folderId??0);
+      const existing=b.nextElementSibling?.matches?.('.materialNestedList')?b.nextElementSibling:null;
+      if(existing){existing.remove();b.classList.remove('is-expanded');b.setAttribute('aria-expanded','false');return}
+      if(!childFolderId){alert('Schoology did not provide a valid folder ID.');return}
+      if(b.disabled)return;
+      b.disabled=true;
+      try{
+        let children=window.__schoologyMaterialFolderCache.get(childFolderId);
+        if(!children){
+          const response=await A.api({path:`courses/${sid}/folder/${childFolderId}`,params:{}});
+          children=response['folder-item']||response.folder_item||response.folderItems||response.items||[];
+          window.__schoologyMaterialFolderCache.set(childFolderId,children);
+        }
+        if(!b.isConnected)return;
+        const nested=document.createElement('div');
+        nested.className='materialNestedList';
+        nested.dataset.materialChildrenFor=String(childFolderId);
+        nested.innerHTML=children.length?renderMaterialRows(children,Number(b.dataset.materialDepth||0)+1):'<div class="materialNestedEmpty">This folder is empty</div>';
+        b.after(nested);
+        b.classList.add('is-expanded');
+        b.setAttribute('aria-expanded','true');
+      }catch(error){
+        showSchoologyRequestError(error,()=>{if(b.isConnected)b.click()});
+      }finally{b.disabled=false}
+      return;
+    }
     if(String(f.type)==='assignment'){showAssignment(sid,f.id);return}
     const directDocType=String(f.document_type||f.documentType||'').toLowerCase();
     const target=f.web_url||f.webUrl||f.url||f.href||f.launch_url||f.launchUrl||f.location;
@@ -1559,7 +1594,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
       const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',displayFilename:filename,originalExtension:ext,mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
     }catch(e){alert('Unable to open file: '+e.message)}})();return
-  });
+  }; el.addEventListener('click',el.__schoologyMaterialClickHandler);
   }catch(e){showSchoologyRequestError(e,()=>loadFolder(course,folderId,false,title));}
 }
 

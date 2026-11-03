@@ -1,5 +1,18 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.40]
+
+### Changed
+- Expand course-material folders inline instead of navigating to a separate folder page.
+- Support nested folder expansion/collapse, with indented child rows and an animated chevron that points down when collapsed and up when expanded.
+
+### Fixed
+- Preserve the existing material actions for assignments, links, documents, downloads, and viewers while navigating nested folders.
+
+### Changed
+- Bump the package version to 2026.10.0-port.40.
+
+
 ## [2026.10.0-port.39]
 
 ### Added
