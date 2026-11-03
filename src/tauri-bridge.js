@@ -188,6 +188,7 @@
     uploadSchoologyFile: value => invoke('upload-schoology-file', value),
     updateAssignmentGrade: value => invoke('update-assignment-grade', value),
     checkForUpdates: () => invoke('check-for-updates'),
+    checkForSwiftUIUpdates: () => invoke('check-for-swiftui-updates'),
     downloadLiquidGlass: () => invoke('download-liquid-glass'),
     downloadExpressive: () => invoke('download-expressive'),
     tryWinUI: () => invoke('try-winui'),

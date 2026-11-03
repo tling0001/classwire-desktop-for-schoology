@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.39]
+
+### Added
+- Add a platform-specific Try Schoology SwiftUI option on iOS/iPadOS and macOS, using the SwiftUI repository's latest stable release.
+- Reuse the standard update confirmation, progress, iOS Ad Hoc installation, and macOS DMG replacement/relaunch flows for SwiftUI releases.
+
+### Changed
+- Bump the package version to 2026.10.0-port.39.
+
+
 ## [2026.10.0-port.38]
 
 ### Fixed

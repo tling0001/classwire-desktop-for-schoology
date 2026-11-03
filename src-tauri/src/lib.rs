@@ -1056,6 +1056,30 @@ async fn check_for_updates() -> Result<Value, String> {
     Ok(info)
 }
 
+async fn check_for_swiftui_updates() -> Result<Value, String> {
+    const REPOSITORY: &str = "tling0001/schoology-swiftui";
+    let suffix = match std::env::consts::OS {
+        "macos" => "-macOS.dmg",
+        "ios" => "-iOS-AdHoc.plist",
+        _ => return Err("Schoology SwiftUI is available only on iOS, iPadOS, and macOS.".into()),
+    };
+    let release = fetch_release(REPOSITORY).await?;
+    if release.get("draft").and_then(Value::as_bool).unwrap_or(false)
+        || release.get("prerelease").and_then(Value::as_bool).unwrap_or(false) {
+        return Err("No stable Schoology SwiftUI release is currently available.".into());
+    }
+    let assets = release.get("assets").and_then(Value::as_array)
+        .ok_or("The Schoology SwiftUI release has no downloadable assets.")?;
+    let asset = assets.iter()
+        .find(|asset| asset.get("name").and_then(Value::as_str).unwrap_or("").ends_with(suffix))
+        .ok_or_else(|| format!("The latest Schoology SwiftUI release does not contain the required {} installer.", suffix))?;
+    // This is a platform switch, not an in-place Tauri update. Its port number
+    // belongs to a separate release sequence, so never compare it with APP_VERSION.
+    let mut info = release_asset_info(&release, asset, REPOSITORY, "Schoology SwiftUI");
+    info["available"] = json!(true);
+    Ok(info)
+}
+
 async fn download_update(app: &AppHandle, info: &Value) -> Result<PathBuf, String> {
     let raw_url = info.get("url").and_then(Value::as_str).ok_or("The update download URL is missing.")?;
     let url = Url::parse(raw_url).map_err(|_| "The update URL is invalid.")?;
@@ -1785,6 +1809,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         #[cfg(any(target_os = "android", target_os = "ios"))]
         "window-is-maximized" => Ok(json!(false)),
         "check-for-updates" => check_for_updates().await,
+        "check-for-swiftui-updates" => check_for_swiftui_updates().await,
         "download-liquid-glass" => latest_alternate_release("tling0001/SchoologyDesktopLiquidGlass", "Schoology Liquid Glass").await,
         "download-expressive" => latest_alternate_release("tling0001/SchoologyDesktopM3E", "Schoology Expressive").await,
         #[cfg(target_os = "windows")]
