@@ -1,5 +1,11 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.42]
+
+### Changed
+- Remove the Try Schoology Liquid Glass option and its unused download integration from Settings.
+- Bump the package version to 2026.10.0-port.42.
+
 ## [2026.10.0-port.41]
 
 ### Fixed

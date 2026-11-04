@@ -1810,7 +1810,6 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "window-is-maximized" => Ok(json!(false)),
         "check-for-updates" => check_for_updates().await,
         "check-for-swiftui-updates" => check_for_swiftui_updates().await,
-        "download-liquid-glass" => latest_alternate_release("tling0001/SchoologyDesktopLiquidGlass", "Schoology Liquid Glass").await,
         "download-expressive" => latest_alternate_release("tling0001/SchoologyDesktopM3E", "Schoology Expressive").await,
         #[cfg(target_os = "windows")]
         "try-winui" => try_winui(&app).await,
