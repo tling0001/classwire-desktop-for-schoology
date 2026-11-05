@@ -1,5 +1,13 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.44]
+
+### Fixed
+- Restore the `async` declaration on the assignment viewer so its existing awaited API, grading, and submission initialization calls parse correctly; this fixes the renderer SyntaxError that prevented Schoology from starting.
+
+### Changed
+- Bump the package version to 2026.10.0-port.44.
+
 ## [2026.10.0-port.43]
 
 ### Added
