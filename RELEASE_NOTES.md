@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.49]
+
+### Fixed
+- Resolve standalone Grades course names from the course title rather than showing the section label as the course name; retain the section name as secondary context when it differs.
+- Normalize singleton and nested Schoology grade, enrollment, grading-period, and grading-scale responses before matching the signed-in user's active enrollment. Display the teacher's final-period string or numeric override ahead of the calculated percentage, using the configured letter-grade scale where applicable.
+
+### Changed
+- Highlight the native Windows, macOS, iPhone, and iPad apps' performance improvements in the first-launch invitation.
+- Bump the package version to 2026.10.0-port.49.
+
 ## [2026.10.0-port.48]
 
 ### Added
