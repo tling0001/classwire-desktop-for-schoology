@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.43]
+
+### Added
+- Open Schoology Pages from course Materials using the official section page API, rendering the page's rich-text body and attachments in the native page view.
+- Use the same `ic_pages.png` material icon as the official Android app.
+
+### Changed
+- Bump the package version to 2026.10.0-port.43.
+
 ## [2026.10.0-port.42]
 
 ### Changed
