@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.45]
+
+### Fixed
+- Load the complete selected calendar month with Schoology's official `start_date` and `end_date` query parameters, using the first day of the following month as the exclusive boundary. This matches the Android calendar API and includes events on past dates in the month, so selecting a past day populates the split-view event list.
+- Request the shared WebView session using the Android `CSOAssignment.startSession` parameter name `domain` (the active Schoology app host), rather than `for_domain`, so Schoology can issue the intended web-session cookies before the embedded page loads.
+
+### Changed
+- Bump the package version to 2026.10.0-port.45.
+
 ## [2026.10.0-port.44]
 
 ### Fixed

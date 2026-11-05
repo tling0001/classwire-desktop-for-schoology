@@ -902,7 +902,8 @@ async fn update_assignment_grade(app: &AppHandle, state: &HostState, info: &Valu
 async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value, String> {
     let auth = auth_state(app).ok_or("Not signed in")?;
     let mut url = Url::parse(&format!("https://{}/v1/sessionstart", api_host())).map_err(|e| e.to_string())?;
-    url.query_pairs_mut().append_pair("for_domain", web_host());
+    // Match Android CSOAssignment.startSession(domain=appHost): the parameter is `domain`, not `for_domain`.
+    url.query_pairs_mut().append_pair("domain", web_host());
 
     // sessionstart may set the HttpOnly SESS cookie in HTTP Set-Cookie headers
     // while its JSON body only lists ordinary analytics cookies. api_json()
