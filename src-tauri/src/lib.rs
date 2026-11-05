@@ -164,6 +164,9 @@ fn plaintext_header(token: &str, secret: &str, timestamp: i64) -> String {
     format!("OAuth oauth_consumer_key=\"{CONSUMER_KEY}\", oauth_nonce=\"{}\", oauth_signature_method=\"PLAINTEXT\", oauth_timestamp=\"{timestamp}\", oauth_token=\"{}\", oauth_signature=\"{CONSUMER_SECRET}%26{}\"", random_nonce(), token, secret)
 }
 async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool) -> Result<reqwest::Response, String> {
+    request_with_redirect_cookies(method, url, body, auth, state, client_identity, qr, plaintext, None).await
+}
+async fn request_with_redirect_cookies(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool, mut redirect_set_cookie_headers: Option<&mut Vec<String>>) -> Result<reqwest::Response, String> {
     // Do not let reqwest replay the same OAuth Authorization header across redirects.
     // Schoology's Android interceptor signs each redirected request independently.
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
@@ -188,6 +191,13 @@ async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Valu
             }
         }
         let response = builder.send().await.map_err(|e| format!("Schoology request failed: {e}"))?;
+        // Preserve Set-Cookie from every redirect hop, matching the WinUI signed-request flow.
+        // Reqwest cookie handling is disabled, so otherwise an intermediate HttpOnly SESS is lost.
+        if let Some(headers) = redirect_set_cookie_headers.as_mut() {
+            for header in response.headers().get_all(reqwest::header::SET_COOKIE).iter() {
+                if let Ok(value) = header.to_str() { headers.push(value.to_owned()); }
+            }
+        }
         if response.status().is_redirection() && redirect_count < 5 {
             if let Some(location) = response.headers().get("location").and_then(|value| value.to_str().ok()) {
                 if let Ok(next_url) = current_url.join(location) {
@@ -409,6 +419,26 @@ async fn submit_assignment_resource(app: &AppHandle, state: &HostState, info: &V
     api_json(app, state, "POST", url, Some(json!({"files":[{"schoology_resource_id":resource.to_string()}]})), true).await?;
     Ok(json!(true))
 }
+
+async fn check_assignment_upload_permission(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
+    let section = info.get("sectionId").and_then(Value::as_i64).ok_or("Upload permission information is incomplete.")?;
+    let grade_item = info.get("gradeItemId").and_then(Value::as_i64).ok_or("Upload permission information is incomplete.")?;
+    let auth = auth_state(app).ok_or("Not signed in")?;
+    let mut url = Url::parse(&format!("https://{}/v1/sections/{section}/submissions/{grade_item}/file", api_host())).map_err(|e| e.to_string())?;
+    // Android CSODropbox.getPermissionToUpload performs GET with method=OPTIONS
+    // and reads POST from the response Allow header before pre-uploading files.
+    url.query_pairs_mut()
+        .append_pair("realm", "sections")
+        .append_pair("realm_id", &section.to_string())
+        .append_pair("grade_item_id", &grade_item.to_string())
+        .append_pair("action", "file")
+        .append_pair("method", "OPTIONS");
+    let response = request("GET", url, None, Some(&auth), state, true, None, false).await?;
+    let allow = response.headers().get("allow").and_then(|value| value.to_str().ok()).unwrap_or("").to_owned();
+    let can_post = allow.split(',').any(|method| method.trim().eq_ignore_ascii_case("POST"));
+    Ok(json!({"canPost":can_post,"allow":allow}))
+}
+
 async fn launch_course_app(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
     let section = info.get("sectionId").or(info.get("section_id")).and_then(Value::as_i64).unwrap_or(0);
     let app_id = info.get("appId").or(info.get("app_id")).and_then(Value::as_i64).unwrap_or(0);
@@ -560,7 +590,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
             target_host == "app.schoologyca.com" || target_host.ends_with(".schoologyca.com") {
             if let Some(view) = app.get_webview(&label) {
                 let default_domain = if target_host == "app.schoologyca.com" || target_host.ends_with(".schoologyca.com") { "schoologyca.com" } else { "schoology.com" };
-                let mut cookie_entries: Vec<(String, String, String, String)> = session_cookies.iter().filter_map(|cookie| {
+                let mut cookie_entries: Vec<(String, String, String, String, bool)> = session_cookies.iter().filter_map(|cookie| {
                     let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str)?.trim();
                     let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str)?;
                     let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or(default_domain).trim().trim_start_matches(".").to_ascii_lowercase();
@@ -572,15 +602,16 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                     // browser will not send it to the requested page and the view logs out.
                     let applies_to_target = target_host == domain || target_host.ends_with(&format!(".{domain}"));
                     if name.is_empty() || !valid_domain || !applies_to_target || name.chars().any(|ch| ch.is_control() || ch == ';' || ch == '=' || ch == ',') || value.chars().any(|ch| ch.is_control() || ch == ';' || ch == ',') { return None; }
-                    Some((name.to_owned(), value.to_owned(), domain, path.to_owned()))
+                    let http_only = cookie.get("httpOnly").or_else(|| cookie.get("httponly")).or_else(|| cookie.get("http_only")).and_then(Value::as_bool).unwrap_or(false);
+                    Some((name.to_owned(), value.to_owned(), domain, path.to_owned(), http_only))
                 }).collect();
-                if !mobile_cookie.is_empty() { cookie_entries.push(("s_mobile".to_owned(), mobile_cookie, default_domain.to_owned(), "/".to_owned())); }
-                for (name, value, domain, path) in cookie_entries {
+                if !mobile_cookie.is_empty() { cookie_entries.push(("s_mobile".to_owned(), mobile_cookie, default_domain.to_owned(), "/".to_owned(), false)); }
+                for (name, value, domain, path, http_only) in cookie_entries {
                     // Preserve an explicit domain cookie for sibling Schoology hosts.
                     // A leading dot is ignored by modern browsers but makes the intended
                     // domain scope explicit to native WebView cookie managers.
                     let cookie_domain = format!(".{}", domain.trim_start_matches('.'));
-                    let cookie = tauri::webview::Cookie::build((name.clone(), value)).domain(cookie_domain).path(path).secure(true).build();
+                    let cookie = tauri::webview::Cookie::build((name.clone(), value)).domain(cookie_domain).path(path).secure(true).http_only(http_only).build();
                     if let Err(error) = view.set_cookie(cookie) {
                         let _ = view.close();
                         return Err(format!("Could not install the shared WebView session cookie {name}: {error}"));
@@ -592,6 +623,12 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                 let installed = view.cookies_for_url(verification_url)
                     .map_err(|error| format!("Could not verify the shared WebView session cookies: {error}"))?;
                 let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
+                let expected_session_cookie = session_cookies.iter().any(|cookie| cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("").to_ascii_uppercase().starts_with("SESS"));
+                let installed_session_cookie = installed.iter().any(|cookie| cookie.name().to_ascii_uppercase().starts_with("SESS"));
+                if expected_session_cookie && !installed_session_cookie {
+                    let _ = view.close();
+                    return Err("Schoology returned an SESS cookie, but the native WebView did not install it. Please retry the page.".into());
+                }
                 // sessionstart does not consistently return the HttpOnly SESS cookie.
                 // The first protected navigation can establish it through Schoology's
                 // normal response headers. Requiring SESS before making that request
@@ -601,7 +638,7 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                     let _ = view.close();
                     return Err(format!("The shared WebView cookie store is empty for {}. The page was not opened; retry the page or sign in again.", target_host));
                 }
-                eprintln!("Schoology shared WebView: verified {} native cookies for {} (names: {}). The initial navigation will complete the session bootstrap if SESS was not returned by sessionstart.", installed.len(), target_host, installed_names.join(", "));
+                eprintln!("Schoology shared WebView: verified {} native cookies for {} (names: {}; SESS installed: {}).", installed.len(), target_host, installed_names.join(", "), installed_session_cookie);
             }
         }
     }
@@ -902,40 +939,49 @@ async fn update_assignment_grade(app: &AppHandle, state: &HostState, info: &Valu
 async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value, String> {
     let auth = auth_state(app).ok_or("Not signed in")?;
     let mut url = Url::parse(&format!("https://{}/v1/sessionstart", api_host())).map_err(|e| e.to_string())?;
-    // Match Android CSOAssignment.startSession(domain=appHost): the parameter is `domain`, not `for_domain`.
+    // Android CSOAssignment.startSession serializes this as the domain query parameter.
     url.query_pairs_mut().append_pair("domain", web_host());
 
-    // sessionstart may set the HttpOnly SESS cookie in HTTP Set-Cookie headers
-    // while its JSON body only lists ordinary analytics cookies. api_json()
-    // discards those headers, leaving the shared browser unauthenticated.
-    let response = request("GET", url, None, Some(&auth), state, true, None, false).await?;
-    let header_cookies: Vec<Value> = response.headers().get_all(reqwest::header::SET_COOKIE).iter()
-        .filter_map(|header| header.to_str().ok())
-        .filter_map(|header| {
-            let mut parts = header.split(';');
-            let pair = parts.next()?.trim();
-            let (name, value) = pair.split_once('=')?;
-            let mut domain = if web_host() == "app.schoologyca.com" { ".schoologyca.com".to_owned() } else { ".schoology.com".to_owned() };
-            let mut path = "/".to_owned();
-            for attribute in parts {
-                let (key, value) = attribute.trim().split_once('=').unwrap_or((attribute.trim(), ""));
-                if key.eq_ignore_ascii_case("domain") && !value.trim().is_empty() { domain = value.trim().to_owned(); }
-                if key.eq_ignore_ascii_case("path") && value.trim().starts_with('/') { path = value.trim().to_owned(); }
-            }
-            Some(json!({"key":name.trim(),"value":value.trim(),"domain":domain,"path":path}))
-        }).collect();
+    // Capture Set-Cookie from every redirect hop, not only the final JSON response.
+    // SESS can be issued by an intermediate response and is HttpOnly, so JS cannot recover it.
+    let mut set_cookie_headers = Vec::new();
+    let response = request_with_redirect_cookies("GET", url, None, Some(&auth), state, true, None, false, Some(&mut set_cookie_headers)).await?;
+    let header_cookies: Vec<Value> = set_cookie_headers.into_iter().filter_map(|header| {
+        let mut parts = header.split(';');
+        let pair = parts.next()?.trim();
+        let (name, value) = pair.split_once('=')?;
+        let mut domain = if web_host() == "app.schoologyca.com" { ".schoologyca.com".to_owned() } else { ".schoology.com".to_owned() };
+        let mut path = "/".to_owned();
+        let mut http_only = false;
+        let mut expired = false;
+        for attribute in parts {
+            let trimmed = attribute.trim();
+            let (key, value) = trimmed.split_once('=').unwrap_or((trimmed, ""));
+            if key.eq_ignore_ascii_case("domain") && !value.trim().is_empty() { domain = value.trim().to_owned(); }
+            if key.eq_ignore_ascii_case("path") && value.trim().starts_with('/') { path = value.trim().to_owned(); }
+            if key.eq_ignore_ascii_case("httponly") { http_only = true; }
+            if key.eq_ignore_ascii_case("max-age") && value.trim().parse::<i64>().ok().is_some_and(|age| age <= 0) { expired = true; }
+        }
+        if expired { return None; }
+        Some(json!({"key":name.trim(),"value":value.trim(),"domain":domain,"path":path,"httpOnly":http_only,"secure":true}))
+    }).collect();
     let response = response_value(response).await?;
     let mut cookies = response.get("cookie").or_else(|| response.get("cookies"))
         .and_then(Value::as_array).cloned().unwrap_or_default();
+    // Prefer the newest native Set-Cookie value for an identical name/domain/path tuple.
     for cookie in header_cookies {
-        let name = cookie.get("key").and_then(Value::as_str).unwrap_or("");
-        if !cookies.iter().any(|existing| existing.get("key").or_else(|| existing.get("name")).and_then(Value::as_str) == Some(name)) {
-            cookies.push(cookie);
-        }
+        let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("").to_owned();
+        let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or("").trim_start_matches('.').to_ascii_lowercase();
+        let path = cookie.get("path").and_then(Value::as_str).unwrap_or("/").to_owned();
+        let existing = cookies.iter().position(|item| {
+            let item_name = item.get("key").or_else(|| item.get("name")).and_then(Value::as_str).unwrap_or("");
+            let item_domain = item.get("domain").and_then(Value::as_str).unwrap_or("").trim_start_matches('.').to_ascii_lowercase();
+            let item_path = item.get("path").and_then(Value::as_str).unwrap_or("/");
+            item_name == name && item_domain == domain && item_path == path
+        });
+        if let Some(index) = existing { cookies[index] = cookie; } else { cookies.push(cookie); }
     }
     if cookies.is_empty() { return Err("Schoology did not return web-session cookies.".into()); }
-    // Keep cookie material scoped to Schoology hosts. Native desktop adapters
-    // install session cookies in the browser store before the first navigation.
     let safe_cookies: Vec<Value> = cookies.into_iter().filter(|cookie| {
         let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("");
         let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str).unwrap_or("");
@@ -946,7 +992,13 @@ async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value
             && (domain == "schoology.com" || domain.ends_with(".schoology.com") || domain == "schoologyca.com" || domain.ends_with(".schoologyca.com"))
     }).collect();
     if safe_cookies.is_empty() { return Err("Schoology returned no usable web-session cookies.".into()); }
-    Ok(json!({ "cookies": safe_cookies, "mobileCookie": MOBILE_COOKIE.split_once('=').map(|(_, value)| value).unwrap_or(""), "webHost": web_host() }))
+    let has_session_cookie = safe_cookies.iter().any(|cookie| {
+        cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("").to_ascii_uppercase().starts_with("SESS")
+    });
+    if !has_session_cookie {
+        return Err("Schoology did not return a usable SESS browser cookie. The session-start response contained no SESS Set-Cookie header or cookie object.".into());
+    }
+    Ok(json!({"cookies":safe_cookies,"mobileCookie":MOBILE_COOKIE.split_once('=').map(|(_,value)|value).unwrap_or(""),"webHost":web_host(),"hasSessionCookie":has_session_cookie}))
 }
 
 fn schoology_api_url(path: &str) -> Result<Url, String> {
@@ -1671,6 +1723,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "fetch-image" => fetch_image(&app,&state,args.as_str().unwrap_or("")).await,
         "submit-assignment-text" => submit_assignment_text(&app,&state,&args).await,
         "submit-assignment-resource" => submit_assignment_resource(&app,&state,&args).await,
+        "check-assignment-upload-permission" => check_assignment_upload_permission(&app,&state,&args).await,
         "submit-assignment-file" => upload_schoology_file(&app,&state,&args,true).await,
         "upload-schoology-file" => upload_schoology_file(&app,&state,&args,false).await,
         "download-file" => download_schoology_file(&app,&state,&args).await,
@@ -1678,6 +1731,17 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "pick-file" => {
             let picked = app.dialog().file().blocking_pick_file();
             match picked { Some(file) => match file.into_path() { Ok(path) => Ok(json!(path.to_string_lossy())), Err(e) => Err(e.to_string()) }, None => Ok(Value::Null) }
+        },
+        "pick-files" => {
+            let picked = app.dialog().file().blocking_pick_files();
+            let mut paths = Vec::new();
+            if let Some(files) = picked {
+                for file in files {
+                    let path = file.into_path().map_err(|error| error.to_string())?;
+                    paths.push(path.to_string_lossy().to_string());
+                }
+            }
+            Ok(json!(paths))
         },
         "open-downloaded-file" => {
             let path = args.get("path").and_then(Value::as_str).ok_or("Missing downloaded file path")?;

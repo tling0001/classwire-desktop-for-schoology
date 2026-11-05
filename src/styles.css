@@ -4393,3 +4393,36 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 .materialFolderRow.is-expanded .materialFolderChevron{transform:rotate(180deg)}
 @keyframes materialFolderReveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 :root[data-theme="dark"] .materialNestedEmpty{color:var(--theme-muted,#a9afb7)}
+
+
+/* Multi-attachment assignment revisions: each item owns its upload state. */
+.submissionAttachmentList{display:flex;flex-direction:column;margin-top:12px;border-top:1px solid #d7dce0}
+.submissionAttachmentItem{padding:10px 0;border-bottom:1px solid #d7dce0;min-width:0}
+.submissionAttachmentItemTop{display:flex;align-items:center;gap:10px;min-width:0}
+.submissionAttachmentIcon{width:28px;height:28px;flex:0 0 28px;display:flex;align-items:center;justify-content:center}
+.submissionAttachmentIcon img{width:24px;height:24px;object-fit:contain}
+.submissionAttachmentName{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px;color:#26333b}
+.submissionAttachmentRemove{width:32px;height:32px;flex:0 0 32px;border:0;border-radius:50%;background:transparent;color:#59656d;font-size:22px;cursor:pointer}
+.submissionAttachmentRemove:disabled{opacity:.35;cursor:default}
+.submissionAttachmentProgressTrack{height:6px;margin:8px 0 0 38px;background:#dfe4e8;border-radius:4px;overflow:hidden}
+.submissionAttachmentProgressBar{height:100%;width:0;background:#2e66a3;border-radius:4px;transition:width .12s linear}
+.submissionAttachmentDetail{display:block;margin:5px 0 0 38px;color:#65717a;font-size:12px;overflow-wrap:anywhere}
+.submissionAttachmentEmpty{padding:16px 4px;color:#737e85;font-size:13px;text-align:center}
+.assignmentSubmissionCommentLabel{display:block;margin-top:18px;color:#4b5961;font-size:13px;font-weight:600}
+.assignmentSubmissionComment{display:block;width:100%;min-height:76px;max-height:180px;resize:vertical;box-sizing:border-box;margin-top:7px;padding:10px 12px;border:1px solid #cbd3d9;border-radius:6px;background:#fff;color:#26333b;font:inherit;font-size:14px}
+.assignmentSubmissionChoices button:disabled{opacity:.55;cursor:default}
+:root[data-theme="dark"] .assignmentSubmissionDialog,
+:root[data-theme="dark"] .assignmentSubmissionBody{background:#20262c;color:#e5e9ed}
+:root[data-theme="dark"] .assignmentSubmissionChoices button{background:#2b343d;color:#8fc5f4}
+:root[data-theme="dark"] .assignmentSubmissionChoices button:hover{background:#35414b}
+:root[data-theme="dark"] .submissionAttachmentList,
+:root[data-theme="dark"] .submissionAttachmentItem{border-color:#3c4650}
+:root[data-theme="dark"] .submissionAttachmentName{color:#e5e9ed}
+:root[data-theme="dark"] .submissionAttachmentRemove{color:#c5ced5}
+:root[data-theme="dark"] .submissionAttachmentProgressTrack{background:#3b4650}
+:root[data-theme="dark"] .submissionAttachmentDetail,
+:root[data-theme="dark"] .submissionAttachmentEmpty,
+:root[data-theme="dark"] .submissionAttachmentStatus{color:#aab5be}
+:root[data-theme="dark"] .assignmentSubmissionCommentLabel{color:#d3dbe2}
+:root[data-theme="dark"] .assignmentSubmissionComment{background:#171c21;color:#e5e9ed;border-color:#4a5661}
+@media(prefers-reduced-motion:reduce){.submissionAttachmentProgressBar,.fileUploadProgressBar{transition:none!important}}

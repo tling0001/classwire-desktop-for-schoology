@@ -1266,49 +1266,146 @@ function showSubmissionMenu(){
 function showAssignmentAttachmentChooser(){
   document.getElementById('assignmentUploadSubmissionDialog')?.remove();
   const wrap=document.createElement('div');wrap.id='assignmentUploadSubmissionDialog';wrap.className='assignmentSubmissionDialogOverlay';
-  wrap.innerHTML='<section class="assignmentSubmissionDialog" role="dialog" aria-modal="true"><div class="assignmentSubmissionBar"><button id="submissionDialogCancel" class="androidDialogIcon" aria-label="Cancel">'+officialIcon('ic_action_discard_icon.png','Cancel')+'</button><div class="androidDialogTitle">New Submission</div><button id="submissionDialogSend" class="androidDialogIcon" aria-label="Submit">'+officialIcon('ic_action_send_icon.png','Submit')+'</button></div><div class="assignmentSubmissionBody"><div class="assignmentSubmissionChoices"><button id="submissionFileChoice">'+officialOrAssetIcon('ic_action_ic_menu_folder.png','')+'<span>File</span></button><button id="submissionResourceChoice">'+officialOrAssetIcon('ic_attach_resourcesv3.png','')+'<span>Resource</span></button></div><div id="submissionAttachmentStatus" class="submissionAttachmentStatus">No attachment selected</div></div></section>';
+  wrap.innerHTML='<section class="assignmentSubmissionDialog" role="dialog" aria-modal="true"><div class="assignmentSubmissionBar"><button id="submissionDialogCancel" class="androidDialogIcon" aria-label="Cancel">'+officialIcon('ic_action_discard_icon.png','Cancel')+'</button><div class="androidDialogTitle">New Submission</div><button id="submissionDialogSend" class="androidDialogIcon" aria-label="Submit">'+officialIcon('ic_action_send_icon.png','Submit')+'</button></div><div class="assignmentSubmissionBody"><div class="assignmentSubmissionChoices"><button id="submissionFileChoice" type="button" disabled>'+officialOrAssetIcon('ic_action_ic_menu_folder.png','')+'<span>Files</span></button><button id="submissionResourceChoice" type="button">'+officialOrAssetIcon('ic_attach_resourcesv3.png','')+'<span>Resources</span></button></div><div id="submissionAttachmentStatus" class="submissionAttachmentStatus">Checking upload permissions…</div><div id="submissionAttachmentList" class="submissionAttachmentList"><div class="submissionAttachmentEmpty">No files or resources selected yet.</div></div>'+(state.assignmentAllowComments?'<label class="assignmentSubmissionCommentLabel" for="submissionAssignmentComment">Assignment comment (optional)</label><textarea id="submissionAssignmentComment" class="assignmentSubmissionComment" placeholder="Add a comment to the assignment…"></textarea>':'')+'</div></section>';
   document.body.appendChild(wrap);wrap.style.zIndex='2147483647';
-  let selected=null;
-  const status=()=>wrap.querySelector('#submissionAttachmentStatus');
-  const close=()=>closeDialogAnimated(wrap);
-  const showSelected=label=>{if(status())status().textContent=label?'Selected: '+label:'No attachment selected'};
-  wrap.querySelector('#submissionDialogCancel')?.addEventListener('click',close);wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
-  wrap.querySelector('#submissionFileChoice')?.addEventListener('click',async()=>{
+  const attachments=[],list=wrap.querySelector('#submissionAttachmentList'),status=wrap.querySelector('#submissionAttachmentStatus'),fileButton=wrap.querySelector('#submissionFileChoice'),resourceButton=wrap.querySelector('#submissionResourceChoice'),sendButton=wrap.querySelector('#submissionDialogSend');
+  let nextKey=0,preuploadAllowed=false,permissionResolved=false,submitting=false,activeUpload=null,offProgress=null,closed=false;
+  const setStatus=message=>{if(status&&!closed)status.textContent=message||''};
+  const close=()=>{if(closed)return;closed=true;offProgress?.();offProgress=null;closeDialogAnimated(wrap)};
+  const updateActions=()=>{
+    const busy=!!activeUpload||submitting;
+    fileButton.disabled=busy||!permissionResolved;
+    resourceButton.disabled=busy||submitting;
+    sendButton.disabled=submitting||!!activeUpload||attachments.length===0;
+  };
+  const renderList=()=>{
+    if(!list)return;
+    if(!attachments.length){list.innerHTML='<div class="submissionAttachmentEmpty">No files or resources selected yet.</div>';updateActions();return}
+    list.innerHTML=attachments.map(item=>{
+      const icon=item.type==='file'?officialOrAssetIcon('ic_action_ic_menu_folder.png',''):officialOrAssetIcon('ic_attach_resourcesv3.png','');
+      let detail='';
+      if(item.type==='resource')detail='<small class="submissionAttachmentDetail">Schoology resource</small>';
+      else if(item.status==='uploading'||item.status==='uploaded'){
+        const percent=Math.max(0,Math.min(100,Number(item.progress)||0));
+        detail='<div class="submissionAttachmentProgressTrack"><div class="submissionAttachmentProgressBar" style="width:'+percent+'%"></div></div><small class="submissionAttachmentDetail">'+(item.status==='uploaded'?'Uploaded':esc(item.phase||'Uploading…')+' '+percent+'%')+'</small>';
+      }else detail='<small class="submissionAttachmentDetail">'+(item.status==='failed'?'Upload failed — will retry on Submit':'Ready to upload on Submit')+'</small>';
+      return '<div class="submissionAttachmentItem" data-submission-item="'+item.key+'"><div class="submissionAttachmentItemTop"><span class="submissionAttachmentIcon">'+icon+'</span><span class="submissionAttachmentName">'+esc(item.name)+'</span><button type="button" class="submissionAttachmentRemove" data-submission-remove="'+item.key+'" aria-label="Remove '+esc(item.name)+'" '+(submitting||activeUpload?'disabled':'')+'>×</button></div>'+detail+'</div>';
+    }).join('');
+    list.querySelectorAll('[data-submission-remove]').forEach(button=>button.addEventListener('click',()=>{
+      const key=Number(button.dataset.submissionRemove),index=attachments.findIndex(item=>item.key===key);
+      if(index>=0&&!submitting&&!activeUpload){attachments.splice(index,1);renderList()}
+    }));
+    updateActions();
+  };
+  const uploadFile=async item=>{
+    if(item.fileId)return item.fileId;
+    if(activeUpload&&activeUpload!==item)throw new Error('Another file is still uploading.');
+    activeUpload=item;item.status='uploading';item.progress=0;item.phase='Uploading…';renderList();updateActions();
     try{
-      const picked=await A.pickFile();if(!picked)return;
-      const filePath=typeof picked==='string'?picked:picked.path;if(!filePath)throw new Error('The selected file could not be accessed.');
-      const filename=typeof picked==='object'&&picked.name?picked.name:filePath.split(/[\\/]/).pop();
-      const mime=typeof picked==='object'?picked.mime:'';
-      selected={type:'file',filePath,filename,mime};showSelected(filename||'File');
-    }catch(e){showAppDialog('Unable to prepare file submission',e.message||String(e))}
+      const result=await A.uploadSchoologyFile({filePath:item.filePath,filename:item.filename,mime:item.mime});
+      if(result==null||String(result).trim()==='')throw new Error('Schoology did not return an uploaded file ID.');
+      item.fileId=String(result);item.status='uploaded';item.progress=100;item.phase='Uploaded';return item.fileId;
+    }catch(error){item.status='failed';item.error=error?.message||String(error);throw error}
+    finally{activeUpload=null;renderList();updateActions()}
+  };
+  offProgress=A.onFileUploadProgress?.(data=>{
+    if(!activeUpload||closed)return;
+    if(data?.percent!=null)activeUpload.progress=Math.max(0,Math.min(100,Number(data.percent)||0));
+    if(data?.phase)activeUpload.phase=String(data.phase);
+    const row=list?.querySelector('[data-submission-item="'+activeUpload.key+'"]');
+    const bar=row?.querySelector('.submissionAttachmentProgressBar');
+    const label=row?.querySelector('.submissionAttachmentDetail');
+    if(bar)bar.style.width=(activeUpload.progress||0)+'%';
+    if(label)label.textContent=(activeUpload.phase||'Uploading…')+(data?.percent!=null?' '+activeUpload.progress+'%':'');
   });
-  wrap.querySelector('#submissionResourceChoice')?.addEventListener('click',async()=>{
+  const permissionPromise=(async()=>{
+    const view=state.assignmentView,assignment=state.assignmentData||{};
     try{
-      await chooseSchoologyResource(async r=>{
-        const resourceId=r.template_id??r.templateID??r.resource_id??r.resourceId??r.id;
-        if(resourceId==null)throw new Error('This resource does not have a usable Schoology resource ID.');
-        const label=r.title||r.name||'Resource';selected={type:'resource',resourceId};showSelected(label);
-      },'Attach Resource');
-    }catch(e){showAppDialog('Unable to load resources',e.message||String(e))}
-  });
-  wrap.querySelector('#submissionDialogSend')?.addEventListener('click',async()=>{
-    if(!selected){showAppDialog('New submission','Choose a File or Resource before submitting.');return}
-    const btn=wrap.querySelector('#submissionDialogSend');if(btn)btn.disabled=true;
-    try{
-      const v=state.assignmentView;if(!v||!state.assignmentCanSubmit)throw new Error('This assignment is no longer available for submission.');
-      if(selected.type==='resource'){
-        const dlg=showAppDialog('Submitting resource','Submitting…',[]);
-        try{await A.submitAssignmentResource({sectionId:v.sectionId,assignmentId:v.assignmentId,resourceId:selected.resourceId});dlg?.classList.remove('open');close();await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){dlg?.classList.remove('open');throw e}
-      }else{
-        const dlg=showAppDialog('Uploading submission','Uploading…',[]);const msg=dlg?.querySelector('.appDialogMessage');
-        if(msg)msg.innerHTML='<div class="fileUploadProgressWrap"><div class="fileUploadProgressTrack"><div id="fileUploadProgressBar" class="fileUploadProgressBar" style="width:0%"></div></div><div id="fileUploadProgressText" class="fileUploadProgressText">Uploading… 0%</div></div>';
-        const off=A.onFileUploadProgress?.(d=>{const bar=document.getElementById('fileUploadProgressBar'),txt=document.getElementById('fileUploadProgressText');if(bar&&d?.percent!=null)bar.style.width=Math.max(0,Math.min(100,d.percent))+'%';if(txt)txt.textContent=d?.phase?d.phase+(d.percent!=null?' '+d.percent+'%':''):'Uploading… '+(d?.percent??0)+'%'});
-        try{await A.submitAssignmentFile({sectionId:v.sectionId,assignmentId:v.assignmentId,filePath:selected.filePath,filename:selected.filename,mime:selected.mime});off?.();dlg?.classList.remove('open');close();await openAssignmentSubmissions(v.sectionId,v.assignmentId,state.assignmentData||{},false)}catch(e){off?.();dlg?.classList.remove('open');throw e}
+      const gradeItemId=assignment.__gradeItemId||assignment.grade_item_id||assignment.gradeItemId||assignment.gradeitem_id||assignment.gradeItemID||view.assignmentId;
+      const result=await A.checkAssignmentUploadPermission({sectionId:view.sectionId,gradeItemId});
+      preuploadAllowed=!!(result?.canPost??result?.can_post??result===true);
+    }catch(error){preuploadAllowed=false;console.debug('Assignment file pre-upload permission check failed; uploads will be deferred until Submit.',error)}
+    permissionResolved=true;
+    if(!closed)setStatus(preuploadAllowed?'Files upload as soon as you select them.':'Files will upload after you press Submit.');
+    updateActions();
+    if(preuploadAllowed){
+      for(const item of attachments.filter(entry=>entry.type==='file'&&!entry.fileId)){
+        try{await uploadFile(item)}catch(error){setStatus('Could not upload '+item.name+': '+(error?.message||String(error)))}
       }
-    }catch(e){if(btn)btn.disabled=false;showAppDialog('Unable to submit',e.message||String(e))}
+    }
+  })();
+  fileButton?.addEventListener('click',async()=>{
+    if(fileButton.disabled||submitting||activeUpload)return;
+    try{
+      let paths=[];
+      if(typeof A.pickFiles==='function')paths=await A.pickFiles();
+      else{const one=await A.pickFile?.();if(one)paths=[one]}
+      if(!Array.isArray(paths))paths=paths?[paths]:[];
+      const added=[];
+      for(const picked of paths){
+        const filePath=typeof picked==='string'?picked:(picked?.path||picked?.filePath||'');
+        if(!filePath||attachments.some(item=>item.type==='file'&&item.filePath===filePath))continue;
+        const filename=(typeof picked==='object'&&(picked.name||picked.fileName))||String(filePath).split(/[\\/]/).pop()||'File';
+        const item={key:++nextKey,type:'file',filePath,filename,name:filename,mime:typeof picked==='object'?(picked.mime||''):'',status:'pending',progress:0};
+        attachments.push(item);added.push(item);
+      }
+      renderList();
+      if(preuploadAllowed){
+        for(const item of added){try{await uploadFile(item)}catch(error){setStatus('Could not upload '+item.name+': '+(error?.message||String(error)))}}
+      }else if(added.length)setStatus('Added '+added.length+' file'+(added.length===1?'':'s')+'. They will upload when you press Submit.');
+    }catch(error){showAppDialog('Unable to prepare file submission',error?.message||String(error))}
   });
+  resourceButton?.addEventListener('click',async()=>{
+    if(resourceButton.disabled||submitting||activeUpload)return;
+    try{
+      await chooseSchoologyResource(resource=>{
+        const resourceId=resource?.template_id??resource?.templateID??resource?.resource_id??resource?.resourceId??resource?.id;
+        if(resourceId==null){setStatus('This resource does not have a usable Schoology resource ID.');return}
+        const id=String(resourceId);
+        if(attachments.some(item=>item.type==='resource'&&item.resourceId===id)){setStatus('That resource is already attached.');return}
+        attachments.push({key:++nextKey,type:'resource',resourceId:id,name:resourceTitle(resource)||'Resource',status:'ready'});
+        renderList();setStatus('Resource added. You can add more files or resources before submitting.');
+      },'Attach Resource');
+    }catch(error){showAppDialog('Unable to load resources',error?.message||String(error))}
+  });
+  sendButton?.addEventListener('click',async()=>{
+    if(submitting||activeUpload||!attachments.length)return;
+    const view=state.assignmentView;
+    if(!view||!state.assignmentCanSubmit){setStatus('This assignment is no longer available for submission.');return}
+    submitting=true;updateActions();setStatus('Preparing your submission…');
+    try{
+      await permissionPromise;
+      const files=[];
+      for(const item of attachments){
+        if(item.type==='file'){
+          if(!item.fileId){setStatus('Uploading '+item.name+'…');await uploadFile(item)}
+          files.push({id:item.fileId});
+        }else files.push({schoology_resource_id:String(item.resourceId)});
+      }
+      if(!files.length)throw new Error('Choose at least one file or resource.');
+      setStatus('Submitting one revision with '+files.length+' attachment'+(files.length===1?'':'s')+'…');
+      await A.api({path:'section/'+view.sectionId+'/assignment/'+view.assignmentId+'/submission',method:'POST',params:{files},json:true});
+      let commentError=null;
+      const comment=wrap.querySelector('#submissionAssignmentComment')?.value.trim()||'';
+      if(comment&&state.assignmentAllowComments){
+        try{await A.api({path:'course/'+view.sectionId+'/materials/assignments/'+view.assignmentId+'/create_comment',method:'POST',params:{comment,parent_id:0},json:true})}
+        catch(error){commentError=error}
+      }
+      close();
+      try{await openAssignmentSubmissions(view.sectionId,view.assignmentId,state.assignmentData||{},false)}
+      catch(error){showAppDialog('Submission sent; unable to refresh',error?.message||'Your revision was submitted, but the submissions list could not be refreshed.')}
+      if(commentError)showAppDialog('Submission sent; comment not posted',commentError?.message||'Your files were submitted, but the assignment comment could not be posted.');
+    }catch(error){
+      submitting=false;setStatus(error?.message||String(error)||'Unable to submit.');
+      updateActions();
+    }
+  });
+  wrap.querySelector('#submissionDialogCancel')?.addEventListener('click',close);
+  wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
+  renderList();
   return wrap;
 }
+
 async function chooseAndSubmitAssignmentResource(){return showAssignmentAttachmentChooser()}
 async function chooseAndSubmitAssignmentFile(){return showAssignmentAttachmentChooser()}
 function officialTrashIcon(){return '<svg class="officialEmbeddedIcon officialTrashIcon" viewBox="0 0 44 44" role="img" aria-label="Discard draft" xmlns="http://www.w3.org/2000/svg"><path fill="#da2f6b" fill-rule="evenodd" d="M24.667 11.333V10.667C24.667 10.309 24.374 10 24.013 10H19.987C19.62 10 19.333 10.298 19.333 10.667V11.333H18V10C18 9.263 18.601 8.667 19.321 8.667H24.679C25.409 8.667 26 9.258 26 10V11.333H24.667ZM14 18.664C14 17.561 14.883 16.667 15.988 16.667H28.012C29.11 16.667 30 17.567 30 18.664V33.335C30 34.439 29.117 35.333 28.012 35.333H15.988C14.89 35.333 14 34.433 14 33.335V18.664ZM17.333 21.067V30.933C17.333 31.3 17.632 31.6 18 31.6C18.357 31.6 18.667 31.301 18.667 30.933V21.067C18.667 20.699 18.368 20.4 18 20.4C17.643 20.4 17.333 20.698 17.333 21.067ZM21.333 21.067V30.933C21.333 31.3 21.632 31.6 22 31.6C22.357 31.6 22.667 31.301 22.667 30.933V21.067C22.667 20.699 22.368 20.4 22 20.4C21.643 20.4 21.333 20.698 21.333 21.067ZM25.333 21.067V30.933C25.333 31.3 25.632 31.6 26 31.6C26.357 31.301 26.667 31.301 26.667 30.933V21.067C26.667 20.699 26.368 20.4 26 20.4C25.643 20.4 25.333 20.698 25.333 21.067Z"/><path fill="#da2f6b" fill-opacity=".5" d="M11.333 12.665C11.333 11.929 11.926 11.333 12.668 11.333H31.332C32.069 11.333 32.667 11.923 32.667 12.665V14.001C32.667 14.737 32.074 15.333 31.332 15.333H12.668C11.931 15.333 11.333 14.743 11.333 14.001V12.665Z"/></svg>'}
@@ -1894,7 +1991,7 @@ function renderSharedPostCard({update={},id,author='Schoology',avatar='',authorI
  const authorMarkup=authorAttr?'<button class="activityUser activityAuthorLink" '+authorAttr+'="'+esc(authorId||'')+'">'+esc(author)+'</button>':'<b class="activityUser">'+esc(author)+'</b>';
  const contextMarkup=contextLabel?'<span class="activityContextArrow" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path fill="#8c8c8c" d="M6.5 12l4-4-4-4-1 1 3 3-3 3z"/></svg></span><button class="activityGroupLink" '+contextAttr+'="'+esc(contextId||'')+'">'+esc(contextLabel)+'</button>':'';
  const previewKey=realm&&Number(realmId)>0&&postId&&Number(comments)>0?'shared-preview-'+Math.random().toString(36).slice(2,11):'';
- const previewMarkup=previewKey?'<div class="sharedPostCommentPreview" data-shared-post-preview-key="'+previewKey+'" data-realm="'+esc(realm)+'" data-realm-id="'+esc(realmId)+'" data-update-id="'+esc(postId)+'" aria-label="Recent comments"><button type="button" class="sharedPostViewMore">View more comments</button><div class="sharedPostPreviewList"></div></div>':'';
+ const previewMarkup=previewKey?'<div class="sharedPostCommentPreview" data-shared-post-preview-key="'+previewKey+'" data-realm="'+esc(realm)+'" data-realm-id="'+esc(realmId)+'" data-update-id="'+esc(postId)+'" aria-label="Recent comments"><div class="sharedPostPreviewList"></div></div>':'';
  const markup='<article class="androidActivityCard sharedPostCard '+esc(cardClass)+'" data-update-card="'+esc(postId)+'"><div class="activityHeader">'+(avatar?'<img class="activityAvatar" data-media-image-url="'+esc(avatar)+'" alt="">':'<span class="activityAvatar">'+esc(String(author||'S').charAt(0))+'</span>')+authorMarkup+contextMarkup+(badge||'')+(deleteButton||'')+'</div><div class="activityBody">'+body+'</div>'+renderAttachments(update.attachments||update.attachment||update.files||{})+renderUpdatePoll(update,postId)+'<div class="activityMeta">'+esc(date)+'</div>'+renderSharedPostActions({id:postId,comments,likes,liked,commentAttr,commentCountAttr,likeAttr,likeCountAttr})+previewMarkup+(commentsPanelId?'<div class="updateCommentsPanel" id="'+esc(commentsPanelId)+'" hidden></div>':'')+'</article>';
  if(previewKey)setTimeout(()=>{const el=document.querySelector('[data-shared-post-preview-key="'+previewKey+'"]');if(el)loadSharedPostPreview(el)},0);
  return markup;
@@ -1914,8 +2011,11 @@ async function loadSharedPostPreview(panel){
 }
 function renderSharedPostActions({id,comments=0,likes=0,liked=false,commentAttr,commentCountAttr,likeAttr,likeCountAttr}){
  const value=esc(id??''),commentTotal=Number(comments)||0,likeTotal=Number(likes)||0,isLiked=!!liked;
- const action=(name)=>`${name}="${value}"`;
- return `<div class="activityActions sharedPostActions"><button type="button" ${action(commentAttr)}>Comment</button>${commentTotal>0?`<button type="button" class="postCountButton commentCountButton" ${action(commentCountAttr)} aria-label="${esc(commentTotal)} comments"><img class="updateCommentCountIcon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAYCAYAAAALQIb7AAAD20lEQVRIx61VbWhbVRh+3nPOvTcfbRO76jq3dpl24BxzZRsWFEQHDovCVjfErHbsh/5ShOEPmTphxjIVBCf7JYJQxG3FUhXmhojQCdZ1a9I2ytbN0XYfpKZpuyTtTXK/jj+yjiT2u3vh+XPvuec5z/Pe5z2Eear+/e92ZS2rWTD2pN/rqtYEZ/OtNyzbuaPnRk3Lvqgp4tv+1v2/FL6n2T7aduTkqqxpnahwa682bt2AZzetQ7W/DG5NgADIkvUzz7KGjX+TUzh/5TbO9A1hcipzyq2Kt8Kh4PisZNuOnKzSDfPcE+tXb/9wTwPq1vgwqgPjWQeGLecTBoUTKl0MazzAzXgaH/1wAZeuj/Z6NPFCOBRMUAkRZU2rY3PNg00nDj4HyVVEExYylgQRFlVSApoANlcq8JCJt9u6EB4a7XQpYm9RDxwpG72a2nR4dwOYUBGJmzAdCZUDClscVA7YDtCfMJEjBe/tbkCFR2uyHdlYRJYz7ZZnNtXg8bV+XJ6wIAFwynu9FHACGIArEyY2PFSO57cEYFh2S6myHU9tfBhTJpCx8z1gbHkQnGA4hKQJNDxaDUDuEIVkgrMqn0dBxgKIALbIPs3ZPwDTJlDpdcGtKlVFZIwIjAgSeRsYVk4mAXCW31fMtoiQV0YrVMZKsiVKTkJS5u1j98HGvFv5OEgpqYjMtOzUdM7yaQLg98lGjwCSmRwyhpUs2o+IBiIjYygTgFvkLShUuRQQAS4OVKjAwI0EbCmjRWQaZ+2/Rodxa1xHbbm45zlbBkgCa8s4EqkszvUPQRO8vYiMc9Y+lp7u+fznXngFEPAJCJpRXXzquTDzg60r56hyE46fjeD2ZLpHcNbOC8li5zus2p2vdF+LTbw8kpgqe7puNQIPqAAYbOfutCcCZwQXZ1AYFUHlBL/G8YifgdkWPvmpFz9euhZza8q+SCgYm+uKqc8Y5jc1q3z1+xo2YteW9Sj3ejCUsiEIqKngEABM2/nfL5HSc/jznxhOdw9iMDbR51HFwXAo2D/nfXaX0GPazutJPXvojZ1bA4de2o6RpI2Aj2Pw1iS+ONsL3TDB7+WDoBumHE9n05PT2aucUZsq+NfhUDAza84KKxwK6gC+fOzdtlrbdt4RBNT5OXqux3H41O8YS+nHFc5OF9ylREQ2I4pf/rRleLY9xSLiwhkjaADORG/iaMcfyBjWB4OfHWhdau4WJCMQFMHRGRnG0Y5uy3Hkm38de+2r5YR8QTKXIuRvf9/A9xeuTknIA9FjzZ3LnSgLKyOUxZP6HSLsGWht7lrpYF6oopzRi30f7+9a6VD+D62UbqQiscXfAAAAAElFTkSuQmCC" alt=""><span>${esc(commentTotal)}</span></button>`:''}<button type="button" ${action(likeAttr)} data-liked="${isLiked?'1':'0'}">${isLiked?'Unlike':'Like'}</button>${likeTotal>0?`<button type="button" class="postCountButton likeCountButton" ${action(likeCountAttr)} aria-label="${esc(likeTotal)} likes"><img class="updateLikeCountIcon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAYCAYAAADpnJ2CAAAFfElEQVRIx52Wy28b1xXGf/cxJDUyJZKWIlO2a1lVYr0iR0TtSk2DNmkXRTYNXKD7tm7TP6Cr+hHAsbPqrvEmcP+DVHDRVYw+UQRSEreCBVhSbaKRHJeURYlDih5R5Mzc24UYNQnlVO4AZ3XvOd+cc8853yd4im/u6tiEiaLvW2unsZwSUqQBrLEegn8KIWalUr+bunh34UkxxIGAro2NmjC8JJQ819mbjnUf68PNpJGxGACm2WS77FF9+Ai/5DVtZGak1m9OXbi7+NSAs1dHz5sw+lV64Eh3dnKUZLYXQQMbPsaa5m4QGUPoQ1ji1IolivOLeCtrVanVL6YvLt44MODslZFfCiWuHZ+aIDsxjAnKNKr/Imp6WNPEYlpBJELGULE08e5BpJOhuLDMJ3ML2MhemL689Nb/BJy9OvoTIbgx9J2vc/i5EzS8JaKdTwADSKLQYK3cDSIMSsu9M5U4Tjw9wua9VfJ//ABrOT99cfE3TwScuzY2HAXhhwMvTSb7J4dplO+w9ejfbDyIqJUjkJL+kcOkDgcAVDYdCkubYAzJjKLnK4quvqPEM6cpzC+z8rf5mnL02akLd5f1foBRGF1Jn8gmsxPDNCr3WbmzyuJHkvxD2Ai6+O4Pfsb46ABR8TIAmdE3WFpf4Q+/fYcex2fomGH0zCoDky7ZiWGqD9aS3oO1K8AP5T7ZjUslX+vPjWBCj53HPs+88Db+s6/zbj7OrXyT927ncXuyWCuwVuD2ZHnvdp5b+Sbv5uP4z77OMy+8zc5jHxN69OdGkEq+NndtbLwN0ITRuc7etJM80kujUkCqQ6QHpxkazyEBE9Q5OXAcjAWcXTOWkwPHMUEdCQyN50gPTiPVIRqVAskjvXT2ph0TRufaSmqtfTF1rA9ERBg0AYFtrjF1Nsf167+mUqnyzZe+TejPYa0FIPTX+en5HzFy6iSpVDe5XA7bXMNGTcKoCSIidayPWnHjxfY3tHaoI5PCRg2wEmt9GqWbJI7+nFwu17qzjb9+E4QDQGP9Jp1fPc0rr7y8F6ZRuok1PkLEsFGDjkwKrB1qAxRSppXjYEyERSGkS2PzFiaooLu+BqZJ4P2ZqJ5HSHe3ybbv4effwEm/DDJGuHWbYOtDhHSx1mJMhHIchJRpvf8UWkACCpAIoQmqHxFUPwBrEdIB0fGZv+wgqq8Q+u+AELs+MvFpV7Ri7Za//Q2N8aIgTEupEejWZRBS7zntO75CI1Si7VxgkFITBSHWGE+2O4p8vVxB6BhCxgCJtbIFqPay3t92z4XUrS0kW3s2Rr1cASHysh1PvF95+AiMQMVchNBUN3bwK010LN4qypNNx+L4lSbV0g5CaFTMBSOoPHyEEOL9NkCp1Yxf8oLaWol4Vzeg6Ey65OcLlIs+TiKOUg5CqP9mJBRKOTiJOOWiT36+gNvlAop4Vze1tRJ+yQukVjPqi4A3/lRa//G3Ms+H242x3uFBTGSREhJugjt/uU9tc5u4G8eJxdCORkpFFELN2+b+7Qd8vFDg1NlBkmkXnXBxXJeP//p36pWtmW9cWrq+b5cqrS97q4XvFRfuJfsnh/FLHqk+zZlXT7M0m2fu9wtIJdHObiOFQYSJDIePZjjz6mk6kwnQio5MisL8Mt5qoaYcffkA9CT26KlefkzYCJBSsr1Vp7qxRb22gwXcZILuniRul4sxBh136Mgc+gw92S+np88TsGwR8HNEoaFRa2BCgxDiiysRqSXxZBylJcWFey0CNgcj4DaJcaK/O5sbpivbA0JhQoM1tjWjAqkl2Iit4gbFfyzjrRaeXmJ8TkQF4SWh1bnO3kxLRHUjnd2eM0HEdrnaElHlpg2jGen8nyLqyTLRnhJSpj/dTghxIJn4H/neidrl8nS4AAAAAElFTkSuQmCC" alt=""><span>${esc(likeTotal)}</span></button>`:''}</div>`;
+ const action=name=>name+'="'+value+'"';
+ const commentLabel=commentTotal===0?'Comment':commentTotal<=2?'('+commentTotal+')':'More Comments ('+commentTotal+')';
+ const commentButton='<button type="button" '+action(commentTotal>0?commentCountAttr:commentAttr)+'>'+esc(commentLabel)+'</button>';
+ const likeMarkup=(likeTotal>0?`<button type="button" class="postCountButton likeCountButton" ${action(likeCountAttr)} aria-label="${esc(likeTotal)} likes"><img class="updateLikeCountIcon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAYCAYAAADpnJ2CAAAFfElEQVRIx52Wy28b1xXGf/cxJDUyJZKWIlO2a1lVYr0iR0TtSk2DNmkXRTYNXKD7tm7TP6Cr+hHAsbPqrvEmcP+DVHDRVYw+UQRSEreCBVhSbaKRHJeURYlDih5R5Mzc24UYNQnlVO4AZ3XvOd+cc8853yd4im/u6tiEiaLvW2unsZwSUqQBrLEegn8KIWalUr+bunh34UkxxIGAro2NmjC8JJQ819mbjnUf68PNpJGxGACm2WS77FF9+Ai/5DVtZGak1m9OXbi7+NSAs1dHz5sw+lV64Eh3dnKUZLYXQQMbPsaa5m4QGUPoQ1ji1IolivOLeCtrVanVL6YvLt44MODslZFfCiWuHZ+aIDsxjAnKNKr/Imp6WNPEYlpBJELGULE08e5BpJOhuLDMJ3ML2MhemL689Nb/BJy9OvoTIbgx9J2vc/i5EzS8JaKdTwADSKLQYK3cDSIMSsu9M5U4Tjw9wua9VfJ//ABrOT99cfE3TwScuzY2HAXhhwMvTSb7J4dplO+w9ejfbDyIqJUjkJL+kcOkDgcAVDYdCkubYAzJjKLnK4quvqPEM6cpzC+z8rf5mnL02akLd5f1foBRGF1Jn8gmsxPDNCr3WbmzyuJHkvxD2Ai6+O4Pfsb46ABR8TIAmdE3WFpf4Q+/fYcex2fomGH0zCoDky7ZiWGqD9aS3oO1K8AP5T7ZjUslX+vPjWBCj53HPs+88Db+s6/zbj7OrXyT927ncXuyWCuwVuD2ZHnvdp5b+Sbv5uP4z77OMy+8zc5jHxN69OdGkEq+NndtbLwN0ITRuc7etJM80kujUkCqQ6QHpxkazyEBE9Q5OXAcjAWcXTOWkwPHMUEdCQyN50gPTiPVIRqVAskjvXT2ph0TRufaSmqtfTF1rA9ERBg0AYFtrjF1Nsf167+mUqnyzZe+TejPYa0FIPTX+en5HzFy6iSpVDe5XA7bXMNGTcKoCSIidayPWnHjxfY3tHaoI5PCRg2wEmt9GqWbJI7+nFwu17qzjb9+E4QDQGP9Jp1fPc0rr7y8F6ZRuok1PkLEsFGDjkwKrB1qAxRSppXjYEyERSGkS2PzFiaooLu+BqZJ4P2ZqJ5HSHe3ybbv4effwEm/DDJGuHWbYOtDhHSx1mJMhHIchJRpvf8UWkACCpAIoQmqHxFUPwBrEdIB0fGZv+wgqq8Q+u+AELs+MvFpV7Ri7Za//Q2N8aIgTEupEejWZRBS7zntO75CI1Si7VxgkFITBSHWGE+2O4p8vVxB6BhCxgCJtbIFqPay3t92z4XUrS0kW3s2Rr1cASHysh1PvF95+AiMQMVchNBUN3bwK010LN4qypNNx+L4lSbV0g5CaFTMBSOoPHyEEOL9NkCp1Yxf8oLaWol4Vzeg6Ey65OcLlIs+TiKOUg5CqP9mJBRKOTiJOOWiT36+gNvlAop4Vze1tRJ+yQukVjPqi4A3/lRa//G3Ms+H242x3uFBTGSREhJugjt/uU9tc5u4G8eJxdCORkpFFELN2+b+7Qd8vFDg1NlBkmkXnXBxXJeP//p36pWtmW9cWrq+b5cqrS97q4XvFRfuJfsnh/FLHqk+zZlXT7M0m2fu9wtIJdHObiOFQYSJDIePZjjz6mk6kwnQio5MisL8Mt5qoaYcffkA9CT26KlefkzYCJBSsr1Vp7qxRb22gwXcZILuniRul4sxBh136Mgc+gw92S+np88TsGwR8HNEoaFRa2BCgxDiiysRqSXxZBylJcWFey0CNgcj4DaJcaK/O5sbpivbA0JhQoM1tjWjAqkl2Iit4gbFfyzjrRaeXmJ8TkQF4SWh1bnO3kxLRHUjnd2eM0HEdrnaElHlpg2jGen8nyLqyTLRnhJSpj/dTghxIJn4H/neidrl8nS4AAAAAElFTkSuQmCC" alt=""><span>${esc(likeTotal)}</span></button>`:'');
+ return '<div class="activityActions sharedPostActions">'+commentButton+'<button type="button" '+action(likeAttr)+' data-liked="'+(isLiked?'1':'0')+'">'+(isLiked?'Unlike':'Like')+'</button>'+likeMarkup+'</div>';
 }
 
 async function loadCourseUpdates(course,el){
