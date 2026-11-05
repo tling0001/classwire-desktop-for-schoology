@@ -4427,3 +4427,10 @@ html[data-reduced-motion="true"] .sharedPdfViewerAppBar button {transition:none!
 :root[data-theme="dark"] .assignmentSubmissionComment{background:#171c21;color:#e5e9ed;border-color:#4a5661}
 @media(prefers-reduced-motion:reduce){.submissionAttachmentProgressBar,.fileUploadProgressBar{transition:none!important}}
 html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:none!important}
+
+
+/* Native variant first-launch prompt */
+.nativeVariantPromptSnooze{display:flex;align-items:center;gap:9px;margin-top:16px;padding:2px 0;color:var(--theme-muted,#69747e);font-size:13px;line-height:1.4;cursor:pointer;flex:0 0 auto}
+.nativeVariantPromptSnooze input{width:16px;height:16px;flex:0 0 16px;margin:0;accent-color:var(--theme-blue,#2e66a3);cursor:pointer}
+:root[data-theme="dark"] .nativeVariantPromptSnooze{color:var(--theme-muted,#aab4bf)}
+@media(prefers-reduced-motion:reduce){.nativeVariantPromptSnooze,.nativeVariantPromptSnooze input{transition:none!important;animation:none!important}}

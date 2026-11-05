@@ -55,21 +55,34 @@ document.addEventListener('click',async event=>{
 },true);
 function alert(message){showAppDialog('Schoology',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.remove('closing');el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{const fn=actions[i]?.action;closeDialogAnimated(el,async()=>{if(fn)await fn()})});return el}
-function showUpdateDialog(u, productName='Schoology'){
-  const iosUA=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
-  const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios'||iosUA;
-  showAppDialog('Update available',`${productName} ${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:async()=>{
-    if(iosInstall){
-      try{await A.installUpdate(u);showAppDialog('Installing update',`${productName} installation will start after closing Schoology or going to your Home Screen.`)}
-      catch(e){showAppDialog('Unable to open installation link',e.message||String(e))}
-      return;
-    }
-    const dlg=showAppDialog(`Downloading ${productName}`,'Downloading…',[]);
-    const msg=dlg?.querySelector('.appDialogMessage');
-    if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="updateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="updateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';
-    const off=window.schoology?.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('updateDownloadProgressBar'),txt=document.getElementById('updateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.total?`Downloading… ${d.percent||0}%`:'Downloading…';});
-    try{await A.installUpdate(u);off?.();dlg?.classList.remove('open')}catch(e){off?.();dlg?.classList.remove('open');showAppDialog(`Unable to install ${productName}`,e?.message||String(e))}
-  }}]);
+async function installProductUpdate(u,productName='Schoology'){
+ const iosUA=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
+ const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios'||iosUA;
+ if(iosInstall){try{await A.installUpdate(u);showAppDialog('Installing update',`${productName} installation will start after closing Schoology or going to your Home Screen.`)}catch(e){showAppDialog('Unable to open installation link',e.message||String(e))}return}
+ const dlg=showAppDialog(`Downloading ${productName}`,'Downloading…',[]);
+ const msg=dlg?.querySelector('.appDialogMessage');
+ if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="updateDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="updateDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';
+ const off=window.schoology?.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('updateDownloadProgressBar'),txt=document.getElementById('updateDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.total?`Downloading… ${d.percent||0}%`:'Downloading…'});
+ try{await A.installUpdate(u);off?.();dlg?.classList.remove('open')}catch(e){off?.();dlg?.classList.remove('open');showAppDialog(`Unable to install ${productName}`,e?.message||String(e))}
+}
+function showUpdateDialog(u,productName='Schoology'){
+ showAppDialog('Update available',`${productName} ${u.version} is available. The update will download only after you choose Install update.`,[{label:'Later',action:null},{label:'Install update',action:()=>installProductUpdate(u,productName)}]);
+}
+async function switchToNativeVariant(details=nativeVariantPromptDetails(),button=null){
+ if(!details)return;
+ if(button){button.disabled=true;button.classList.add('downloadBusy');button.querySelector('.settingProgress')?.remove();button.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>')}
+ if(details.platform==='win32'){
+  const dlg=showAppDialog('Switching to Schoology WinUI','Downloading the latest Windows installer…',[]);
+  const msg=dlg?.querySelector('.appDialogMessage');
+  if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="winUIDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="winUIDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';
+  const off=A.onUpdateDownloadProgress?.(d=>{const bar=document.getElementById('winUIDownloadProgressBar'),txt=document.getElementById('winUIDownloadProgressText');if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';if(txt)txt.textContent=d?.percent!=null?'Downloading… '+d.percent+'%':'Downloading…'});
+  try{await A.tryWinUI();const txt=document.getElementById('winUIDownloadProgressText');if(txt)txt.textContent='Launching the WinUI installer. Schoology will now close…'}
+  catch(e){off?.();dlg?.classList.remove('open');showAppDialog('Unable to switch to Schoology WinUI',e.message||String(e));if(button){button.disabled=false;button.classList.remove('downloadBusy');button.querySelector('.settingProgress')?.remove()}}
+  return;
+ }
+ const checking=showAppDialog('Preparing Schoology SwiftUI','Checking for the latest version…',[]);
+ try{const update=await A.checkForSwiftUIUpdates();checking?.classList.remove('open');if(!update?.available)throw new Error('There is no stable Schoology SwiftUI release available right now.');await installProductUpdate(update,'Schoology SwiftUI')}
+ catch(error){checking?.classList.remove('open');showAppDialog('Unable to switch to Schoology SwiftUI',error?.message||String(error));if(button){button.disabled=false;button.classList.remove('downloadBusy');button.querySelector('.settingProgress')?.remove()}}
 }
 
 window.closeDrawerThen=function closeDrawerThen(fn){const drawer=document.getElementById('drawer'),shade=document.getElementById('drawerShade');drawer?.classList.remove('open');shade?.classList.remove('open');setTimeout(()=>{state.drawerPage=null;if(typeof fn==='function')fn()},280)};const closeDrawerThen=(fn)=>window.closeDrawerThen(fn);
@@ -3308,27 +3321,7 @@ document.querySelectorAll('[data-notification-index]').forEach(b=>b.onclick=()=>
     document.getElementById('checkForUpdates')?.addEventListener('click',async()=>{const b=document.getElementById('checkForUpdates');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForUpdates(true);if(u?.available)showUpdateDialog(u);else showAppDialog('Up to date','You are using the latest available Schoology release.')}catch(e){showAppDialog('Unable to check for updates',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
     document.getElementById('trySwiftUI')?.addEventListener('click',async()=>{const b=document.getElementById('trySwiftUI');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.checkForSwiftUIUpdates();if(u?.available)showUpdateDialog(u,'Schoology SwiftUI');else showAppDialog('No Schoology SwiftUI release available','There is no stable Schoology SwiftUI release available right now.')}catch(e){showAppDialog('Unable to check for Schoology SwiftUI',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
     document.getElementById('tryExpressive')?.addEventListener('click',async()=>{const b=document.getElementById('tryExpressive');if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}try{const u=await A.downloadExpressive();showUpdateDialog(u,'Schoology Expressive')}catch(e){showAppDialog('Unable to check for Schoology Expressive',e.message||String(e))}finally{if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove()}}});
-    document.getElementById('tryWinUI')?.addEventListener('click',async()=>{
-      const b=document.getElementById('tryWinUI');
-      if(b){b.disabled=true;b.classList.add('downloadBusy');b.querySelector('.settingProgress')?.remove();b.insertAdjacentHTML('beforeend','<span class="settingProgress"><img src="../assets/android_loading_spinner_72.gif" alt=""></span>');}
-      const dlg=showAppDialog('Switching to Schoology WinUI','Downloading the latest Windows installer…',[]);
-      const msg=dlg?.querySelector('.appDialogMessage');
-      if(msg)msg.innerHTML='<div class="updateDownloadProgressWrap"><div class="updateDownloadProgressTrack"><div id="winUIDownloadProgressBar" class="updateDownloadProgressBar" style="width:0%"></div></div><div id="winUIDownloadProgressText" class="updateDownloadProgressText">Downloading…</div></div>';
-      const off=A.onUpdateDownloadProgress?.(d=>{
-        const bar=document.getElementById('winUIDownloadProgressBar'),txt=document.getElementById('winUIDownloadProgressText');
-        if(bar&&d?.percent!=null)bar.style.width=d.percent+'%';
-        if(txt)txt.textContent=d?.percent!=null?'Downloading… '+d.percent+'%':'Downloading…';
-      });
-      try{
-        await A.tryWinUI();
-        const txt=document.getElementById('winUIDownloadProgressText');
-        if(txt)txt.textContent='Launching the WinUI installer. Schoology will now close…';
-      }catch(e){
-        off?.();dlg?.classList.remove('open');
-        showAppDialog('Unable to switch to Schoology WinUI',e.message||String(e));
-        if(b){b.disabled=false;b.classList.remove('downloadBusy');b.querySelector('.settingProgress')?.remove();}
-      }
-    });
+    document.getElementById('tryWinUI')?.addEventListener('click',async()=>{await switchToNativeVariant(nativeVariantPromptDetails(),document.getElementById('tryWinUI'))});
     document.getElementById('windowChromeOverlayToggle')?.addEventListener('change',async e=>{const checked=!!e.target.checked;try{await A.setWindowChromeMode(checked)}catch(err){e.target.checked=!checked;showAppDialog('Unable to change window controls',err.message||String(err))}});
   }
  }catch(e){if(generation!==loadTabGeneration||tabAtStart!==state.tab)return;c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`}
@@ -3650,6 +3643,47 @@ const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• Shared post cards show the
 
 // Keep the landscape Upcoming pane usable at both full and icon-only widths.
 if(!window.__schoologyUpcomingCollapseBound){window.__schoologyUpcomingCollapseBound=true;document.addEventListener('click',event=>{const button=event.target?.closest?.('[data-upcoming-collapse-toggle]');if(!button)return;const page=button.closest('.courseLandscapePage,.groupProfilePage,.schoolProfileNativePage');if(!page)return;const collapsed=page.classList.toggle('upcoming-collapsed');button.classList.toggle('collapsed',collapsed);button.textContent=collapsed?'›':'‹';button.setAttribute('aria-label',collapsed?'Expand Upcoming':'Collapse Upcoming');button.title=collapsed?'Expand Upcoming':'Collapse Upcoming';});}
+function nativeVariantPromptDetails(){
+ const platform=A.platform||document.documentElement.dataset.electronPlatform||'';
+ if(platform==='win32')return {platform,key:'windows',os:'Windows',setting:'Try Schoology WinUI',description:'Meet Schoology redesigned for Windows. The native Windows app uses familiar Windows controls and window behavior, with a layout made to feel right at home on your PC.'};
+ if(platform==='darwin')return {platform,key:'macos',os:'macOS',setting:'Try Schoology SwiftUI',description:'Enjoy Schoology as a native Mac app. It is designed around macOS windows and controls, with a more natural experience that fits in alongside the other apps on your Mac.'};
+ if(platform==='ios'){
+  const ua=navigator.userAgent||'';
+  const ipad=/iPad/i.test(ua)||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
+  return {platform,key:ipad?'ipados':'ios',os:ipad?'iPadOS':'iOS',setting:'Try Schoology SwiftUI',description:ipad?'Try a native Schoology app designed for iPad. It is built around touch, with navigation and layouts that make better use of your iPad screen.':'Try a native Schoology app designed for iPhone. It is built around touch, with familiar iOS navigation and controls that feel natural on your phone.'};
+ }
+ return null;
+}
+let nativeVariantPromptScheduled=false;
+let nativeVariantPromptShown=false;
+function maybeShowNativeVariantPrompt(){
+ if(nativeVariantPromptShown)return;
+ const details=nativeVariantPromptDetails();
+ if(!details)return;
+ const snoozeKey='schoology.native-variant-prompt.snooze-until.'+details.key;
+ try{const until=Number(localStorage.getItem(snoozeKey)||0);if(until>Date.now())return;if(until)localStorage.removeItem(snoozeKey)}catch(error){console.debug('Could not read native app prompt preference:',error)}
+ nativeVariantPromptShown=true;
+ let snoozeFor30Days=false;
+ const dlg=showAppDialog('Try the new Schoology for '+details.os,details.description,[
+  {label:'Later',action:()=>{
+   if(snoozeFor30Days){try{localStorage.setItem(snoozeKey,String(Date.now()+30*24*60*60*1000))}catch(error){console.debug('Could not save native app prompt preference:',error)}}
+   showAppDialog('Switch any time from Settings','Whenever you are ready, open Settings and choose “'+details.setting+'” to download and switch to the native Schoology app.',[{label:'OK',action:null}]);
+  }},
+  {label:'Switch Now',action:()=>switchToNativeVariant(details)}
+ ]);
+ if(dlg){const label=document.createElement('label');label.className='nativeVariantPromptSnooze';label.innerHTML='<input id="nativeVariantPromptSnooze" type="checkbox"><span>Don’t remind me again for 30 days</span>';const checkbox=label.querySelector('input');checkbox.addEventListener('change',()=>{snoozeFor30Days=checkbox.checked});dlg.querySelector('.appDialogActions')?.before(label)}
+}
+function scheduleNativeVariantPrompt(delay=1800,attempt=0){
+ if(nativeVariantPromptScheduled)return;
+ const show=()=>{
+  if(nativeVariantPromptShown)return;
+  if(document.querySelector('.startupOfflineError'))return;
+  if(document.querySelector('.appDialogOverlay.open')){if(attempt<50){attempt++;setTimeout(show,700)}return}
+  nativeVariantPromptScheduled=true;
+  maybeShowNativeVariantPrompt();
+ };
+ setTimeout(show,delay);
+}
 async function maybeShowReleaseNotesAfterUpdate(){
  try{const version=CURRENT_RELEASE_NOTES_VERSION;const key='schoology.release-notes-version';if(localStorage.getItem(key)===version)return;localStorage.setItem(key,version);setTimeout(()=>showAppDialog('What’s new in Schoology '+version,CURRENT_RELEASE_NOTES_TEXT),650)}catch(error){console.debug('Could not check release notes version:',error)}
 }
@@ -3676,6 +3710,7 @@ async function startSchoologyStartup(retry=false){
     if(queuedNotificationOpen){const notification=queuedNotificationOpen;queuedNotificationOpen=null;void handleSchoologyNotificationOpen(notification)}
     if(pendingStartupUpdate){const update=pendingStartupUpdate;pendingStartupUpdate=null;setTimeout(()=>showUpdateDialog(update),0)}
     setTimeout(()=>maybeShowReleaseNotesAfterUpdate(),1100)
+    scheduleNativeVariantPrompt(1800)
   }
 }
 async function handleIncomingSchoologyDeepLink(url){

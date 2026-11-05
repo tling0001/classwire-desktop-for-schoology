@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.48]
+
+### Added
+- Show a first-launch invitation on Windows, macOS, iPhone, and iPad to try the matching native Schoology app, with friendly platform-specific descriptions.
+- Add Switch Now and Later actions. Later opens clear Settings instructions; an optional 30-day reminder checkbox snoozes the invitation only when checked, while leaving it unchecked allows the invitation to return on every launch.
+- Route Switch Now through the existing WinUI or SwiftUI installer flow, skipping the update-confirmation step and going directly to the download/installation progress dialog.
+
+### Changed
+- Bump the package version to 2026.10.0-port.48.
+
 ## [2026.10.0-port.47]
 
 ### Fixed
