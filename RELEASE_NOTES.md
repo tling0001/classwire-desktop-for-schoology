@@ -1,5 +1,14 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.47]
+
+### Fixed
+- Label post comment actions consistently as Comment, Comments (1), Comments (2), and More Comments (N), while retaining the existing action behavior.
+- Wait for the native WebView cookie manager to finish exposing cookies after installation before reporting that the SESS cookie is missing. Verify against the actual destination URL, including its cookie path, and include safe cookie-name diagnostics if Windows still cannot expose the session.
+
+### Changed
+- Bump the package version to 2026.10.0-port.47.
+
 ## [2026.10.0-port.46]
 
 ### Fixed

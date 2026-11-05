@@ -617,17 +617,37 @@ async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value,
                         return Err(format!("Could not install the shared WebView session cookie {name}: {error}"));
                     }
                 }
-                // Verify that the native cookie manager exposes the installed session
-                // to the actual initial URL before allowing navigation to begin.
-                let verification_url = Url::parse(&format!("https://{}/", target_host)).map_err(|e| e.to_string())?;
-                let installed = view.cookies_for_url(verification_url)
-                    .map_err(|error| format!("Could not verify the shared WebView session cookies: {error}"))?;
-                let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
+                // WebView2 may complete AddOrUpdateCookie asynchronously after set_cookie
+                // returns. Poll the native store before deciding that SESS was not installed.
+                // Check the actual destination URL so path-scoped cookies are handled correctly.
+                let verification_url = Url::parse(raw_url).map_err(|e| e.to_string())?;
                 let expected_session_cookie = session_cookies.iter().any(|cookie| cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("").to_ascii_uppercase().starts_with("SESS"));
+                let mut installed = Vec::new();
+                let mut verification_error = None;
+                for attempt in 0..20 {
+                    match view.cookies_for_url(verification_url.clone()) {
+                        Ok(cookies) => {
+                            installed = cookies;
+                            verification_error = None;
+                            if installed.iter().any(|cookie| cookie.name().to_ascii_uppercase().starts_with("SESS")) {
+                                break;
+                            }
+                        }
+                        Err(error) => verification_error = Some(error.to_string()),
+                    }
+                    if attempt < 19 {
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    }
+                }
+                if let Some(error) = verification_error {
+                    let _ = view.close();
+                    return Err(format!("Could not verify the shared WebView session cookies: {error}"));
+                }
+                let installed_names = installed.iter().map(|cookie| cookie.name().to_owned()).collect::<Vec<_>>();
                 let installed_session_cookie = installed.iter().any(|cookie| cookie.name().to_ascii_uppercase().starts_with("SESS"));
                 if expected_session_cookie && !installed_session_cookie {
                     let _ = view.close();
-                    return Err("Schoology returned an SESS cookie, but the native WebView did not install it. Please retry the page.".into());
+                    return Err(format!("Schoology returned an SESS cookie, but WebView2 did not expose it after waiting for the native cookie store (destination: {}; installed cookies: {}). Please retry the page.", target_host, installed_names.join(", ")));
                 }
                 // prepare_web_session requires a usable SESS cookie and the check above
                 // confirms it reached the native store before the protected page is navigated.
