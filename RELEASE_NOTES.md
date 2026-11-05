@@ -1,5 +1,16 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.46]
+
+### Fixed
+- Keep assignment submission attachments in a staged list instead of submitting immediately. Support selecting multiple local files in one picker and adding multiple Schoology resources, upload each file when assignment permissions allow pre-upload, defer uploads until Submit otherwise, and submit all file/resource IDs together as one revision using Android's AssignmentApi payload.
+- Show each selected attachment's filename and upload state/progress in the list, and add an optional assignment comment field when comments are permitted. The comment is posted to the assignment comments endpoint after the revision succeeds; it is not a revision-specific body field in Android's file-submission API.
+- Preserve Set-Cookie headers from every sessionstart redirect response, merge them with final-response and JSON cookies, and install HttpOnly cookies such as SESS in the native Tauri WebView cookie store before navigation. Avoid the extra bootstrap retry when a session cookie was already returned and verified.
+- Replace the separate View more comments control with the existing post comments action button: Comment for zero comments, (1) or (2) for one or two, and More Comments (N) for more than two.
+
+### Changed
+- Bump the package version to 2026.10.0-port.46.
+
 ## [2026.10.0-port.45]
 
 ### Fixed

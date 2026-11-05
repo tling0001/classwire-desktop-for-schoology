@@ -185,6 +185,7 @@
     submitAssignmentFile: value => invoke('submit-assignment-file', value),
     submitAssignmentText: value => invoke('submit-assignment-text', value),
     submitAssignmentResource: value => invoke('submit-assignment-resource', value),
+    checkAssignmentUploadPermission: value => invoke('check-assignment-upload-permission', value),
     uploadSchoologyFile: value => invoke('upload-schoology-file', value),
     updateAssignmentGrade: value => invoke('update-assignment-grade', value),
     checkForUpdates: () => invoke('check-for-updates'),
@@ -209,7 +210,8 @@
     openChromeExtensionFolder: () => invoke('open-chrome-extension-folder'),
     platform,
     webviewPreloadUrl: new URL('webview-preload.js', window.location.href).href,
-    pickFile: () => invoke('pick-file')
+    pickFile: () => invoke('pick-file'),
+    pickFiles: () => invoke('pick-files')
   };
   window.schoology = schoology;
 
@@ -614,10 +616,10 @@ Tauri child webviews do not implement Electron's native allowpopups/preload
             }
           }
           this._darkTheme = dark;
-          // Keep the previously working document-cookie bootstrap and one-time retry as a fallback
-          // to native cookie-store installation. The first request may already have left before
-          // WebView2/WebKit applies a cookie added to a newly-created native view.
-          this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length);
+          // The session helper requires SESS and the native host installs it before navigation.
+          // Keep the one-time document-cookie retry only as a compatibility fallback if a future
+          // Schoology session response omits the native session cookie.
+          this._sessionBootstrapPending = !!(session && Array.isArray(session.cookies) && session.cookies.length && !session.hasSessionCookie);
           // Preserve the originally requested destination before Schoology can
           // redirect an unauthenticated first request to its login page.
           this._sessionBootstrapUrl = this._url;
