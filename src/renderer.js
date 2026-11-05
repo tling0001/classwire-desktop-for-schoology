@@ -2443,28 +2443,39 @@ async function loadSectionGrades(course,targetEl=null,idPrefix='',collapseSectio
    const collapsed=parent.classList.toggle('collapsed');b.setAttribute('aria-expanded',String(!collapsed));
  });
 }
+function gradeObjectList(value,collectionKeys,recordKeys,depth=0){
+ if(value==null||depth>7)return [];
+ if(Array.isArray(value))return value.filter(item=>item&&typeof item==='object');
+ if(typeof value!=='object')return [];
+ if(recordKeys.some(key=>value[key]!==undefined&&value[key]!==null))return [value];
+ for(const key of collectionKeys){if(value[key]!=null){const found=gradeObjectList(value[key],collectionKeys,recordKeys,depth+1);if(found.length)return found}}
+ for(const key of ['data','response','result','results','payload','grades']){if(value[key]!=null&&value[key]!==value){const found=gradeObjectList(value[key],collectionKeys,recordKeys,depth+1);if(found.length)return found}}
+ return [];
+}
+function gradeFirstText(...values){return values.find(value=>value!==undefined&&value!==null&&String(value).trim()!=='')?.toString().trim()||''}
+function gradeTruthy(value){return value===true||value===1||value==='1'||String(value??'').toLowerCase()==='true'}
 function getFinalGradeDisplay(sec){
- const firstDefined=(...values)=>values.find(v=>v!==undefined&&v!==null&&String(v).trim()!=='');
  const rawFinal=sec?._resolvedFinalGrade??sec?.final_grade??sec?.finalGrade??sec?.final_grades??sec?.finalGrades??[];
- const finals=(Array.isArray(rawFinal)?rawFinal:(rawFinal?[rawFinal]:[])).filter(v=>v&&typeof v==='object');
- const periodList=f=>{const v=f?.period??f?.periods??f?.final_period??f?.finalPeriod??f?.final_grade_period??f?.finalGradePeriod??[];return Array.isArray(v)?v:(v?[v]:[])};
- const entries=finals.flatMap(final=>{const periods=periodList(final);return periods.length?periods.map(period=>({final,period:period||{}})):[{final,period:{}}]});
- // Android FinalGradesApiHelper reads only the final-period record for the overall grade.
- const entry=entries.find(e=>String(e.period?.period_id??e.period?.periodId??'')==='final')||{final:finals[0]||{},period:{}};
+ const finals=gradeObjectList(rawFinal,['final_grade','finalGrade','final_grades','finalGrades'],['enrollment_id','enrollmentId','period','periods','final_period','finalPeriod','grade','override_str','override_numeric']);
+ const periodList=final=>{
+  const value=final?.period??final?.periods??final?.final_period??final?.finalPeriod??final?.final_grade_period??final?.finalGradePeriod??final?.final_periods??final?.finalPeriods??[];
+  return gradeObjectList(value,['period','periods','final_period','finalPeriod','final_grade_period','finalGradePeriod'],['period_id','periodId','is_final','isFinal','grade','override_str','overrideStr','override_numeric','overrideNumeric','scale_id','scaleId']);
+ };
+ const entries=finals.flatMap(final=>{const periods=periodList(final);return periods.length?periods.map(period=>({final,period})): [{final,period:{}}]});
+ const entry=entries.find(({period})=>String(period?.period_id??period?.periodId??period?.name??period?.title??'').toLowerCase()==='final'||gradeTruthy(period?.is_final??period?.isFinal??period?.final))||{final:finals[0]||{},period:{}};
  const final=entry.final||{},period=entry.period||{};
- // GradesStringProvider returns the explicit grade override string verbatim before formatting the numeric grade.
- const override=firstDefined(period.override_str,period.overrideStr,period.override_string,period.overrideString,period.grade_override,period.gradeOverride,final.override_str,final.overrideStr,final.override_string,final.overrideString,final.grade_override,final.gradeOverride);
- if(override!==undefined)return {value:String(override).trim(),letter:String(override).trim(),percentage:'',overridden:true,final,period};
- const numericOverride=firstDefined(period.override_numeric,period.overrideNumeric,final.override_numeric,final.overrideNumeric);
- const grade=numericOverride!==undefined?numericOverride:firstDefined(period.grade,final.grade,final.calculated_grade,final.calculatedGrade,sec?.grade);
+ const override=gradeFirstText(period.override_str,period.overrideStr,period.override_string,period.overrideString,period.grade_override,period.gradeOverride,final.override_str,final.overrideStr,final.override_string,final.overrideString,final.grade_override,final.gradeOverride);
+ if(override)return {value:override,letter:override,percentage:'',overridden:true,final,period};
+ const numericOverride=[period.override_numeric,period.overrideNumeric,final.override_numeric,final.overrideNumeric].find(value=>value!==undefined&&value!==null&&String(value).trim()!=='');
+ const grade=numericOverride!==undefined?numericOverride:[period.grade,final.grade,final.calculated_grade,final.calculatedGrade,sec?.grade].find(value=>value!==undefined&&value!==null&&String(value).trim()!=='');
  if(grade===undefined)return {value:'—',letter:'',percentage:'',overridden:false,final,period};
  const numeric=Number(String(grade).replace(/%$/,''));
  if(Number.isFinite(numeric)){
   const letter=letterGradeForCourse(sec,entry,numeric),scale=gradingScaleForCourse(sec,entry);
   const pct=formatGradeNumber(numeric)+'%';
   const scaleType=Number(scale?.type??scale?.scale_type??scale?.scaleType);
-  const hideNumeric=[true,1,'1','true'].includes(scale?.hide_numeric??scale?.hideNumeric);
-  if(letter&&scaleType===1)return {value:hideNumeric?letter:`${letter} (${pct})`,letter,percentage:pct,overridden:numericOverride!==undefined,final,period};
+  const hideNumeric=gradeTruthy(scale?.hide_numeric??scale?.hideNumeric);
+  if(letter&&scaleType===1)return {value:hideNumeric?letter:letter+' ('+pct+')',letter,percentage:pct,overridden:numericOverride!==undefined,final,period};
   return {value:pct,letter:'',percentage:pct,overridden:numericOverride!==undefined,final,period};
  }
  return {value:String(grade),letter:'',percentage:'',overridden:numericOverride!==undefined,final,period};
@@ -2473,10 +2484,8 @@ function formatGradeNumber(value){const n=Number(value);return Number.isFinite(n
 function gradingScaleForCourse(sec,entry){
  const final=entry?.final||{},period=entry?.period||{};
  const scaleId=String(final.scale_id??final.scaleId??period.scale_id??period.scaleId??sec?._gradeScaleId??'');
- const root=sec?._gradingScales||{};
- const raw=root.grading_scale??root.gradingScale??root.scales??root.scale??root.data?.grading_scale??root.data?.scales??[];
- const scales=Array.isArray(raw)?raw:(raw?[raw]:[]);
- let scale=scales.find(s=>String(s.id??s.scale_id??s.scaleId??'')===scaleId);
+ const scales=gradeObjectList(sec?._gradingScales||{},['grading_scale','gradingScale','scales','scale'],['id','scale_id','scaleId','type','scale_type','scaleType','hide_numeric','hideNumeric']);
+ let scale=scales.find(item=>String(item.id??item.scale_id??item.scaleId??'')===scaleId);
  if(!scale&&scales.length===1)scale=scales[0];
  return scale||null;
 }
@@ -2484,42 +2493,64 @@ function letterGradeForCourse(sec,entry,numeric){
  const scale=gradingScaleForCourse(sec,entry);if(!scale)return '';
  const type=Number(scale.type??scale.scale_type??scale.scaleType);
  if(Number.isFinite(type)&&type!==1)return '';
- const lv=scale.scale?.level??scale.scale?.levels?.level??scale.scale?.levels??scale.levels?.level??scale.levels??scale.level??[];
- const levels=(Array.isArray(lv)?lv:(lv?[lv]:[])).map(l=>({grade:l.grade??l.title??l.name,cutoff:Number(l.cutoff??l.average??l.percent??l.percentage)})).filter(l=>l.grade!=null&&Number.isFinite(l.cutoff)).sort((a,b)=>b.cutoff-a.cutoff);
- const matched=levels.find(l=>numeric>=l.cutoff);return matched?String(matched.grade):'';
+ const raw=scale.scale?.level??scale.scale?.levels?.level??scale.scale?.levels??scale.levels?.level??scale.levels??scale.level??[];
+ const levels=gradeObjectList(raw,['level','levels'],['grade','title','name','cutoff','average','percent','percentage'])
+  .map(level=>({grade:level.grade??level.title??level.name,cutoff:Number(level.cutoff??level.average??level.percent??level.percentage)}))
+  .filter(level=>level.grade!=null&&Number.isFinite(level.cutoff)).sort((a,b)=>b.cutoff-a.cutoff);
+ const matched=levels.find(level=>numeric>=level.cutoff);return matched?String(matched.grade):'';
+}
+function resolveStandaloneGradeCourseNames(section,detail){
+ const sectionRecord=detail?.section??detail?.data?.section??detail?.response?.section??detail?.data??detail??{};
+ const courseRecord=sectionRecord?.course??sectionRecord?.course_data??sectionRecord?.courseData??detail?.course??detail?.data?.course??section?.course??section?.course_data??section?.courseData??{};
+ const courseTitle=gradeFirstText(
+  section?.course_title,section?.courseTitle,section?.course_name,section?.courseName,
+  section?.course?.title,section?.course?.name,section?.course_data?.title,section?.courseData?.title,
+  sectionRecord?.course_title,sectionRecord?.courseTitle,sectionRecord?.course_name,sectionRecord?.courseName,
+  sectionRecord?.course?.title,sectionRecord?.course?.name,courseRecord?.title,courseRecord?.name,
+  detail?.course_title,detail?.courseTitle,detail?.course?.title,detail?.course?.name,
+  section?.title
+ );
+ const sectionTitle=gradeFirstText(
+  section?.section_title,section?.sectionTitle,section?.section_name,section?.sectionName,
+  sectionRecord?.section_title,sectionRecord?.sectionTitle,sectionRecord?.section_name,sectionRecord?.sectionName,
+  sectionRecord?.title,sectionRecord?.name
+ );
+ return {courseTitle:courseTitle||sectionTitle||'Course',sectionTitle};
 }
 async function hydrateUserCourseGrades(sections){
- const uid=state.auth?.userId||state.auth?.user?.id;
+ const uid=String(state.auth?.userId||state.auth?.user?.id||'');
  await Promise.all((sections||[]).map(async sec=>{
   const sid=sec.section_id??sec.sectionId??sec.id;if(!sid)return;
   try{
    const [grades,scales,enrollments,sectionDetail]=await Promise.all([
-    A.api({path:`sections/${sid}/grades`,params:{}}).catch(()=>null),
-    A.api({path:`sections/${sid}/grading_scales`,params:{}}).catch(()=>null),
-    A.api({path:`sections/${sid}/enrollments`,params:{start:0,limit:200,enrollment_status:1}}).catch(()=>null),
-    A.api({path:`sections/${sid}`,params:{}}).catch(()=>null)
+    A.api({path:'sections/'+sid+'/grades',params:{}}).catch(()=>null),
+    A.api({path:'sections/'+sid+'/grading_scales',params:{}}).catch(()=>null),
+    A.api({path:'sections/'+sid+'/enrollments',params:{start:0,limit:200,enrollment_status:1}}).catch(()=>null),
+    A.api({path:'sections/'+sid,params:{}}).catch(()=>null)
    ]);
-   const detail=sectionDetail?.section??sectionDetail?.data?.section??sectionDetail?.data??sectionDetail??{};
-   sec.section_title=sec.section_title||sec.sectionTitle||detail.section_title||detail.sectionTitle||detail.title||detail.name||detail.course?.title||detail.course?.name;
-   sec.course_title=sec.course_title||sec.courseTitle||detail.course_title||detail.courseTitle||detail.course?.title||detail.course?.name||sec.section_title;
-   sec.picture_url=sec.picture_url||sec.pictureUrl||sec.image_url||sec.imageUrl||detail.picture_url||detail.pictureUrl||detail.image_url||detail.imageUrl||detail.course?.picture_url||detail.course?.pictureUrl||detail.course?.image_url;
-   const all=grades?.final_grade??grades?.finalGrade??grades?.final_grades??[];const list=Array.isArray(all)?all:(all?[all]:[]);
-   const enrollmentList=enrollments?.enrollment??enrollments?.enrollments??[];
-   const myEnrollment=enrollmentList.find(en=>String(en.uid??en.user_id??en.userId??'')===String(uid));
-   const enrollmentId=String(myEnrollment?.id??sec.enrollment_id??sec.enrollmentId??sec.enrollment?.id??'');
-   let matched=list.find(f=>enrollmentId&&String(f.enrollment_id??f.enrollmentId??'')===enrollmentId);
+   const detail=sectionDetail?.section??sectionDetail?.data?.section??sectionDetail?.response?.section??sectionDetail?.data??sectionDetail??{};
+   const names=resolveStandaloneGradeCourseNames(sec,sectionDetail);
+   sec.course_title=names.courseTitle;
+   if(names.sectionTitle)sec.section_title=names.sectionTitle;
+   sec.picture_url=sec.picture_url||sec.pictureUrl||sec.image_url||sec.imageUrl||
+    detail.picture_url||detail.pictureUrl||detail.image_url||detail.imageUrl||
+    detail.course?.picture_url||detail.course?.pictureUrl||detail.course?.image_url||detail.course?.imageUrl;
+   const list=gradeObjectList(grades,['final_grade','finalGrade','final_grades','finalGrades'],['enrollment_id','enrollmentId','period','periods','final_period','finalPeriod','grade','override_str','override_numeric']);
+   const enrollmentList=gradeObjectList(enrollments,['enrollment','enrollments'],['id','uid','user_id','userId','status','enrollment_id','enrollmentId']);
+   const myEnrollment=enrollmentList.find(enrollment=>String(enrollment.uid??enrollment.user_id??enrollment.userId??enrollment.user?.id??enrollment.user?.uid??'')===uid&&Number(enrollment.status??1)===1);
+   const enrollmentId=String(myEnrollment?.id??myEnrollment?.enrollment_id??myEnrollment?.enrollmentId??sec.enrollment_id??sec.enrollmentId??sec.enrollment?.id??'');
+   let matched=list.find(finalGrade=>enrollmentId&&String(finalGrade.enrollment_id??finalGrade.enrollmentId??'')===enrollmentId);
    if(!matched&&list.length===1)matched=list[0];
-   // Do not pick an arbitrary student's record if this section has multiple enrollments.
    if(matched)sec._resolvedFinalGrade=[matched];
    sec._gradingScales=scales||{};
-   const matchedPeriods=matched?.period??matched?.periods??matched?.final_period??matched?.finalPeriod??[];
-   const periodArray=Array.isArray(matchedPeriods)?matchedPeriods:(matchedPeriods?[matchedPeriods]:[]);
-   const finalPeriod=periodArray.find(p=>String(p?.period_id??p?.periodId??'')==='final');
-   sec._gradeScaleId=finalPeriod?.scale_id??finalPeriod?.scaleId??matched?.scale_id??matched?.scaleId??sec.scale_id??sec.scaleId??sectionDetail?.section?.options?.default_grading_scale_id??sectionDetail?.options?.default_grading_scale_id;
-  }catch{}
+   const finalPeriods=matched?.period??matched?.periods??matched?.final_period??matched?.finalPeriod??matched?.final_grade_period??matched?.finalGradePeriod??[];
+   const periodArray=gradeObjectList(finalPeriods,['period','periods','final_period','finalPeriod','final_grade_period','finalGradePeriod'],['period_id','periodId','is_final','isFinal','grade','override_str','override_numeric','scale_id','scaleId']);
+   const finalPeriod=periodArray.find(period=>String(period?.period_id??period?.periodId??period?.name??period?.title??'').toLowerCase()==='final'||gradeTruthy(period?.is_final??period?.isFinal??period?.final));
+   sec._gradeScaleId=finalPeriod?.scale_id??finalPeriod?.scaleId??matched?.scale_id??matched?.scaleId??sec.scale_id??sec.scaleId??
+    detail?.options?.default_grading_scale_id??detail?.section?.options?.default_grading_scale_id??detail?.data?.options?.default_grading_scale_id;
+  }catch(error){console.debug('Unable to hydrate standalone course grade:',sid,error?.message||error)}
  }));
 }
-
 function renderOverallGrade(sec){
  const display=getFinalGradeDisplay(sec);
  const final=display.final;
@@ -3238,11 +3269,11 @@ async function loadTab(){
     try{if(state.calendarTab==='calendar')await loadCalendarMonth();else await loadCalendarUpcoming()}catch(e){pager.innerHTML=`<div class="error apiError">Unable to load Calendar.<br>${esc(e.message)}</div>`}
   }else if(state.tab==='grades'){
     if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=x.section||x.sections||[];
-    const normalized=ss.map(s=>({...s,section_id:s.section_id??s.sectionId??s.id,section_title:s.section_title||s.sectionTitle||s.course_title||s.courseTitle||'Course',course_title:s.course_title||s.courseTitle||s.section_title||s.sectionTitle||'Course'})).filter(s=>s.section_id);
+    const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=gradeObjectList(x,['section','sections'],['id','section_id','sectionId','course_title','courseTitle','section_title','sectionTitle']);
+    const normalized=ss.map(s=>({...s,section_id:s.section_id??s.sectionId??s.id,section_title:s.section_title||s.sectionTitle||s.section_name||s.sectionName||'',course_title:s.course_title||s.courseTitle||s.course_name||s.courseName||s.course?.title||s.course?.name||s.course_data?.title||s.courseData?.title||s.title||''})).filter(s=>s.section_id);
     const renderGradeRows=()=>{
       const list=c.querySelector('.userGradesCourseList');if(!list)return;
-      list.innerHTML=normalized.map((s,i)=>{const gd=getFinalGradeDisplay(s);const sid=String(s.section_id);const image=s.picture_url||s.pictureUrl||s.image_url||s.imageUrl||'';return `<section class="userGradeCourse collapsed" data-user-grade-course="${esc(sid)}"><button type="button" class="userGradeCourseHeader" data-user-grade-toggle="${i}" aria-expanded="false">${image?`<img class="userGradeCourseImage" src="${esc(image)}" alt="" onerror="this.hidden=true">`:''}<span class="userGradeCourseTitle"><b>${esc(s.section_title||s.course_title||'Course')}</b><small>${esc(s.course_title||'')}</small></span><span class="userGradeCourseSummary"><span>${esc(gd.value)}</span><span class="gradeChevron" aria-hidden="true">⌄</span></span></button><div class="userGradeCourseBody" id="user-grade-course-body-${esc(sid)}" data-loaded="0"></div></section>`}).join('')||'<div class="empty"><h2>No grades</h2></div>';
+      list.innerHTML=normalized.map((s,i)=>{const gd=getFinalGradeDisplay(s);const sid=String(s.section_id);const image=s.picture_url||s.pictureUrl||s.image_url||s.imageUrl||'';const courseName=s.course_title||s.courseTitle||s.course_name||s.courseName||s.course?.title||s.course?.name||s.section_title||s.sectionTitle||'Course';const sectionName=s.section_title||s.sectionTitle||s.section_name||s.sectionName||'';const subtitle=sectionName&&sectionName.trim().toLocaleLowerCase()!==courseName.trim().toLocaleLowerCase()?'<small>'+esc(sectionName)+'</small>':'';return `<section class="userGradeCourse collapsed" data-user-grade-course="${esc(sid)}"><button type="button" class="userGradeCourseHeader" data-user-grade-toggle="${i}" aria-expanded="false">${image?`<img class="userGradeCourseImage" src="${esc(image)}" alt="" onerror="this.hidden=true">`:''}<span class="userGradeCourseTitle"><b>${esc(courseName)}</b>${subtitle}</span><span class="userGradeCourseSummary"><span>${esc(gd.value)}</span><span class="gradeChevron" aria-hidden="true">⌄</span></span></button><div class="userGradeCourseBody" id="user-grade-course-body-${esc(sid)}" data-loaded="0"></div></section>`}).join('')||'<div class="empty"><h2>No grades</h2></div>';
       list.querySelectorAll('[data-user-grade-toggle]').forEach(button=>button.onclick=async()=>{
         const course=normalized[Number(button.dataset.userGradeToggle)];const section=button.closest('.userGradeCourse');const body=section?.querySelector('.userGradeCourseBody');if(!course||!section||!body)return;
         const expanded=section.classList.toggle('collapsed')===false;button.setAttribute('aria-expanded',String(expanded));
@@ -3645,12 +3676,12 @@ const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• Shared post cards show the
 if(!window.__schoologyUpcomingCollapseBound){window.__schoologyUpcomingCollapseBound=true;document.addEventListener('click',event=>{const button=event.target?.closest?.('[data-upcoming-collapse-toggle]');if(!button)return;const page=button.closest('.courseLandscapePage,.groupProfilePage,.schoolProfileNativePage');if(!page)return;const collapsed=page.classList.toggle('upcoming-collapsed');button.classList.toggle('collapsed',collapsed);button.textContent=collapsed?'›':'‹';button.setAttribute('aria-label',collapsed?'Expand Upcoming':'Collapse Upcoming');button.title=collapsed?'Expand Upcoming':'Collapse Upcoming';});}
 function nativeVariantPromptDetails(){
  const platform=A.platform||document.documentElement.dataset.electronPlatform||'';
- if(platform==='win32')return {platform,key:'windows',os:'Windows',setting:'Try Schoology WinUI',description:'Meet Schoology redesigned for Windows. The native Windows app uses familiar Windows controls and window behavior, with a layout made to feel right at home on your PC.'};
- if(platform==='darwin')return {platform,key:'macos',os:'macOS',setting:'Try Schoology SwiftUI',description:'Enjoy Schoology as a native Mac app. It is designed around macOS windows and controls, with a more natural experience that fits in alongside the other apps on your Mac.'};
+ if(platform==='win32')return {platform,key:'windows',os:'Windows',setting:'Try Schoology WinUI',description:'Meet Schoology redesigned for Windows. The native app uses familiar Windows controls and window behavior, with performance improvements that make everyday navigation and page loading feel faster and more responsive.'};
+ if(platform==='darwin')return {platform,key:'macos',os:'macOS',setting:'Try Schoology SwiftUI',description:'Enjoy Schoology as a native Mac app. It is designed around macOS windows and controls, with performance improvements for faster navigation and a smoother, more responsive experience on your Mac.'};
  if(platform==='ios'){
   const ua=navigator.userAgent||'';
   const ipad=/iPad/i.test(ua)||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
-  return {platform,key:ipad?'ipados':'ios',os:ipad?'iPadOS':'iOS',setting:'Try Schoology SwiftUI',description:ipad?'Try a native Schoology app designed for iPad. It is built around touch, with navigation and layouts that make better use of your iPad screen.':'Try a native Schoology app designed for iPhone. It is built around touch, with familiar iOS navigation and controls that feel natural on your phone.'};
+  return {platform,key:ipad?'ipados':'ios',os:ipad?'iPadOS':'iOS',setting:'Try Schoology SwiftUI',description:ipad?'Try a native Schoology app designed for iPad. It is built around touch, with layouts that make better use of your screen and performance improvements for faster loading and smoother navigation.':'Try a native Schoology app designed for iPhone. It is built around touch, with familiar iOS navigation and controls plus performance improvements for faster loading and a smoother, more responsive experience.'};
  }
  return null;
 }
