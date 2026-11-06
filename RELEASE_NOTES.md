@@ -8,7 +8,7 @@
 
 ### Fixed
 - Render comments and nested replies recursively in parent-first order so each reply appears immediately below the comment it responds to, without hiding replies behind a separate expand action.
-- Keep native OS notification delivery available through the existing `/v1/notifications` polling fallback across Tauri targets. The official Android client uses FCM and the extracted iOS client uses APNs; WNS and Linux push-provider enrollment are not defined by those official clients and require corresponding Schoology server-side provider support before a real push token can be enrolled.
+- Keep native OS notifications available through a one-minute `/v1/notifications` polling fallback on all Tauri targets. This is notification delivery while the app is running, not server push enrollment: Android explicitly registers an FCM token with `/v1/alert/device/{device_token}`, and the extracted iOS app includes Firebase app configuration. The supplied official clients do not define Windows WNS or Linux push-token enrollment, and the classic app has no valid provider tokens for those platforms; no synthetic device tokens are registered.
 
 ### Changed
 - Bump the package version to 2026.10.0-port.50.
