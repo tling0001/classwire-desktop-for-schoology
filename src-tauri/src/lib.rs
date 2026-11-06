@@ -452,6 +452,51 @@ async fn launch_course_app(app: &AppHandle, state: &HostState, info: &Value) -> 
     else { return Err("The course app did not provide a valid launch link.".into()); };
     api_json(app, state, "GET", url, None, false).await.map_err(|e| if resource { format!("Resource app launch failed: {e}") } else { format!("Course app launch failed: {e}") })
 }
+async fn import_resource_app(app: &AppHandle, state: &HostState, args: &Value) -> Result<Value, String> {
+    let auth = auth_state(app).ok_or("Not signed in")?;
+    let raw_url = args.get("url").and_then(Value::as_str).ok_or("The Resource App import URL is missing.")?;
+    let mut url = Url::parse(raw_url).map_err(|_| "The Resource App import URL is invalid.")?;
+    let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
+    let allowed_host = host == "app.schoology.com" || host.ends_with(".schoology.com")
+        || host == "app.schoologyca.com" || host.ends_with(".schoologyca.com");
+    if url.scheme() != "https" || !allowed_host || !url.path().contains("/content_app/import") {
+        return Err("Schoology returned an unsupported Resource App import URL.".into());
+    }
+    if !url.query_pairs().any(|(key, _)| key == "mobile") {
+        url.query_pairs_mut().append_pair("mobile", "1");
+    }
+    let mut cookie_pairs = Vec::new();
+    if let Some(cookies) = args.get("cookies").and_then(Value::as_array) {
+        for cookie in cookies {
+            let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("").trim();
+            let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str).unwrap_or("").trim();
+            if !name.is_empty() && !value.is_empty()
+                && !name.chars().any(|ch| ch.is_control() || matches!(ch, ';' | '=' | ','))
+                && !value.chars().any(|ch| ch.is_control() || matches!(ch, ';' | ',')) {
+                cookie_pairs.push(format!("{name}={value}"));
+            }
+        }
+    }
+    let mobile_cookie = args.get("mobileCookie").and_then(Value::as_str).unwrap_or("");
+    if !mobile_cookie.is_empty() { cookie_pairs.push(format!("s_mobile={mobile_cookie}")); }
+    if cookie_pairs.is_empty() { return Err("Schoology web-session cookies are not available for this Resource App.".into()); }
+    let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
+    let token = auth.get("oauth_token").and_then(Value::as_str).unwrap_or("");
+    let secret = auth.get("oauth_token_secret").and_then(Value::as_str).unwrap_or("");
+    let authorization = plaintext_header(token, secret, timestamp);
+    let response = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?
+        .get(url).header("User-Agent", ANDROID_UA).header("Accept", "text/json")
+        .header("Authorization", authorization).header("Cookie", cookie_pairs.join("; "))
+        .send().await.map_err(|error| format!("Could not import resources from the Resource App: {error}"))?;
+    let status = response.status();
+    let body = response.text().await.map_err(|error| error.to_string())?;
+    if !status.is_success() {
+        return Err(format!("Schoology Resource App import failed (HTTP {}): {}", status.as_u16(), body.chars().take(600).collect::<String>()));
+    }
+    serde_json::from_str(&body).map_err(|error| format!("Schoology returned an invalid Resource App import response: {error}"))
+}
+
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 async fn create_embedded_webview(app: &AppHandle, info: &Value) -> Result<Value, String> {
     let label = info.get("label").and_then(Value::as_str).ok_or("Embedded webview label is missing.")?.to_owned();
@@ -1745,6 +1790,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "upload-schoology-file" => upload_schoology_file(&app,&state,&args,false).await,
         "download-file" => download_schoology_file(&app,&state,&args).await,
         "launch-course-app" => launch_course_app(&app,&state,&args).await,
+        "import-resource-app" => import_resource_app(&app, &state, &args).await,
         "pick-file" => {
             let picked = app.dialog().file().blocking_pick_file();
             match picked { Some(file) => match file.into_path() { Ok(path) => Ok(json!(path.to_string_lossy())), Err(e) => Err(e.to_string()) }, None => Ok(Value::Null) }
