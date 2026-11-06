@@ -470,7 +470,9 @@ async fn import_resource_app(app: &AppHandle, state: &HostState, args: &Value) -
         for cookie in cookies {
             let name = cookie.get("key").or_else(|| cookie.get("name")).and_then(Value::as_str).unwrap_or("").trim();
             let value = cookie.get("value").or_else(|| cookie.get("val")).and_then(Value::as_str).unwrap_or("").trim();
-            if !name.is_empty() && !value.is_empty()
+            let domain = cookie.get("domain").and_then(Value::as_str).unwrap_or("").trim().trim_start_matches('.').to_ascii_lowercase();
+            let applies_to_host = !domain.is_empty() && (host == domain || host.ends_with(&format!(".{domain}")));
+            if applies_to_host && !name.is_empty() && !value.is_empty()
                 && !name.chars().any(|ch| ch.is_control() || matches!(ch, ';' | '=' | ','))
                 && !value.chars().any(|ch| ch.is_control() || matches!(ch, ';' | ',')) {
                 cookie_pairs.push(format!("{name}={value}"));
@@ -478,7 +480,9 @@ async fn import_resource_app(app: &AppHandle, state: &HostState, args: &Value) -
         }
     }
     let mobile_cookie = args.get("mobileCookie").and_then(Value::as_str).unwrap_or("");
-    if !mobile_cookie.is_empty() { cookie_pairs.push(format!("s_mobile={mobile_cookie}")); }
+    if !mobile_cookie.is_empty() && !cookie_pairs.iter().any(|pair| pair.starts_with("s_mobile=")) {
+        cookie_pairs.push(format!("s_mobile={mobile_cookie}"));
+    }
     if cookie_pairs.is_empty() { return Err("Schoology web-session cookies are not available for this Resource App.".into()); }
     let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
     let token = auth.get("oauth_token").and_then(Value::as_str).unwrap_or("");
@@ -2052,7 +2056,7 @@ pub fn run() {
                 loop {
                     let state = notification_handle.state::<HostState>();
                     poll_notifications(&notification_handle, &state).await;
-                    tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                 }
             });
             let update_handle = app.handle().clone();
