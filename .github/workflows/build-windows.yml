@@ -315,7 +315,7 @@ jobs:
           set -euo pipefail
           # Tauri emits iOS icon PNGs directly under src-tauri/icons/ios; it does not
           # create an Xcode .appiconset Contents.json at this stage.
-          npx tauri icon assets/ic_launcher_1024.png
+          npm run prepare:icons
           test -s src-tauri/icons/ios/AppIcon-60x60@3x.png
           test -s src-tauri/icons/ios/AppIcon-512@2x.png
           test -s src-tauri/icons/ios/AppIcon-20x20@1x.png

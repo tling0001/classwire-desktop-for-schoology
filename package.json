@@ -1,19 +1,20 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.10.0-port.50",
+  "version": "2026.10.0-port.51",
   "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.10.0 source",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis --publish never",
-    "dist:win": "electron-builder --win nsis --publish never",
-    "dist:mac": "electron-builder --mac dmg --publish never",
-    "dist:linux": "electron-builder --linux deb rpm --publish never",
+    "dist": "npm run prepare:icons && electron-builder --win nsis --publish never",
+    "dist:win": "npm run prepare:icons && electron-builder --win nsis --publish never",
+    "dist:mac": "npm run prepare:icons && electron-builder --mac dmg --publish never",
+    "dist:linux": "npm run prepare:icons && electron-builder --linux deb rpm --publish never",
     "build:updater": "cargo build --release --manifest-path updater-tauri/Cargo.toml && node scripts/stage-updater.mjs",
-    "prepare:tauri": "node scripts/prepare-tauri.mjs",
+    "prepare:tauri": "npm run prepare:icons && node scripts/prepare-tauri.mjs",
     "tauri:dev": "npm run prepare:tauri && tauri dev",
     "tauri:build": "npm run prepare:tauri && tauri build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prepare:icons": "node scripts/prepare-icons.mjs"
   },
   "devDependencies": {
     "electron": "^39.1.0",

@@ -1172,13 +1172,6 @@ function resourcePickerImportedItems(payload){
  };
  imported.forEach(walk);return items;
 }
-function buildResourceAppImportUrl(raw){
- const launch=new URL(String(raw||'')),relayText=launch.searchParams.get('RelayState');
- if(!relayText)throw new Error('This Resource App did not provide the RelayState required for importing resources.');
- const relay=new URL(relayText,launch.origin);
- relay.searchParams.set('mobile','1');relay.searchParams.set('is_ssl','1');relay.searchParams.set('import_view','1');relay.searchParams.set('acceptible_types','F,L,E');
- launch.searchParams.set('RelayState',relay.toString());return launch.toString();
-}
 async function openResourceAppImport(app,onSelect){
  const appId=app?.collection_id??app?.collectionID??app?.id??app?.app_id??app?.appId;if(appId==null)throw new Error('This Resource App is missing its application ID.');
  const overlay=document.createElement('div');overlay.className='resourceAppImportOverlay';
@@ -1189,7 +1182,7 @@ async function openResourceAppImport(app,onSelect){
   const launchResult=await A.launchCourseApp({appId:Number(appId)});
   const launchUrl=launchResult?.url||launchResult?.launch_token_url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl;
   if(!launchUrl)throw new Error('Schoology did not return a Resource App launch URL.');
-  await showEmbeddedWeb(buildResourceAppImportUrl(launchUrl),app.collection_title||app.title||app.name||'Resource App',{
+  await showEmbeddedWeb(launchUrl,app.collection_title||app.title||app.name||'Resource App',{
    container:body,openInitialExternalInBrowser:false,allowBrowser:false,externalLinks:false,resourceAppImport:true,
    resourceAppImportHandler:async(url,session)=>{
     const response=await A.importResourceApp({url,cookies:session?.cookies||[],mobileCookie:session?.mobileCookie||''});
@@ -2016,11 +2009,19 @@ async function showEmbeddedWeb(url,title,options={}){
  w.addEventListener('did-finish-load',()=>{if(mainNavigation>0){setLoading(false);initialPageLoaded=true}});
 
  let resourceAppImportHandled=false;
- w.addEventListener('did-navigate',e=>{if(!e.isMainFrame)return;loadingStartedAt=Date.now();if(options.resourceAppImport&&/\/content_app\/import(?:\/|$)/i.test(String(e.url||''))&&!resourceAppImportHandled){resourceAppImportHandled=true;setLoading(true);Promise.resolve(options.resourceAppImportHandler?.(String(e.url),resourceAppSession)).catch(error=>{c.innerHTML='<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>'})}setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200)});
+ const handleResourceAppImportNavigation=value=>{
+  if(!options.resourceAppImport||resourceAppImportHandled)return false;
+  let importPath='';try{const candidate=new URL(String(value||''));if(candidate.protocol!=='https:')return false;importPath=candidate.pathname}catch{return false}
+  if(!importPath.toLowerCase().includes('/content_app/import'))return false;
+  resourceAppImportHandled=true;setLoading(true);
+  Promise.resolve(options.resourceAppImportHandler?.(String(value),resourceAppSession)).catch(error=>{c.innerHTML='<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>'});
+  return true;
+ };
+ w.addEventListener('did-navigate',e=>{if(!e.isMainFrame)return;loadingStartedAt=Date.now();handleResourceAppImportNavigation(e.url);setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200)});
  w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription);const page=c.querySelector('.embeddedPage');if(page&&!page.querySelector('.embeddedWebviewError')){const error=document.createElement('div');error.className='embeddedWebviewError';error.innerHTML='<b>Unable to load this page</b><span></span><button type="button">Retry</button>';error.querySelector('span').textContent=e.errorDescription||e.message||'The website could not be loaded.';error.querySelector('button').addEventListener('click',()=>showEmbeddedWeb(url,title,options).catch(err=>showAppDialog('Unable to open page',err?.message||String(err))));page.appendChild(error)}}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},8000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
- w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(externalLinks&&initialPageLoaded&&!isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(A.openExternal(u)).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(options.lti&&isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
+ w.addEventListener('will-navigate',e=>{const u=String(e.url||'');if(handleResourceAppImportNavigation(u)){e.preventDefault();return;}if(externalLinks&&initialPageLoaded&&!isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(A.openExternal(u)).catch(err=>showAppDialog('Unable to open link',err.message||String(err)));return;}if(options.lti&&isSchoologyRoutableLink(u)){e.preventDefault();Promise.resolve(routeSchoologyLink(u)).catch(err=>console.warn('Schoology deep link failed:',err));}});
 }
 async function loadAttendanceTab(course){
   const el=document.getElementById('sectionProfileContent');if(!el)return;

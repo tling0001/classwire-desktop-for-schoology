@@ -1,5 +1,15 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.51]
+
+### Fixed
+- Open Resource Apps at the launch URL returned by Schoology and detect the actual `/content_app/import` navigation, matching the working SwiftUI flow instead of incorrectly requiring RelayState on the initial launch URL.
+- Intercept the Resource App import navigation before it loads, then submit that exact Schoology import URL through the existing authenticated import request.
+
+### Changed
+- Generate desktop, Electron, Android, and iOS launcher icons from the same inset Schoology ring-and-S vector artwork used by the SwiftUI app icon and the mark in the login wordmark.
+- Bump the package version to 2026.10.0-port.51.
+
 ## [2026.10.0-port.50]
 
 ### Added
