@@ -1157,21 +1157,90 @@ async function openAssignmentComments(sectionId,assignmentId,assignment){
  catch(error){c.innerHTML=`<div class="error apiError"><b>Schoology could not load comments.</b><br>${esc(error?.message||String(error))}</div>`}
 }
 
+function resourcePickerArray(value){return Array.isArray(value)?value:(value&&typeof value==='object'?[value]:[])}
+function resourcePickerImportedItems(payload){
+ const roots=payload?.imports??payload?.import??payload?.data?.imports??payload?.data?.import??payload?.collection_imports??payload?.collectionImports??[];
+ const imported=resourcePickerArray(roots),items=[],seen=new Set();
+ const add=(id,title,type)=>{if(id==null)return;const key=String(id);if(seen.has(key))return;seen.add(key);items.push({template_id:id,template_title:title||'Imported resource',template_type:type||'file',is_import_collection:true,imported_resource_id:id})};
+ const walk=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(walk);return}
+  const attachment=value.attachment||value.attachments||value;
+  const files=attachment?.files?.file??attachment?.files??attachment?.file??[];
+  resourcePickerArray(files).forEach(file=>add(file.file_id??file.fileID??file.id??file.template_id??file.templateID,file.file_title??file.fileTitle??file.filename??file.title??file.name,file.attachment_type??file.attachmentType??'file'));
+  const links=attachment?.links?.link??attachment?.links??attachment?.link??[];
+  resourcePickerArray(links).forEach(link=>add(link.link_id??link.linkID??link.id??link.template_id??link.templateID,link.link_title??link.linkTitle??link.title??link.name,link.attachment_type??link.attachmentType??'link'));
+  for(const [key,child] of Object.entries(value)){if(['files','links','file','link','attachment','attachments'].includes(key))continue;if(child&&typeof child==='object')walk(child)}
+ };
+ imported.forEach(walk);return items;
+}
+function buildResourceAppImportUrl(raw){
+ const launch=new URL(String(raw||'')),relayText=launch.searchParams.get('RelayState');
+ if(!relayText)throw new Error('This Resource App did not provide the RelayState required for importing resources.');
+ const relay=new URL(relayText,launch.origin);
+ relay.searchParams.set('mobile','1');relay.searchParams.set('is_ssl','1');relay.searchParams.set('import_view','1');relay.searchParams.set('acceptible_types','F,L,E');
+ launch.searchParams.set('RelayState',relay.toString());return launch.toString();
+}
+async function openResourceAppImport(app,onSelect){
+ const appId=app?.collection_id??app?.collectionID??app?.id??app?.app_id??app?.appId;if(appId==null)throw new Error('This Resource App is missing its application ID.');
+ const overlay=document.createElement('div');overlay.className='resourceAppImportOverlay';
+ overlay.innerHTML='<section class="resourceAppImportDialog" role="dialog" aria-modal="true"><header><button type="button" data-resource-app-close aria-label="Close">'+officialBackIcon()+'</button><b>'+esc(app.collection_title||app.title||app.name||'Resource App')+'</b><span></span></header><div class="resourceAppImportBody"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Opening Resource App…</span></div></div></section>';
+ document.body.appendChild(overlay);const body=overlay.querySelector('.resourceAppImportBody'),close=()=>overlay.remove();
+ overlay.querySelector('[data-resource-app-close]')?.addEventListener('click',close);overlay.addEventListener('click',event=>{if(event.target===overlay)close()});
+ try{
+  const launchResult=await A.launchCourseApp({appId:Number(appId)});
+  const launchUrl=launchResult?.url||launchResult?.launch_token_url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl;
+  if(!launchUrl)throw new Error('Schoology did not return a Resource App launch URL.');
+  showEmbeddedWeb(buildResourceAppImportUrl(launchUrl),app.collection_title||app.title||app.name||'Resource App',{
+   container:body,openInitialExternalInBrowser:false,allowBrowser:false,externalLinks:false,resourceAppImport:true,
+   resourceAppImportHandler:async(url,session)=>{
+    const response=await A.importResourceApp({url,cookies:session?.cookies||[],mobileCookie:session?.mobileCookie||''});
+    const items=resourcePickerImportedItems(response);
+    if(!items.length)throw new Error('The Resource App did not return any importable files or links.');
+    body.innerHTML='<div class="resourceAppImportInstructions">Choose an item imported from this Resource App.</div><div class="resourceAppImportedList">'+items.map((item,index)=>'<button type="button" class="resourcePickerItem" data-imported-resource="'+index+'">'+resourceIconMarkup(resourceIconForType(resourceType(item),resourceTitle(item),item))+'<span><b>'+esc(resourceTitle(item))+'</b></span></button>').join('')+'</div><div class="resourceAppImportActions"><button type="button" data-resource-app-cancel>Cancel</button><button type="button" data-resource-app-add disabled>Add Resource</button></div>';
+    let selected=null;body.querySelectorAll('[data-imported-resource]').forEach(button=>button.addEventListener('click',()=>{selected=items[Number(button.dataset.importedResource)];body.querySelectorAll('[data-imported-resource]').forEach(row=>row.classList.toggle('selected',row===button));body.querySelector('[data-resource-app-add]').disabled=!selected}));
+    body.querySelector('[data-resource-app-cancel]')?.addEventListener('click',close);
+    body.querySelector('[data-resource-app-add]')?.addEventListener('click',()=>{if(selected){onSelect(selected);close()}});
+   }
+  });
+ }catch(error){body.innerHTML='<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div><div class="resourceAppImportActions"><button type="button" data-resource-app-close-bottom>Close</button></div>';body.querySelector('[data-resource-app-close-bottom]')?.addEventListener('click',close)}
+}
 async function chooseSchoologyResource(onSelect,title='Attach Resource'){
  const old=document.getElementById('schoologyResourcePicker');old?.remove();
  const wrap=document.createElement('div');wrap.id='schoologyResourcePicker';wrap.className='assignmentCommentDialogOverlay schoologyResourcePickerOverlay';
- wrap.innerHTML=`<section class="schoologyResourcePickerDialog" role="dialog" aria-modal="true"><header><button id="resourcePickerCancel" class="iconButton">${officialIcon('ic_action_discard_icon.png','Close')}</button><b>${esc(title)}</b><button id="resourcePickerDone" class="iconButton" disabled>${officialIcon('ic_action_post_checkmark_divider.png','Save')}</button></header><div class="resourcePickerTabs"><button class="active">All</button><button>Selected</button></div><div id="resourcePickerBody"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></div></section>`;
- document.body.appendChild(wrap); const body=wrap.querySelector('#resourcePickerBody'); let selected=null;
- const close=()=>wrap.remove();wrap.querySelector('#resourcePickerCancel').onclick=close;wrap.onclick=e=>{if(e.target===wrap)close()};
+ wrap.innerHTML='<section class="schoologyResourcePickerDialog" role="dialog" aria-modal="true"><header><button id="resourcePickerCancel" class="iconButton">'+officialIcon('ic_action_discard_icon.png','Close')+'</button><b>'+esc(title)+'</b><button id="resourcePickerDone" class="iconButton" disabled>'+officialIcon('ic_action_post_checkmark_divider.png','Save')+'</button></header><div id="resourcePickerBody"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></div></section>';
+ document.body.appendChild(wrap);const body=wrap.querySelector('#resourcePickerBody');let selected=null,categories=[];
+ const close=()=>wrap.remove();wrap.querySelector('#resourcePickerCancel').onclick=close;wrap.onclick=event=>{if(event.target===wrap)close()};
+ const renderCollections=key=>{
+  const category=categories.find(item=>item.key===key);if(!category)return;
+  body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(category.title)+'</button>'+(category.items.length?category.items.map((item,index)=>'<button type="button" class="resourcePickerCollection" data-picker-collection="'+index+'">'+(key==='apps'?'<img src="../assets/icons/ic_menu_post.png" alt="">':resourceIconMarkup(item.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'))+'<span><b>'+esc(item.collection_title||item.title||item.name||'Resource Collection')+'</b></span><span>›</span></button>').join(''):'<div class="resourcePickerEmpty">No resources in this category.</div>');
+  body.querySelector('.resourcePickerBack')?.addEventListener('click',renderCategories);
+  body.querySelectorAll('[data-picker-collection]').forEach(button=>button.addEventListener('click',async()=>{
+   const item=category.items[Number(button.dataset.pickerCollection)];if(key==='apps'){try{await openResourceAppImport(item,onSelect);close()}catch(error){body.insertAdjacentHTML('beforeend','<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>')}return}
+   const collectionId=item.collection_id??item.collectionID??item.id;if(collectionId==null)return;
+   body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(item.collection_title||item.title||'Collection')+'</button><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div>';
+   body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>renderCollections(key));
+   try{
+    const response=await A.api({path:'collections/'+collectionId+'/resources',params:{start:0,limit:200,with_attachments:'TRUE',...(item.folder_id||item.folderId?{f:item.folder_id||item.folderId}:{})}});
+    const resources=resourcePickerArray(response?.resource??response?.resources??response?.resource_list??[]);
+    body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(item.collection_title||item.title||'Collection')+'</button>'+(resources.length?resources.map((resource,index)=>'<button type="button" class="resourcePickerItem" data-res-index="'+index+'">'+resourceIconMarkup(resourceIconForType(resourceType(resource),resourceTitle(resource),resource))+'<span><b>'+esc(resourceTitle(resource)||'Resource')+'</b></span></button>').join(''):'<div class="resourcePickerEmpty">No resources in this collection.</div>');
+    body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>renderCollections(key));
+    body.querySelectorAll('[data-res-index]').forEach(row=>row.addEventListener('click',()=>{selected=resources[Number(row.dataset.resIndex)];wrap.querySelector('#resourcePickerDone').disabled=false;body.querySelectorAll('.resourcePickerItem').forEach(other=>other.classList.toggle('selected',other===row))}));
+   }catch(error){body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(item.collection_title||item.title||'Collection')+'</button><div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>';body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>renderCollections(key))}
+  }));
+ };
+ const renderCategories=()=>{
+  body.innerHTML='<div class="resourcePickerCategoryList">'+categories.map(category=>'<section class="resourcePickerCategory"><button type="button" class="resourcePickerCategoryHeader" data-picker-category="'+category.key+'"><img src="../assets/icons/'+collectionIcon(category.key)+'" alt=""><b>'+esc(category.title)+'</b><span>'+category.items.length+'</span><span>›</span></button></section>').join('')+'</div>';
+  body.querySelectorAll('[data-picker-category]').forEach(button=>button.addEventListener('click',()=>renderCollections(button.dataset.pickerCategory)));
+ };
+ wrap.querySelector('#resourcePickerDone').onclick=()=>{if(selected){onSelect(selected);close()}};
  try{
-  const x=await A.api({path:'collections',params:{start:0,limit:200}});const cols=x?.collection||x?.collections||x?.collection_list||[];
-  if(!Array.isArray(cols)||!cols.length){body.innerHTML='<div class="resourcePickerEmpty">No resource collections available.</div>';return;}
-  body.innerHTML=cols.map((col,i)=>`<button class="resourcePickerCollection" data-col-index="${i}">${resourceIconMarkup('ic_collection.png')}<span><b>${esc(col.collection_title||col.title||col.name||'Collection')}</b><small>Resources</small></span><span>›</span></button>`).join('');
-  wrap.querySelectorAll('[data-col-index]').forEach(btn=>btn.onclick=async()=>{const col=cols[+btn.dataset.colIndex],cid=col.id??col.collection_id??col.collectionID;if(cid==null)return;body.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div>';try{const rx=await A.api({path:`collections/${cid}/resources`,params:{start:0,limit:200,with_attachments:'TRUE'}});const rs=rx?.resource||rx?.resources||rx?.resource_list||[];body.innerHTML=`<button class="resourcePickerBack">${officialBackIcon()} ${esc(col.collection_title||col.title||'Collection')}</button>`+(rs.length?rs.map((r,i)=>`<button class="resourcePickerItem" data-res-index="${i}">${resourceIconMarkup(resourceIconForType(resourceType(r),resourceTitle(r),r))}<span><b>${esc(resourceTitle(r)||'Resource')}</b></span></button>`).join(''):'<div class="resourcePickerEmpty">No resources in this collection.</div>');body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>{body.innerHTML=cols.map((col2,i)=>`<button class="resourcePickerCollection" data-col-index="${i}"><img src="../assets/icons/ic_collection.png" onerror="this.onerror=null;this.src='../assets/icons/attachment_document_icon.png'" alt=""><span><b>${esc(col2.collection_title||col2.title||col2.name||'Collection')}</b><small>Resources</small></span><span>›</span></button>`).join('');body.querySelectorAll('[data-col-index]').forEach(b=>b.onclick=wrap.querySelectorAll('[data-col-index]')[0]?.onclick)});window.__pickerResources=rs;body.querySelectorAll('[data-res-index]').forEach(rbtn=>rbtn.onclick=()=>{selected=window.__pickerResources[+rbtn.dataset.resIndex];wrap.querySelector('#resourcePickerDone').disabled=false;body.querySelectorAll('.resourcePickerItem').forEach(q=>q.classList.remove('selected'));rbtn.classList.add('selected');});}catch(e){body.innerHTML=`<div class="resourcePickerError">Unable to load resources<br>${esc(e.message)}</div>`}});
-  wrap.querySelector('#resourcePickerDone').onclick=()=>{if(selected){onSelect(selected);close()}};
- }catch(e){body.innerHTML=`<div class="resourcePickerError">Unable to load resources<br>${esc(e.message)}</div>`}
+  const [collectionResponse,appsResponse]=await Promise.all([A.api({path:'collections',params:{start:0,limit:200}}),A.api({path:'resource_apps',params:{start:0,limit:200}}).catch(()=>({}))]);
+  const all=resourcePickerArray(collectionResponse?.collection??collectionResponse?.collections??collectionResponse?.collection_list??[]);
+  const apps=resourcePickerArray(appsResponse?.resource_apps??appsResponse?.resourceApps??appsResponse?.collection??appsResponse?.collections??[]);
+  const uid=Number(state.auth?.userId||state.auth?.user?.id||0),mine=[],shared=[],groups=[];
+  all.forEach(item=>{const owner=Number(item.collection_owner_id??item.collectionOwnerId??item.uid??item.owner_id??0),realmRaw=item.collection_realm??item.collectionRealm??item.realm??null,realm=String(realmRaw??'').toLowerCase(),sharedCount=Number(item.shared_users_count??item.sharedUsersCount??item.shared_users??0);if(realmRaw==null&&owner===uid)mine.push(item);else if(sharedCount>0)shared.push(item);else if(realm==='group')groups.push(item)});
+  categories=[{key:'mine',title:'My Resources',items:mine},{key:'shared',title:'Shared',items:shared},{key:'groups',title:'Groups',items:groups},{key:'apps',title:'Resource Apps',items:apps}];renderCategories();
+ }catch(error){body.innerHTML='<div class="resourcePickerError">Unable to load resources<br>'+esc(error?.message||String(error))+'</div>'}
 }
-
 function openAssignmentCommentComposer(sectionId,assignmentId,parentId='0'){
   state.assignmentSubpage='commentComposer';
   const old=document.getElementById('assignmentCommentDialog');old?.remove();
@@ -1924,7 +1993,7 @@ async function showPageNative(realm,realmId,pageId,title='Page'){
  try{const x=await A.api({path:`${realm}/${realmId}/pages/${pageId}`,params:{}});const page=x?.page||x;const body=page?.body||page?.description||page?.content||'';const pageTitle=page?.title||title||'Page';c.innerHTML=`<section class="pageAndroid"><div class="pageAndroidHeader"><h1>${esc(pageTitle)}</h1></div><div class="pageAndroidBody">${body||'<span class="muted">No page content.</span>'}</div></section>`;c.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(/^https?:\/\//i.test(href)){ev.preventDefault();ev.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}}}));}catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;}
 }
 async function showEmbeddedWeb(url,title,options={}){
- const c=options.courseApp?document.getElementById('sectionProfileContent'):document.getElementById('content');if(!c)return;
+ const c=options.container||(options.courseApp?document.getElementById('sectionProfileContent'):document.getElementById('content'));if(!c)return;
  try{url=new URL(String(url||''),options.baseUrl||(state.canadianInstance?'https://app.schoologyca.com/':'https://app.schoology.com/')).href}catch{throw new Error('This link does not contain a valid web address.')}
  if(!/^https?:/i.test(url))throw new Error('Only HTTP and HTTPS pages can be opened in the shared webview.');
  if(state.canadianInstance)url=String(url||'').replace(/app\.schoology\.com/gi,'app.schoologyca.com').replace(/api\.schoology\.com/gi,'api.schoologyca.com');
@@ -1936,15 +2005,17 @@ async function showEmbeddedWeb(url,title,options={}){
    try{const initial=new URL(String(url||''));const h=initial.hostname.toLowerCase();const schoolHost=h==='lms.lausd.net'||h==='schoology.com'||h.endsWith('.schoology.com')||h==='schoologyca.com'||h.endsWith('.schoologyca.com');if(['http:','https:'].includes(initial.protocol)&&!schoolHost){const handled=await routeSchoologyLink(initial.href);if(handled)return;const result=await A.openExternal(initial.href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result);return;}}catch(error){if(error instanceof TypeError){/* Relative or non-HTTP destinations continue into the webview. */}else{showAppDialog('Unable to open link',error.message||String(error));return;}}
  }
  if(options.routeSchoology!==false){try{const u=new URL(String(url||''));if((u.hostname.toLowerCase()==='lms.lausd.net'||u.hostname.toLowerCase().endsWith('.schoology.com')||u.hostname.toLowerCase()==='schoologyca.com'||u.hostname.toLowerCase().endsWith('.schoologyca.com'))&&/^\/course(?:s)?\/\d+\/materials\/gp\/\d+\/?$/i.test(u.pathname)){if(await routeSchoologyLink(u.href))return;}}catch{}}
- try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
- if(options.courseApp){c.classList.remove('webContentHost','embeddedContentActive');c.classList.add('courseAppEmbeddedContent');}else{c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');}state.toolbarTitle=options.courseApp?(courseToolbarTitleOf(state.selectedCourse||{})||'Course'):(title||'Schoology');state.embeddedTitle=options.courseApp?null:(title||'Schoology');state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.courseApp?'':(options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':'')));syncToolbar();
+ let resourceAppSession=null;try{resourceAppSession=await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
+ if(options.resourceAppImport){c.classList.add('resourceAppImportWebHost');}
+ else{if(options.courseApp){c.classList.remove('webContentHost','embeddedContentActive');c.classList.add('courseAppEmbeddedContent');}else{c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');}state.toolbarTitle=options.courseApp?(courseToolbarTitleOf(state.selectedCourse||{})||'Course'):(title||'Schoology');state.embeddedTitle=options.courseApp?null:(title||'Schoology');state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.courseApp?'':(options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':'')));syncToolbar();}
  const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" data-open-popups-external="${options.courseApp===true}" data-course-app="${options.courseApp===true}" allowpopups></${embeddedTag}></section>`;
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
  w.addEventListener('dom-ready',()=>{if(!window.__TAURI__&&mainNavigation>0)setLoading(false)});
  w.addEventListener('did-finish-load',()=>{if(mainNavigation>0){setLoading(false);initialPageLoaded=true}});
 
- w.addEventListener('did-navigate',e=>{if(e.isMainFrame){loadingStartedAt=Date.now();setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200);}});
+ let resourceAppImportHandled=false;
+ w.addEventListener('did-navigate',e=>{if(!e.isMainFrame)return;loadingStartedAt=Date.now();if(options.resourceAppImport&&/\/content_app\/import(?:\/|$)/i.test(String(e.url||''))&&!resourceAppImportHandled){resourceAppImportHandled=true;setLoading(true);Promise.resolve(options.resourceAppImportHandler?.(String(e.url),resourceAppSession)).catch(error=>{c.innerHTML='<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>'})}setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200)});
  w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription);const page=c.querySelector('.embeddedPage');if(page&&!page.querySelector('.embeddedWebviewError')){const error=document.createElement('div');error.className='embeddedWebviewError';error.innerHTML='<b>Unable to load this page</b><span></span><button type="button">Retry</button>';error.querySelector('span').textContent=e.errorDescription||e.message||'The website could not be loaded.';error.querySelector('button').addEventListener('click',()=>showEmbeddedWeb(url,title,options).catch(err=>showAppDialog('Unable to open page',err?.message||String(err))));page.appendChild(error)}}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},8000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
