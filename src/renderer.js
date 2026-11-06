@@ -1459,7 +1459,7 @@ function showAssignmentAttachmentChooser(){
         if(resourceId==null){setStatus('This resource does not have a usable Schoology resource ID.');return}
         const id=String(resourceId);
         if(attachments.some(item=>item.type==='resource'&&item.resourceId===id)){setStatus('That resource is already attached.');return}
-        attachments.push({key:++nextKey,type:'resource',resourceId:id,name:resourceTitle(resource)||'Resource',status:'ready'});
+        attachments.push({key:++nextKey,type:'resource',resourceId:id,importedResource:resource?.is_import_collection===true||resource?.isImportCollection===true,name:resourceTitle(resource)||'Resource',status:'ready'});
         renderList();setStatus('Resource added. You can add more files or resources before submitting.');
       },'Attach Resource');
     }catch(error){showAppDialog('Unable to load resources',error?.message||String(error))}
@@ -1476,7 +1476,8 @@ function showAssignmentAttachmentChooser(){
         if(item.type==='file'){
           if(!item.fileId){setStatus('Uploading '+item.name+'…');await uploadFile(item)}
           files.push({id:item.fileId});
-        }else files.push({schoology_resource_id:String(item.resourceId)});
+        }else if(item.importedResource)files.push({imported_resource_id:String(item.resourceId)});
+        else files.push({schoology_resource_id:String(item.resourceId)});
       }
       if(!files.length)throw new Error('Choose at least one file or resource.');
       setStatus('Submitting one revision with '+files.length+' attachment'+(files.length===1?'':'s')+'…');
