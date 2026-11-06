@@ -1146,8 +1146,8 @@ async function renderUnifiedComments(el,response,{entityId,replyHandler}={}){
  el.innerHTML='<div class="commentsPage officialComments unifiedCommentsView"><div class="updateCommentsList">'+(renderCommentThreadList(comments,entityId,hydrated)||'<div class="androidEmptyState">No comments yet.</div>')+'</div></div>';
  await hydrateMediaImages(el);
  el.querySelectorAll('[data-update-comment-author]').forEach(button=>button.onclick=()=>{const id=button.dataset.updateCommentAuthor;if(id)openProfileById(id,button.textContent||'Profile')});
- el.querySelectorAll('[data-update-comment-like]').forEach(button=>button.onclick=async()=>{const id=button.dataset.updateCommentLike;if(!id||button.disabled)return;const liked=button.dataset.liked==='1';button.disabled=true;try{const result=await A.api({path:\`like/\${entityId}/comment/\${id}\`,method:'POST',params:{like_action:!liked},json:true});const next=typeof result?.user_like_action==='boolean'?result.user_like_action:!liked;button.dataset.liked=next?'1':'0';button.textContent=next?'Unlike':'Like';syncCommentLikeCount(button,result,next,liked)}catch(error){showAppDialog('Unable to update comment like',error?.message||String(error)||'Unknown error')}finally{button.disabled=false}});
- el.querySelectorAll('[data-update-comment-like-count]').forEach(button=>button.onclick=()=>showLikeUsers(\`like/\${entityId}/comment/\${button.dataset.updateCommentLikeCount}\`));
+ el.querySelectorAll('[data-update-comment-like]').forEach(button=>button.onclick=async()=>{const id=button.dataset.updateCommentLike;if(!id||button.disabled)return;const liked=button.dataset.liked==='1';button.disabled=true;try{const result=await A.api({path:`like/\${entityId}/comment/\${id}`,method:'POST',params:{like_action:!liked},json:true});const next=typeof result?.user_like_action==='boolean'?result.user_like_action:!liked;button.dataset.liked=next?'1':'0';button.textContent=next?'Unlike':'Like';syncCommentLikeCount(button,result,next,liked)}catch(error){showAppDialog('Unable to update comment like',error?.message||String(error)||'Unknown error')}finally{button.disabled=false}});
+ el.querySelectorAll('[data-update-comment-like-count]').forEach(button=>button.onclick=()=>showLikeUsers(`like/\${entityId}/comment/\${button.dataset.updateCommentLikeCount}`));
  el.querySelectorAll('[data-update-comment-reply]').forEach(button=>button.onclick=()=>replyHandler?.(button.dataset.updateCommentReply||'0'));
 }
 async function openAssignmentComments(sectionId,assignmentId,assignment){
@@ -2349,7 +2349,7 @@ function renderSharedCommentRow(comment,updateId,allComments=[],hydratedRow=null
 }
 async function loadUpdateCommentsPanel(realm,realmId,updateId,panel,options={}){
  if(!panel)return;panel.hidden=false;panel.innerHTML='<div class="loading">Loading comments…</div>';
- try{const data=await A.api({path:\`\${realm}/\${realmId}/updates/\${updateId}/comments\`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const comments=flattenUnifiedComments(data);
+ try{const data=await A.api({path:`\${realm}/\${realmId}/updates/\${updateId}/comments`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const comments=flattenUnifiedComments(data);
   const hydratedComments=await hydrateDialogPeople(comments);
   panel.innerHTML='<div class="updateCommentsList unifiedCommentsView">'+(renderCommentThreadList(comments,updateId,hydratedComments)||'<div class="empty">No comments yet.</div>')+'</div><div class="updateCommentComposer" hidden><textarea id="update-comment-'+esc(updateId)+'" placeholder="Write a comment…"></textarea><button type="button" data-post-update-comment="'+esc(updateId)+'">Post comment</button></div>';
   hydrateMediaImages(panel).catch(()=>{});
