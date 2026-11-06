@@ -570,7 +570,7 @@ function bind(){
   document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{
     const info={url:b.dataset.downloadUrl,viewUrl:b.dataset.pdfViewUrl||'',filename:b.dataset.downloadName,mime:b.dataset.downloadMime};
     const download=async()=>{const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};
-    if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
+    if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
     try{await download()}catch(e){alert('Unable to open file: '+e.message)}
   });
   document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Link')));
@@ -1039,7 +1039,7 @@ async function showSchoologyPage(sectionId,pageId,title='Page'){
   c.querySelectorAll('[data-download-url]').forEach(button=>button.onclick=async()=>{
    const info={url:button.dataset.downloadUrl,viewUrl:button.dataset.pdfViewUrl||'',filename:button.dataset.downloadName||'Schoology attachment',mime:button.dataset.downloadMime||'application/octet-stream'};
    const download=async()=>{const result=await downloadWithFeedback(button,info);const error=await A.openDownloadedFile({path:result.path});if(typeof error==='string'&&error)throw new Error(error)};
-   try{if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl)showPdfAttachmentOptions(info,download);else await download()}catch(error){alert('Unable to open attachment: '+(error?.message||error))}
+   try{if(isAudioVideoAttachment(info))showMediaAttachmentOptions(info,download);else if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl)showPdfAttachmentOptions(info,download);else await download()}catch(error){alert('Unable to open attachment: '+(error?.message||error))}
   });
   c.querySelectorAll('[data-open-url]').forEach(button=>button.onclick=async()=>{try{const result=await A.openExternal(button.dataset.openUrl);if(typeof result==='string'&&result)throw new Error(result)}catch(error){alert('Unable to open link: '+(error?.message||error))}});
   c.querySelectorAll('[data-embed-html]').forEach(button=>button.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(button.dataset.embedHtml),'Embedded content',{allowBrowser:false}));
@@ -1718,7 +1718,7 @@ async function hydrateMediaImages(root=document){
      if(exact){const convertedOk=['success','converted','1'].includes(String(exact.converted_status??exact.convertedStatus??'').toLowerCase()),rawUrl=exact.file_download_url||exact.fileDownloadURL||exact.download_path||exact.downloadPath||'',convertedUrl=exact.file_converted_download_url||exact.fileConvertedDownloadURL||exact.converted_download_path||exact.convertedDownloadPath||'';info.viewUrl=convertedOk?convertedUrl:'';info.url=rawUrl||convertedUrl;info.filename=exact.filename||exact.title||info.filename;info.mime=exact.filemime||exact.fileMIME||info.mime}
    }
    const download=async()=>{const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};
-   if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
+   if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
    await download();
  }catch(e){alert('Unable to open file: '+e.message)}
 }});
