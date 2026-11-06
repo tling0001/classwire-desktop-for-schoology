@@ -986,7 +986,7 @@ async function openAssignmentAttachmentItem(item,button,dialog){
       if(!url)throw new Error('Schoology did not provide a file URL.');
       const info={url,viewUrl,filename:item.filename||item.fileName||item.title||item.fileTitle||'Schoology file',mime:item.filemime||item.fileMIME||'application/octet-stream'};
       const download=async()=>{const result=await downloadWithFeedback(button,info);const error=await A.openDownloadedFile({path:result.path});if(error)throw new Error(error)};
-      if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){dialog?.classList.remove('open');showPdfAttachmentOptions(info,download);return;}
+      if(isAudioVideoAttachment(info)){dialog?.classList.remove('open');showMediaAttachmentOptions(info,download);return;}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){dialog?.classList.remove('open');showPdfAttachmentOptions(info,download);return;}
       await download();
       dialog?.classList.remove('open');
     }else if(item.kind==='link'||item.kind==='video'){
@@ -1460,7 +1460,33 @@ const LOCAL_ATTACHMENT_ICONS={"attachment_document_icon.png":"data:image/png;bas
 function localAttachmentIcon(name){return LOCAL_ATTACHMENT_ICONS[name]||`../assets/icons/${String(name||'attachment_document_icon.png').replace(/^.*\//,'')}`}
 function isPdfAttachment(info){const mime=String(info?.mime||info?.filemime||info?.fileMIME||info?.convertedFileMime||info?.converted_filemime||'').toLowerCase(),name=String(info?.filename||info?.title||info?.fileName||info?.fileTitle||''),url=String(info?.url||info?.downloadUrl||info?.download_url||info?.resolveDownloadUrl||'');let path='';try{path=new URL(url,location.href).pathname}catch{}return mime.includes('pdf')||/\.pdf$/i.test(name)||/\.pdf$/i.test(path)}
 function isImageAttachment(info){const mime=String(info?.mime||info?.filemime||info?.fileMIME||'').toLowerCase(),name=String(info?.filename||info?.title||info?.fileName||info?.fileTitle||''),url=String(info?.url||info?.viewUrl||info?.downloadUrl||'');let path='';try{path=new URL(url,location.href).pathname}catch{}return mime.startsWith('image/')||/\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i.test(name)||/\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i.test(path)}
+function mediaAttachmentType(info){
+ const mime=String(info?.mime||info?.filemime||info?.fileMIME||info?.convertedFileMime||info?.converted_filemime||'').toLowerCase().split(';')[0].trim();
+ const name=String(info?.filename||info?.title||info?.fileName||info?.fileTitle||info?.url||'').toLowerCase();let path='';try{path=new URL(String(info?.url||info?.viewUrl||''),location.href).pathname.toLowerCase()}catch{}
+ const ext=(name.match(/\.([a-z0-9]{2,5})$/)||path.match(/\.([a-z0-9]{2,5})$/)||[])[1]||'';
+ const videoExt=new Set(['mp4','m4v','mov','webm','ogv','3gp','3g2','mkv','avi','mpeg','mpg','mpe','ts','mts']);
+ const audioExt=new Set(['mp3','m4a','aac','wav','wave','ogg','oga','opus','flac','wma','aiff','aif','mid','midi','amr']);
+ if(mime.startsWith('video/'))return 'video';if(mime.startsWith('audio/'))return 'audio';
+ if(videoExt.has(ext))return 'video';if(audioExt.has(ext))return 'audio';return '';
+}
+function isAudioVideoAttachment(info){return !!mediaAttachmentType(info)}
+function mediaAttachmentMime(info){
+ const supplied=String(info?.mime||info?.filemime||info?.fileMIME||info?.convertedFileMime||info?.converted_filemime||'').toLowerCase().split(';')[0].trim();if(supplied.startsWith('video/')||supplied.startsWith('audio/'))return supplied;
+ const name=String(info?.filename||info?.title||info?.fileName||info?.url||'').toLowerCase();const ext=(name.match(/\.([a-z0-9]{2,5})$/)||[])[1]||'';
+ return ({mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'video/webm',ogv:'video/ogg','3gp':'video/3gpp','3g2':'video/3gpp2',mkv:'video/x-matroska',avi:'video/x-msvideo',mpeg:'video/mpeg',mpg:'video/mpeg',mp3:'audio/mpeg',m4a:'audio/mp4',aac:'audio/aac',wav:'audio/wav',wave:'audio/wav',ogg:mediaAttachmentType(info)==='video'?'video/ogg':'audio/ogg',oga:'audio/ogg',opus:'audio/opus',flac:'audio/flac',wma:'audio/x-ms-wma',aiff:'audio/aiff',aif:'audio/aiff',mid:'audio/midi',midi:'audio/midi',amr:'audio/amr'})[ext]|| (mediaAttachmentType(info)==='video'?'video/mp4':'audio/mpeg');
+}
 function imageAttachmentMime(info){const supplied=String(info?.mime||info?.filemime||info?.fileMIME||'').toLowerCase();if(/^image\/[a-z0-9.+-]+$/.test(supplied))return supplied;const name=String(info?.filename||info?.title||info?.fileName||info?.url||'').toLowerCase();const ext=(name.match(/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/)||[])[1]||'';return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',svg:'image/svg+xml',heic:'image/heic',heif:'image/heif',avif:'image/avif',tif:'image/tiff',tiff:'image/tiff'})[ext]||'image/jpeg'}
+function showMediaAttachmentOptions(info,downloadAction){
+ document.getElementById('pdfAttachmentOptionsOverlay')?.remove();
+ const overlay=document.createElement('div');overlay.id='pdfAttachmentOptionsOverlay';overlay.className='pdfAttachmentOptionsOverlay';
+ const title=String(info?.displayFilename||info?.filename||info?.title||'Media file');
+ overlay.innerHTML='<section class="pdfAttachmentOptions" role="dialog" aria-modal="true" aria-label="View or Download"><header><b>View or Download</b><button type="button" data-pdf-options-close aria-label="Close">×</button></header><div class="pdfAttachmentTitle">'+esc(title)+'</div><div class="pdfAttachmentActions"><button type="button" data-pdf-download>Download</button><button type="button" class="pdfViewAction" data-pdf-view>View</button></div></section>';
+ const close=()=>overlay.remove();
+ overlay.addEventListener('click',event=>{if(event.target===overlay||event.target.closest('[data-pdf-options-close]'))close()});
+ overlay.querySelector('[data-pdf-download]')?.addEventListener('click',async()=>{close();try{await downloadAction()}catch(error){showAppDialog('Unable to download media',error?.message||String(error))}});
+ overlay.querySelector('[data-pdf-view]')?.addEventListener('click',()=>{close();openSharedAttachmentViewer(info,downloadAction).catch(error=>showAppDialog('Unable to open media',error?.message||String(error)))});
+ document.body.appendChild(overlay);requestAnimationFrame(()=>overlay.classList.add('open'));
+}
 function showPdfAttachmentOptions(info,downloadAction){
  document.getElementById('pdfAttachmentOptionsOverlay')?.remove();
  const overlay=document.createElement('div');overlay.id='pdfAttachmentOptionsOverlay';overlay.className='pdfAttachmentOptionsOverlay';
@@ -1473,7 +1499,25 @@ function showPdfAttachmentOptions(info,downloadAction){
  document.body.appendChild(overlay);
  requestAnimationFrame(()=>overlay.classList.add('open'));
 }
-async function openSharedAttachmentViewer(info){if(isImageAttachment(info)){await openSharedImageViewer(info);return}await openSharedPdfViewer(info)}
+async function openSharedAttachmentViewer(info,downloadAction){if(isImageAttachment(info)){await openSharedImageViewer(info);return}if(isAudioVideoAttachment(info)){await openSharedMediaViewer(info,downloadAction);return}await openSharedPdfViewer(info)}
+async function openSharedMediaViewer(info,downloadAction){
+ document.getElementById('sharedPdfViewerOverlay')?.remove();
+ const type=mediaAttachmentType(info),isVideo=type==='video',url=info?.viewUrl||info?.url;if(!url)throw new Error('Schoology did not provide a media URL.');
+ const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay sharedMediaViewer';
+ const title=info?.displayFilename||info?.filename||info?.title||(isVideo?'Video':'Audio');
+ root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(title)+'</b><span class="sharedMediaViewerType">'+(isVideo?'Video':'Audio')+'</span></header><div class="sharedMediaViewerBody"><div class="sharedPdfViewerLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading '+(isVideo?'video':'audio')+'…</span></div></div>';
+ document.body.appendChild(root);requestAnimationFrame(()=>root.classList.add('open'));
+ let closed=false;const close=()=>{if(closed)return;closed=true;const media=root.querySelector('video,audio');try{media?.pause();if(media)media.removeAttribute('src');media?.load()}catch{}root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
+ root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close);
+ try{
+  await A.prepareWebSession?.();
+  const body=root.querySelector('.sharedMediaViewerBody'),element=document.createElement(isVideo?'video':'audio');
+  element.className='sharedMediaElement';element.controls=true;element.preload='metadata';if(isVideo){element.playsInline=true;element.setAttribute('playsinline','');element.setAttribute('webkit-playsinline','');}
+  element.src=url;element.setAttribute('aria-label',title);
+  element.addEventListener('error',()=>{if(!root.isConnected)return;body.querySelector('.sharedMediaViewerError')?.remove();const error=document.createElement('div');error.className='sharedMediaViewerError';error.innerHTML='<b>Unable to play this media</b><p>This file format or codec may not be supported by this device. You can still download the original file.</p><button type="button">Download</button>';error.querySelector('button')?.addEventListener('click',async()=>{try{if(downloadAction)await downloadAction();else{const result=await downloadWithFeedback(null,info);await A.openDownloadedFile({path:result.path})}}catch(e){showAppDialog('Unable to download media',e?.message||String(e))}});body.appendChild(error)});
+  body.innerHTML='';body.appendChild(element);element.load();
+ }catch(error){root.querySelector('.sharedMediaViewerBody').innerHTML='<div class="sharedPdfViewerError"><b>Unable to open media</b><p>'+esc(error?.message||String(error))+'</p></div>'}
+}
 async function openSharedImageViewer(info){
  document.getElementById('sharedPdfViewerOverlay')?.remove();
  const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay pdfViewerOpening sharedImageViewer';
@@ -1630,7 +1674,7 @@ function materialIconForType(item){
 function mimeIconForFilename(name,mime=''){
  const n=String(name||'').toLowerCase();
  const mt=String(mime||'').toLowerCase().split(';')[0].trim();
- if(/\.(mp3|wav|m4a|aac|ogg|flac|mp4|mov|avi|webm|mkv)$/.test(n))return 'ic_attach_audio.png';
+ if(/\.(mp3|wav|wave|m4a|aac|ogg|oga|opus|flac|wma|aiff|aif|mid|midi|amr|mp4|m4v|mov|ogv|avi|webm|mkv|3gp|3g2|mpeg|mpg|ts|mts)$/.test(n))return 'ic_attach_audio.png';
  if(/\.(txt|csv|rtf)$/.test(n))return 'ic_attach_text.png';
  if(/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/.test(n))return 'ic_attach_image.png';
  if(/\.pdf$/.test(n)||mt==='application/pdf')return 'ic_attach_app_pdf.png';
@@ -1641,7 +1685,7 @@ function mimeIconForFilename(name,mime=''){
  return 'attachment_document_icon.png';
 }
 
-function extensionFromMime(mime){const m=String(mime||'').toLowerCase().split(';')[0].trim();const map={'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','image/svg+xml':'svg','audio/mpeg':'mp3','audio/mp4':'m4a','audio/wav':'wav','video/mp4':'mp4','video/webm':'webm','application/pdf':'pdf','application/zip':'zip','application/x-zip-compressed':'zip','application/msword':'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'docx','application/vnd.ms-excel':'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'xlsx','application/vnd.ms-powerpoint':'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx','text/plain':'txt','text/csv':'csv'};return map[m]||'';}
+function extensionFromMime(mime){const m=String(mime||'').toLowerCase().split(';')[0].trim();const map={'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','image/svg+xml':'svg','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/wav':'wav','audio/ogg':'ogg','audio/flac':'flac','video/mp4':'mp4','video/quicktime':'mov','video/webm':'webm','video/ogg':'ogv','application/pdf':'pdf','application/zip':'zip','application/x-zip-compressed':'zip','application/msword':'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'docx','application/vnd.ms-excel':'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'xlsx','application/vnd.ms-powerpoint':'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx','text/plain':'txt','text/csv':'csv'};return map[m]||'';}
 function extensionFromUrl(url){try{const p=new URL(String(url),location.href).pathname.split('/').pop()||'';const m=p.match(/\.([A-Za-z0-9]{1,8})$/);return m?m[1]:''}catch{return''}}
 async function loadFolder(course,folderId,push=true,title='Materials'){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
@@ -1749,7 +1793,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.download_path||first?.downloadPath||first?.resolveDownloadUrl||first?.url||fileUrl;convertedUrl=convertedUrl||first?.converted_download_path||first?.convertedDownloadPath||'';
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
-      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',displayFilename:filename,originalExtension:ext,mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
+      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isAudioVideoAttachment(originalInfo)){showMediaAttachmentOptions(originalInfo,downloadOriginal);return;} if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',displayFilename:filename,originalExtension:ext,mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
     }catch(e){alert('Unable to open file: '+e.message)}})();return
   }; el.addEventListener('click',el.__schoologyMaterialClickHandler);
   }catch(e){showSchoologyRequestError(e,()=>loadFolder(course,folderId,false,title));}
@@ -2972,7 +3016,7 @@ async function openCollectionResource(item,button){
    }
    if(dt==='file'){
      const f=firstAttachment(item,'files');const u=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url||f?.url||f?.converted_download_path||f?.convertedDownloadPath;
-     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const r=await downloadWithFeedback(button,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);return}
+     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const info={url:u,filename,mime};const download=async()=>{const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);return}
    }
  }
  const u=item.web_url||item.webUrl||item.url||item.href||item.location||item.download_path||item.downloadPath||item.file_url||item.fileUrl;
