@@ -1,5 +1,18 @@
 # Schoology Desktop Port
 
+## [2026.10.0-port.50]
+
+### Added
+- Add an in-app audio/video viewer with native playback controls for common video and audio formats, plus a download fallback when a device cannot decode a codec.
+- Organize the assignment resource picker like the standalone Resources page with My Resources, Shared, Groups, and Resource Apps. Add Resource App import mode using Android-compatible RelayState parameters and the `/content_app/import` request, and submit imported resources with `imported_resource_id`.
+
+### Fixed
+- Render comments and nested replies recursively in parent-first order so each reply appears immediately below the comment it responds to, without hiding replies behind a separate expand action.
+- Keep native OS notifications available through a one-minute `/v1/notifications` polling fallback on all Tauri targets. This is notification delivery while the app is running, not server push enrollment: Android explicitly registers an FCM token with `/v1/alert/device/{device_token}`, and the extracted iOS app includes Firebase app configuration. The supplied official clients do not define Windows WNS or Linux push-token enrollment, and the classic app has no valid provider tokens for those platforms; no synthetic device tokens are registered.
+
+### Changed
+- Bump the package version to 2026.10.0-port.50.
+
 ## [2026.10.0-port.49]
 
 ### Fixed

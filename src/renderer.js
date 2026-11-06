@@ -570,7 +570,7 @@ function bind(){
   document.querySelectorAll('[data-download-url]').forEach(b=>b.onclick=async()=>{
     const info={url:b.dataset.downloadUrl,viewUrl:b.dataset.pdfViewUrl||'',filename:b.dataset.downloadName,mime:b.dataset.downloadMime};
     const download=async()=>{const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};
-    if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
+    if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
     try{await download()}catch(e){alert('Unable to open file: '+e.message)}
   });
   document.querySelectorAll('[data-open-url]').forEach(b=>b.onclick=()=>openWithPressTransition(b,()=>showEmbeddedWeb(b.dataset.openUrl,'Link')));
@@ -986,7 +986,7 @@ async function openAssignmentAttachmentItem(item,button,dialog){
       if(!url)throw new Error('Schoology did not provide a file URL.');
       const info={url,viewUrl,filename:item.filename||item.fileName||item.title||item.fileTitle||'Schoology file',mime:item.filemime||item.fileMIME||'application/octet-stream'};
       const download=async()=>{const result=await downloadWithFeedback(button,info);const error=await A.openDownloadedFile({path:result.path});if(error)throw new Error(error)};
-      if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){dialog?.classList.remove('open');showPdfAttachmentOptions(info,download);return;}
+      if(isAudioVideoAttachment(info)){dialog?.classList.remove('open');showMediaAttachmentOptions(info,download);return;}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){dialog?.classList.remove('open');showPdfAttachmentOptions(info,download);return;}
       await download();
       dialog?.classList.remove('open');
     }else if(item.kind==='link'||item.kind==='video'){
@@ -1039,7 +1039,7 @@ async function showSchoologyPage(sectionId,pageId,title='Page'){
   c.querySelectorAll('[data-download-url]').forEach(button=>button.onclick=async()=>{
    const info={url:button.dataset.downloadUrl,viewUrl:button.dataset.pdfViewUrl||'',filename:button.dataset.downloadName||'Schoology attachment',mime:button.dataset.downloadMime||'application/octet-stream'};
    const download=async()=>{const result=await downloadWithFeedback(button,info);const error=await A.openDownloadedFile({path:result.path});if(typeof error==='string'&&error)throw new Error(error)};
-   try{if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl)showPdfAttachmentOptions(info,download);else await download()}catch(error){alert('Unable to open attachment: '+(error?.message||error))}
+   try{if(isAudioVideoAttachment(info))showMediaAttachmentOptions(info,download);else if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl)showPdfAttachmentOptions(info,download);else await download()}catch(error){alert('Unable to open attachment: '+(error?.message||error))}
   });
   c.querySelectorAll('[data-open-url]').forEach(button=>button.onclick=async()=>{try{const result=await A.openExternal(button.dataset.openUrl);if(typeof result==='string'&&result)throw new Error(result)}catch(error){alert('Unable to open link: '+(error?.message||error))}});
   c.querySelectorAll('[data-embed-html]').forEach(button=>button.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(button.dataset.embedHtml),'Embedded content',{allowBrowser:false}));
@@ -1125,12 +1125,26 @@ function flattenUnifiedComments(response){
  const walk=(node,parentId=0)=>{if(!node||typeof node!=='object')return;const id=String(node.id??node.comment_id??node.commentId??'');if(id&&seen.has(id))return;if(id)seen.add(id);const row={...node};if(row.parent_id==null&&row.parentId==null&&parentId)row.parent_id=parentId;rows.push(row);const nextId=node.id??node.comment_id??node.commentId??parentId;const children=node.children??node.replies??node.comments??node.comment_replies??[];if(Array.isArray(children))children.forEach(child=>walk(child,nextId));};
  roots.forEach(node=>walk(node,0));return rows;
 }
+function commentIdentity(comment){return String(comment?.id??comment?.comment_id??comment?.commentId??'')}
+function commentParentIdentity(comment){return String(comment?.parent_id??comment?.parentId??'0')}
+function buildCommentThreadIndex(comments){
+ const rows=Array.isArray(comments)?comments:[],byId=new Map(),children=new Map(),roots=[];
+ rows.forEach(comment=>{const id=commentIdentity(comment);if(id&&!byId.has(id))byId.set(id,comment)});
+ const parentOf=new Map();
+ rows.forEach(comment=>{const id=commentIdentity(comment),parent=commentParentIdentity(comment);if(id&&parent!=='0'&&parent!==id&&byId.has(parent)){let cursor=parent,cycle=false,seen=new Set([id]);while(cursor&&byId.has(cursor)){if(seen.has(cursor)){cycle=true;break}seen.add(cursor);cursor=parentOf.get(cursor)||'0'}if(!cycle)parentOf.set(id,parent)}});
+ rows.forEach(comment=>{const id=commentIdentity(comment),parent=parentOf.get(id);if(parent){if(!children.has(parent))children.set(parent,[]);children.get(parent).push(comment)}else roots.push(comment)});
+ return {roots,children};
+}
+function renderCommentThreadList(comments,entityId,hydrated){
+ const index=buildCommentThreadIndex(comments),profiles=new Map();
+ (comments||[]).forEach((comment,i)=>profiles.set(commentIdentity(comment),hydrated?.[i]||null));
+ const render=(comment,depth=0)=>{const id=commentIdentity(comment),row=renderSharedCommentRow(comment,entityId,[],profiles.get(id)),nested=index.children.get(id)||[];return row+(nested.length?'<div class="commentReplyThread" data-comment-reply-depth="'+(depth+1)+'">'+nested.map(child=>render(child,depth+1)).join('')+'</div>':'')};
+ return index.roots.map(root=>render(root)).join('');
+}
 async function renderUnifiedComments(el,response,{entityId,replyHandler}={}){
  if(!el)return;const comments=flattenUnifiedComments(response),hydrated=await hydrateDialogPeople(comments);
- el.innerHTML='<div class="commentsPage officialComments unifiedCommentsView"><div class="updateCommentsList">'+(comments.map((comment,index)=>renderSharedCommentRow(comment,entityId,comments,hydrated[index])).join('')||'<div class="androidEmptyState">No comments yet.</div>')+'</div></div>';
+ el.innerHTML='<div class="commentsPage officialComments unifiedCommentsView"><div class="updateCommentsList">'+(renderCommentThreadList(comments,entityId,hydrated)||'<div class="androidEmptyState">No comments yet.</div>')+'</div></div>';
  await hydrateMediaImages(el);
- el.querySelectorAll('.updateComment[data-parent-id]:not([data-parent-id="0"])').forEach(row=>{row.hidden=true});
- el.querySelectorAll('[data-comment-replies-toggle]').forEach(button=>button.onclick=()=>{const id=button.dataset.commentRepliesToggle,rows=[...el.querySelectorAll('.updateComment[data-parent-id]')].filter(row=>row.dataset.parentId===id),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));rows.forEach(row=>row.hidden=expanded);button.textContent=`${expanded?'⌄':'⌃'} ${rows.length} ${rows.length===1?'reply':'replies'}`});
  el.querySelectorAll('[data-update-comment-author]').forEach(button=>button.onclick=()=>{const id=button.dataset.updateCommentAuthor;if(id)openProfileById(id,button.textContent||'Profile')});
  el.querySelectorAll('[data-update-comment-like]').forEach(button=>button.onclick=async()=>{const id=button.dataset.updateCommentLike;if(!id||button.disabled)return;const liked=button.dataset.liked==='1';button.disabled=true;try{const result=await A.api({path:`like/${entityId}/comment/${id}`,method:'POST',params:{like_action:!liked},json:true});const next=typeof result?.user_like_action==='boolean'?result.user_like_action:!liked;button.dataset.liked=next?'1':'0';button.textContent=next?'Unlike':'Like';syncCommentLikeCount(button,result,next,liked)}catch(error){showAppDialog('Unable to update comment like',error?.message||String(error)||'Unknown error')}finally{button.disabled=false}});
  el.querySelectorAll('[data-update-comment-like-count]').forEach(button=>button.onclick=()=>showLikeUsers(`like/${entityId}/comment/${button.dataset.updateCommentLikeCount}`));
@@ -1143,21 +1157,90 @@ async function openAssignmentComments(sectionId,assignmentId,assignment){
  catch(error){c.innerHTML=`<div class="error apiError"><b>Schoology could not load comments.</b><br>${esc(error?.message||String(error))}</div>`}
 }
 
+function resourcePickerArray(value){return Array.isArray(value)?value:(value&&typeof value==='object'?[value]:[])}
+function resourcePickerImportedItems(payload){
+ const roots=payload?.imports??payload?.import??payload?.data?.imports??payload?.data?.import??payload?.collection_imports??payload?.collectionImports??[];
+ const imported=resourcePickerArray(roots),items=[],seen=new Set();
+ const add=(id,title,type)=>{if(id==null)return;const key=String(id);if(seen.has(key))return;seen.add(key);items.push({template_id:id,template_title:title||'Imported resource',template_type:type||'file',is_import_collection:true,imported_resource_id:id})};
+ const walk=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value)){value.forEach(walk);return}
+  const attachment=value.attachment||value.attachments||value;
+  const files=attachment?.files?.file??attachment?.files??attachment?.file??[];
+  resourcePickerArray(files).forEach(file=>add(file.file_id??file.fileID??file.id??file.template_id??file.templateID,file.file_title??file.fileTitle??file.filename??file.title??file.name,file.attachment_type??file.attachmentType??'file'));
+  const links=attachment?.links?.link??attachment?.links??attachment?.link??[];
+  resourcePickerArray(links).forEach(link=>add(link.link_id??link.linkID??link.id??link.template_id??link.templateID,link.link_title??link.linkTitle??link.title??link.name,link.attachment_type??link.attachmentType??'link'));
+  for(const [key,child] of Object.entries(value)){if(['files','links','file','link','attachment','attachments'].includes(key))continue;if(child&&typeof child==='object')walk(child)}
+ };
+ imported.forEach(walk);return items;
+}
+function buildResourceAppImportUrl(raw){
+ const launch=new URL(String(raw||'')),relayText=launch.searchParams.get('RelayState');
+ if(!relayText)throw new Error('This Resource App did not provide the RelayState required for importing resources.');
+ const relay=new URL(relayText,launch.origin);
+ relay.searchParams.set('mobile','1');relay.searchParams.set('is_ssl','1');relay.searchParams.set('import_view','1');relay.searchParams.set('acceptible_types','F,L,E');
+ launch.searchParams.set('RelayState',relay.toString());return launch.toString();
+}
+async function openResourceAppImport(app,onSelect){
+ const appId=app?.collection_id??app?.collectionID??app?.id??app?.app_id??app?.appId;if(appId==null)throw new Error('This Resource App is missing its application ID.');
+ const overlay=document.createElement('div');overlay.className='resourceAppImportOverlay';
+ overlay.innerHTML='<section class="resourceAppImportDialog" role="dialog" aria-modal="true"><header><button type="button" data-resource-app-close aria-label="Close">'+officialBackIcon()+'</button><b>'+esc(app.collection_title||app.title||app.name||'Resource App')+'</b><span></span></header><div class="resourceAppImportBody"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Opening Resource App…</span></div></div></section>';
+ document.body.appendChild(overlay);const body=overlay.querySelector('.resourceAppImportBody'),close=()=>overlay.remove();
+ overlay.querySelector('[data-resource-app-close]')?.addEventListener('click',close);overlay.addEventListener('click',event=>{if(event.target===overlay)close()});
+ try{
+  const launchResult=await A.launchCourseApp({appId:Number(appId)});
+  const launchUrl=launchResult?.url||launchResult?.launch_token_url||launchResult?.launchTokenUrl||launchResult?.data?.url||launchResult?.data?.launchTokenUrl;
+  if(!launchUrl)throw new Error('Schoology did not return a Resource App launch URL.');
+  await showEmbeddedWeb(buildResourceAppImportUrl(launchUrl),app.collection_title||app.title||app.name||'Resource App',{
+   container:body,openInitialExternalInBrowser:false,allowBrowser:false,externalLinks:false,resourceAppImport:true,
+   resourceAppImportHandler:async(url,session)=>{
+    const response=await A.importResourceApp({url,cookies:session?.cookies||[],mobileCookie:session?.mobileCookie||''});
+    const items=resourcePickerImportedItems(response);
+    if(!items.length)throw new Error('The Resource App did not return any importable files or links.');
+    body.innerHTML='<div class="resourceAppImportInstructions">Choose an item imported from this Resource App.</div><div class="resourceAppImportedList">'+items.map((item,index)=>'<button type="button" class="resourcePickerItem" data-imported-resource="'+index+'">'+resourceIconMarkup(resourceIconForType(resourceType(item),resourceTitle(item),item))+'<span><b>'+esc(resourceTitle(item))+'</b></span></button>').join('')+'</div><div class="resourceAppImportActions"><button type="button" data-resource-app-cancel>Cancel</button><button type="button" data-resource-app-add disabled>Add Resource</button></div>';
+    let selected=null;body.querySelectorAll('[data-imported-resource]').forEach(button=>button.addEventListener('click',()=>{selected=items[Number(button.dataset.importedResource)];body.querySelectorAll('[data-imported-resource]').forEach(row=>row.classList.toggle('selected',row===button));body.querySelector('[data-resource-app-add]').disabled=!selected}));
+    body.querySelector('[data-resource-app-cancel]')?.addEventListener('click',close);
+    body.querySelector('[data-resource-app-add]')?.addEventListener('click',()=>{if(selected){onSelect(selected);close()}});
+   }
+  });
+ }catch(error){body.innerHTML='<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div><div class="resourceAppImportActions"><button type="button" data-resource-app-close-bottom>Close</button></div>';body.querySelector('[data-resource-app-close-bottom]')?.addEventListener('click',close)}
+}
 async function chooseSchoologyResource(onSelect,title='Attach Resource'){
  const old=document.getElementById('schoologyResourcePicker');old?.remove();
  const wrap=document.createElement('div');wrap.id='schoologyResourcePicker';wrap.className='assignmentCommentDialogOverlay schoologyResourcePickerOverlay';
- wrap.innerHTML=`<section class="schoologyResourcePickerDialog" role="dialog" aria-modal="true"><header><button id="resourcePickerCancel" class="iconButton">${officialIcon('ic_action_discard_icon.png','Close')}</button><b>${esc(title)}</b><button id="resourcePickerDone" class="iconButton" disabled>${officialIcon('ic_action_post_checkmark_divider.png','Save')}</button></header><div class="resourcePickerTabs"><button class="active">All</button><button>Selected</button></div><div id="resourcePickerBody"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></div></section>`;
- document.body.appendChild(wrap); const body=wrap.querySelector('#resourcePickerBody'); let selected=null;
- const close=()=>wrap.remove();wrap.querySelector('#resourcePickerCancel').onclick=close;wrap.onclick=e=>{if(e.target===wrap)close()};
+ wrap.innerHTML='<section class="schoologyResourcePickerDialog" role="dialog" aria-modal="true"><header><button id="resourcePickerCancel" class="iconButton">'+officialIcon('ic_action_discard_icon.png','Close')+'</button><b>'+esc(title)+'</b><button id="resourcePickerDone" class="iconButton" disabled>'+officialIcon('ic_action_post_checkmark_divider.png','Save')+'</button></header><div id="resourcePickerBody"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></div></section>';
+ document.body.appendChild(wrap);const body=wrap.querySelector('#resourcePickerBody');let selected=null,categories=[];
+ const close=()=>wrap.remove();wrap.querySelector('#resourcePickerCancel').onclick=close;wrap.onclick=event=>{if(event.target===wrap)close()};
+ const renderCollections=key=>{
+  const category=categories.find(item=>item.key===key);if(!category)return;
+  body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(category.title)+'</button>'+(category.items.length?category.items.map((item,index)=>'<button type="button" class="resourcePickerCollection" data-picker-collection="'+index+'">'+(key==='apps'?'<img src="../assets/icons/ic_menu_post.png" alt="">':resourceIconMarkup(item.collection_type_id==3?'ic_eportfolio.png':'ic_collection.png'))+'<span><b>'+esc(item.collection_title||item.title||item.name||'Resource Collection')+'</b></span><span>›</span></button>').join(''):'<div class="resourcePickerEmpty">No resources in this category.</div>');
+  body.querySelector('.resourcePickerBack')?.addEventListener('click',renderCategories);
+  body.querySelectorAll('[data-picker-collection]').forEach(button=>button.addEventListener('click',async()=>{
+   const item=category.items[Number(button.dataset.pickerCollection)];if(key==='apps'){try{await openResourceAppImport(item,onSelect);close()}catch(error){body.insertAdjacentHTML('beforeend','<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>')}return}
+   const collectionId=item.collection_id??item.collectionID??item.id;if(collectionId==null)return;
+   body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(item.collection_title||item.title||'Collection')+'</button><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div>';
+   body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>renderCollections(key));
+   try{
+    const response=await A.api({path:'collections/'+collectionId+'/resources',params:{start:0,limit:200,with_attachments:'TRUE',...(item.folder_id||item.folderId?{f:item.folder_id||item.folderId}:{})}});
+    const resources=resourcePickerArray(response?.resource??response?.resources??response?.resource_list??[]);
+    body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(item.collection_title||item.title||'Collection')+'</button>'+(resources.length?resources.map((resource,index)=>'<button type="button" class="resourcePickerItem" data-res-index="'+index+'">'+resourceIconMarkup(resourceIconForType(resourceType(resource),resourceTitle(resource),resource))+'<span><b>'+esc(resourceTitle(resource)||'Resource')+'</b></span></button>').join(''):'<div class="resourcePickerEmpty">No resources in this collection.</div>');
+    body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>renderCollections(key));
+    body.querySelectorAll('[data-res-index]').forEach(row=>row.addEventListener('click',()=>{selected=resources[Number(row.dataset.resIndex)];wrap.querySelector('#resourcePickerDone').disabled=false;body.querySelectorAll('.resourcePickerItem').forEach(other=>other.classList.toggle('selected',other===row))}));
+   }catch(error){body.innerHTML='<button type="button" class="resourcePickerBack">'+officialBackIcon()+' '+esc(item.collection_title||item.title||'Collection')+'</button><div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>';body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>renderCollections(key))}
+  }));
+ };
+ const renderCategories=()=>{
+  body.innerHTML='<div class="resourcePickerCategoryList">'+categories.map(category=>'<section class="resourcePickerCategory"><button type="button" class="resourcePickerCategoryHeader" data-picker-category="'+category.key+'"><img src="../assets/icons/'+collectionIcon(category.key)+'" alt=""><b>'+esc(category.title)+'</b><span>'+category.items.length+'</span><span>›</span></button></section>').join('')+'</div>';
+  body.querySelectorAll('[data-picker-category]').forEach(button=>button.addEventListener('click',()=>renderCollections(button.dataset.pickerCategory)));
+ };
+ wrap.querySelector('#resourcePickerDone').onclick=()=>{if(selected){onSelect(selected);close()}};
  try{
-  const x=await A.api({path:'collections',params:{start:0,limit:200}});const cols=x?.collection||x?.collections||x?.collection_list||[];
-  if(!Array.isArray(cols)||!cols.length){body.innerHTML='<div class="resourcePickerEmpty">No resource collections available.</div>';return;}
-  body.innerHTML=cols.map((col,i)=>`<button class="resourcePickerCollection" data-col-index="${i}">${resourceIconMarkup('ic_collection.png')}<span><b>${esc(col.collection_title||col.title||col.name||'Collection')}</b><small>Resources</small></span><span>›</span></button>`).join('');
-  wrap.querySelectorAll('[data-col-index]').forEach(btn=>btn.onclick=async()=>{const col=cols[+btn.dataset.colIndex],cid=col.id??col.collection_id??col.collectionID;if(cid==null)return;body.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div>';try{const rx=await A.api({path:`collections/${cid}/resources`,params:{start:0,limit:200,with_attachments:'TRUE'}});const rs=rx?.resource||rx?.resources||rx?.resource_list||[];body.innerHTML=`<button class="resourcePickerBack">${officialBackIcon()} ${esc(col.collection_title||col.title||'Collection')}</button>`+(rs.length?rs.map((r,i)=>`<button class="resourcePickerItem" data-res-index="${i}">${resourceIconMarkup(resourceIconForType(resourceType(r),resourceTitle(r),r))}<span><b>${esc(resourceTitle(r)||'Resource')}</b></span></button>`).join(''):'<div class="resourcePickerEmpty">No resources in this collection.</div>');body.querySelector('.resourcePickerBack')?.addEventListener('click',()=>{body.innerHTML=cols.map((col2,i)=>`<button class="resourcePickerCollection" data-col-index="${i}"><img src="../assets/icons/ic_collection.png" onerror="this.onerror=null;this.src='../assets/icons/attachment_document_icon.png'" alt=""><span><b>${esc(col2.collection_title||col2.title||col2.name||'Collection')}</b><small>Resources</small></span><span>›</span></button>`).join('');body.querySelectorAll('[data-col-index]').forEach(b=>b.onclick=wrap.querySelectorAll('[data-col-index]')[0]?.onclick)});window.__pickerResources=rs;body.querySelectorAll('[data-res-index]').forEach(rbtn=>rbtn.onclick=()=>{selected=window.__pickerResources[+rbtn.dataset.resIndex];wrap.querySelector('#resourcePickerDone').disabled=false;body.querySelectorAll('.resourcePickerItem').forEach(q=>q.classList.remove('selected'));rbtn.classList.add('selected');});}catch(e){body.innerHTML=`<div class="resourcePickerError">Unable to load resources<br>${esc(e.message)}</div>`}});
-  wrap.querySelector('#resourcePickerDone').onclick=()=>{if(selected){onSelect(selected);close()}};
- }catch(e){body.innerHTML=`<div class="resourcePickerError">Unable to load resources<br>${esc(e.message)}</div>`}
+  const [collectionResponse,appsResponse]=await Promise.all([A.api({path:'collections',params:{start:0,limit:200}}),A.api({path:'resource_apps',params:{start:0,limit:200}}).catch(()=>({}))]);
+  const all=resourcePickerArray(collectionResponse?.collection??collectionResponse?.collections??collectionResponse?.collection_list??[]);
+  const apps=resourcePickerArray(appsResponse?.resource_apps??appsResponse?.resourceApps??appsResponse?.collection??appsResponse?.collections??[]);
+  const uid=Number(state.auth?.userId||state.auth?.user?.id||0),mine=[],shared=[],groups=[];
+  all.forEach(item=>{const owner=Number(item.collection_owner_id??item.collectionOwnerId??item.uid??item.owner_id??0),realmRaw=item.collection_realm??item.collectionRealm??item.realm??null,realm=String(realmRaw??'').toLowerCase(),sharedCount=Number(item.shared_users_count??item.sharedUsersCount??item.shared_users??0);if(realmRaw==null&&owner===uid)mine.push(item);else if(sharedCount>0)shared.push(item);else if(realm==='group')groups.push(item)});
+  categories=[{key:'mine',title:'My Resources',items:mine},{key:'shared',title:'Shared',items:shared},{key:'groups',title:'Groups',items:groups},{key:'apps',title:'Resource Apps',items:apps}];renderCategories();
+ }catch(error){body.innerHTML='<div class="resourcePickerError">Unable to load resources<br>'+esc(error?.message||String(error))+'</div>'}
 }
-
 function openAssignmentCommentComposer(sectionId,assignmentId,parentId='0'){
   state.assignmentSubpage='commentComposer';
   const old=document.getElementById('assignmentCommentDialog');old?.remove();
@@ -1376,7 +1459,7 @@ function showAssignmentAttachmentChooser(){
         if(resourceId==null){setStatus('This resource does not have a usable Schoology resource ID.');return}
         const id=String(resourceId);
         if(attachments.some(item=>item.type==='resource'&&item.resourceId===id)){setStatus('That resource is already attached.');return}
-        attachments.push({key:++nextKey,type:'resource',resourceId:id,name:resourceTitle(resource)||'Resource',status:'ready'});
+        attachments.push({key:++nextKey,type:'resource',resourceId:id,importedResource:resource?.is_import_collection===true||resource?.isImportCollection===true,name:resourceTitle(resource)||'Resource',status:'ready'});
         renderList();setStatus('Resource added. You can add more files or resources before submitting.');
       },'Attach Resource');
     }catch(error){showAppDialog('Unable to load resources',error?.message||String(error))}
@@ -1393,7 +1476,8 @@ function showAssignmentAttachmentChooser(){
         if(item.type==='file'){
           if(!item.fileId){setStatus('Uploading '+item.name+'…');await uploadFile(item)}
           files.push({id:item.fileId});
-        }else files.push({schoology_resource_id:String(item.resourceId)});
+        }else if(item.importedResource)files.push({imported_resource_id:String(item.resourceId)});
+        else files.push({schoology_resource_id:String(item.resourceId)});
       }
       if(!files.length)throw new Error('Choose at least one file or resource.');
       setStatus('Submitting one revision with '+files.length+' attachment'+(files.length===1?'':'s')+'…');
@@ -1446,7 +1530,33 @@ const LOCAL_ATTACHMENT_ICONS={"attachment_document_icon.png":"data:image/png;bas
 function localAttachmentIcon(name){return LOCAL_ATTACHMENT_ICONS[name]||`../assets/icons/${String(name||'attachment_document_icon.png').replace(/^.*\//,'')}`}
 function isPdfAttachment(info){const mime=String(info?.mime||info?.filemime||info?.fileMIME||info?.convertedFileMime||info?.converted_filemime||'').toLowerCase(),name=String(info?.filename||info?.title||info?.fileName||info?.fileTitle||''),url=String(info?.url||info?.downloadUrl||info?.download_url||info?.resolveDownloadUrl||'');let path='';try{path=new URL(url,location.href).pathname}catch{}return mime.includes('pdf')||/\.pdf$/i.test(name)||/\.pdf$/i.test(path)}
 function isImageAttachment(info){const mime=String(info?.mime||info?.filemime||info?.fileMIME||'').toLowerCase(),name=String(info?.filename||info?.title||info?.fileName||info?.fileTitle||''),url=String(info?.url||info?.viewUrl||info?.downloadUrl||'');let path='';try{path=new URL(url,location.href).pathname}catch{}return mime.startsWith('image/')||/\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i.test(name)||/\.(?:png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/i.test(path)}
+function mediaAttachmentType(info){
+ const mime=String(info?.mime||info?.filemime||info?.fileMIME||info?.convertedFileMime||info?.converted_filemime||'').toLowerCase().split(';')[0].trim();
+ const name=String(info?.filename||info?.title||info?.fileName||info?.fileTitle||info?.url||'').toLowerCase();let path='';try{path=new URL(String(info?.url||info?.viewUrl||''),location.href).pathname.toLowerCase()}catch{}
+ const ext=(name.match(/\.([a-z0-9]{2,5})$/)||path.match(/\.([a-z0-9]{2,5})$/)||[])[1]||'';
+ const videoExt=new Set(['mp4','m4v','mov','webm','ogv','3gp','3g2','mkv','avi','mpeg','mpg','mpe','ts','mts']);
+ const audioExt=new Set(['mp3','m4a','aac','wav','wave','ogg','oga','opus','flac','wma','aiff','aif','mid','midi','amr']);
+ if(mime.startsWith('video/'))return 'video';if(mime.startsWith('audio/'))return 'audio';
+ if(videoExt.has(ext))return 'video';if(audioExt.has(ext))return 'audio';return '';
+}
+function isAudioVideoAttachment(info){return !!mediaAttachmentType(info)}
+function mediaAttachmentMime(info){
+ const supplied=String(info?.mime||info?.filemime||info?.fileMIME||info?.convertedFileMime||info?.converted_filemime||'').toLowerCase().split(';')[0].trim();if(supplied.startsWith('video/')||supplied.startsWith('audio/'))return supplied;
+ const name=String(info?.filename||info?.title||info?.fileName||info?.url||'').toLowerCase();const ext=(name.match(/\.([a-z0-9]{2,5})$/)||[])[1]||'';
+ return ({mp4:'video/mp4',m4v:'video/mp4',mov:'video/quicktime',webm:'video/webm',ogv:'video/ogg','3gp':'video/3gpp','3g2':'video/3gpp2',mkv:'video/x-matroska',avi:'video/x-msvideo',mpeg:'video/mpeg',mpg:'video/mpeg',mp3:'audio/mpeg',m4a:'audio/mp4',aac:'audio/aac',wav:'audio/wav',wave:'audio/wav',ogg:mediaAttachmentType(info)==='video'?'video/ogg':'audio/ogg',oga:'audio/ogg',opus:'audio/opus',flac:'audio/flac',wma:'audio/x-ms-wma',aiff:'audio/aiff',aif:'audio/aiff',mid:'audio/midi',midi:'audio/midi',amr:'audio/amr'})[ext]|| (mediaAttachmentType(info)==='video'?'video/mp4':'audio/mpeg');
+}
 function imageAttachmentMime(info){const supplied=String(info?.mime||info?.filemime||info?.fileMIME||'').toLowerCase();if(/^image\/[a-z0-9.+-]+$/.test(supplied))return supplied;const name=String(info?.filename||info?.title||info?.fileName||info?.url||'').toLowerCase();const ext=(name.match(/\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif|tiff?)$/)||[])[1]||'';return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',svg:'image/svg+xml',heic:'image/heic',heif:'image/heif',avif:'image/avif',tif:'image/tiff',tiff:'image/tiff'})[ext]||'image/jpeg'}
+function showMediaAttachmentOptions(info,downloadAction){
+ document.getElementById('pdfAttachmentOptionsOverlay')?.remove();
+ const overlay=document.createElement('div');overlay.id='pdfAttachmentOptionsOverlay';overlay.className='pdfAttachmentOptionsOverlay';
+ const title=String(info?.displayFilename||info?.filename||info?.title||'Media file');
+ overlay.innerHTML='<section class="pdfAttachmentOptions" role="dialog" aria-modal="true" aria-label="View or Download"><header><b>View or Download</b><button type="button" data-pdf-options-close aria-label="Close">×</button></header><div class="pdfAttachmentTitle">'+esc(title)+'</div><div class="pdfAttachmentActions"><button type="button" data-pdf-download>Download</button><button type="button" class="pdfViewAction" data-pdf-view>View</button></div></section>';
+ const close=()=>overlay.remove();
+ overlay.addEventListener('click',event=>{if(event.target===overlay||event.target.closest('[data-pdf-options-close]'))close()});
+ overlay.querySelector('[data-pdf-download]')?.addEventListener('click',async()=>{close();try{await downloadAction()}catch(error){showAppDialog('Unable to download media',error?.message||String(error))}});
+ overlay.querySelector('[data-pdf-view]')?.addEventListener('click',()=>{close();openSharedAttachmentViewer(info,downloadAction).catch(error=>showAppDialog('Unable to open media',error?.message||String(error)))});
+ document.body.appendChild(overlay);requestAnimationFrame(()=>overlay.classList.add('open'));
+}
 function showPdfAttachmentOptions(info,downloadAction){
  document.getElementById('pdfAttachmentOptionsOverlay')?.remove();
  const overlay=document.createElement('div');overlay.id='pdfAttachmentOptionsOverlay';overlay.className='pdfAttachmentOptionsOverlay';
@@ -1459,7 +1569,25 @@ function showPdfAttachmentOptions(info,downloadAction){
  document.body.appendChild(overlay);
  requestAnimationFrame(()=>overlay.classList.add('open'));
 }
-async function openSharedAttachmentViewer(info){if(isImageAttachment(info)){await openSharedImageViewer(info);return}await openSharedPdfViewer(info)}
+async function openSharedAttachmentViewer(info,downloadAction){if(isImageAttachment(info)){await openSharedImageViewer(info);return}if(isAudioVideoAttachment(info)){await openSharedMediaViewer(info,downloadAction);return}await openSharedPdfViewer(info)}
+async function openSharedMediaViewer(info,downloadAction){
+ document.getElementById('sharedPdfViewerOverlay')?.remove();
+ const type=mediaAttachmentType(info),isVideo=type==='video',url=info?.viewUrl||info?.url;if(!url)throw new Error('Schoology did not provide a media URL.');
+ const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay sharedMediaViewer';
+ const title=info?.displayFilename||info?.filename||info?.title||(isVideo?'Video':'Audio');
+ root.innerHTML='<header class="sharedPdfViewerAppBar"><button type="button" data-pdf-viewer-back aria-label="Back">'+officialBackIcon()+'</button><b>'+esc(title)+'</b><span class="sharedMediaViewerType">'+(isVideo?'Video':'Audio')+'</span></header><div class="sharedMediaViewerBody"><div class="sharedPdfViewerLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading '+(isVideo?'video':'audio')+'…</span></div></div>';
+ document.body.appendChild(root);requestAnimationFrame(()=>root.classList.add('open'));
+ let closed=false;const close=()=>{if(closed)return;closed=true;const media=root.querySelector('video,audio');try{media?.pause();if(media)media.removeAttribute('src');media?.load()}catch{}root.classList.remove('open');root.classList.add('closing');setTimeout(()=>root.remove(),180)};
+ root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close);
+ try{
+  await A.prepareWebSession?.();
+  const body=root.querySelector('.sharedMediaViewerBody'),element=document.createElement(isVideo?'video':'audio');
+  element.className='sharedMediaElement';element.controls=true;element.preload='metadata';if(isVideo){element.playsInline=true;element.setAttribute('playsinline','');element.setAttribute('webkit-playsinline','');}
+  element.src=url;element.setAttribute('aria-label',title);
+  element.addEventListener('error',()=>{if(!root.isConnected)return;body.querySelector('.sharedMediaViewerError')?.remove();const error=document.createElement('div');error.className='sharedMediaViewerError';error.innerHTML='<b>Unable to play this media</b><p>This file format or codec may not be supported by this device. You can still download the original file.</p><button type="button">Download</button>';error.querySelector('button')?.addEventListener('click',async()=>{try{if(downloadAction)await downloadAction();else{const result=await downloadWithFeedback(null,info);await A.openDownloadedFile({path:result.path})}}catch(e){showAppDialog('Unable to download media',e?.message||String(e))}});body.appendChild(error)});
+  body.innerHTML='';body.appendChild(element);element.load();
+ }catch(error){root.querySelector('.sharedMediaViewerBody').innerHTML='<div class="sharedPdfViewerError"><b>Unable to open media</b><p>'+esc(error?.message||String(error))+'</p></div>'}
+}
 async function openSharedImageViewer(info){
  document.getElementById('sharedPdfViewerOverlay')?.remove();
  const root=document.createElement('section');root.id='sharedPdfViewerOverlay';root.className='sharedPdfViewerOverlay pdfViewerOpening sharedImageViewer';
@@ -1590,7 +1718,7 @@ async function hydrateMediaImages(root=document){
      if(exact){const convertedOk=['success','converted','1'].includes(String(exact.converted_status??exact.convertedStatus??'').toLowerCase()),rawUrl=exact.file_download_url||exact.fileDownloadURL||exact.download_path||exact.downloadPath||'',convertedUrl=exact.file_converted_download_url||exact.fileConvertedDownloadURL||exact.converted_download_path||exact.convertedDownloadPath||'';info.viewUrl=convertedOk?convertedUrl:'';info.url=rawUrl||convertedUrl;info.filename=exact.filename||exact.title||info.filename;info.mime=exact.filemime||exact.fileMIME||info.mime}
    }
    const download=async()=>{const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};
-   if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
+   if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
    await download();
  }catch(e){alert('Unable to open file: '+e.message)}
 }});
@@ -1616,7 +1744,7 @@ function materialIconForType(item){
 function mimeIconForFilename(name,mime=''){
  const n=String(name||'').toLowerCase();
  const mt=String(mime||'').toLowerCase().split(';')[0].trim();
- if(/\.(mp3|wav|m4a|aac|ogg|flac|mp4|mov|avi|webm|mkv)$/.test(n))return 'ic_attach_audio.png';
+ if(/\.(mp3|wav|wave|m4a|aac|ogg|oga|opus|flac|wma|aiff|aif|mid|midi|amr|mp4|m4v|mov|ogv|avi|webm|mkv|3gp|3g2|mpeg|mpg|ts|mts)$/.test(n))return 'ic_attach_audio.png';
  if(/\.(txt|csv|rtf)$/.test(n))return 'ic_attach_text.png';
  if(/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/.test(n))return 'ic_attach_image.png';
  if(/\.pdf$/.test(n)||mt==='application/pdf')return 'ic_attach_app_pdf.png';
@@ -1627,7 +1755,7 @@ function mimeIconForFilename(name,mime=''){
  return 'attachment_document_icon.png';
 }
 
-function extensionFromMime(mime){const m=String(mime||'').toLowerCase().split(';')[0].trim();const map={'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','image/svg+xml':'svg','audio/mpeg':'mp3','audio/mp4':'m4a','audio/wav':'wav','video/mp4':'mp4','video/webm':'webm','application/pdf':'pdf','application/zip':'zip','application/x-zip-compressed':'zip','application/msword':'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'docx','application/vnd.ms-excel':'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'xlsx','application/vnd.ms-powerpoint':'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx','text/plain':'txt','text/csv':'csv'};return map[m]||'';}
+function extensionFromMime(mime){const m=String(mime||'').toLowerCase().split(';')[0].trim();const map={'image/jpeg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp','image/svg+xml':'svg','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/wav':'wav','audio/ogg':'ogg','audio/flac':'flac','video/mp4':'mp4','video/quicktime':'mov','video/webm':'webm','video/ogg':'ogv','application/pdf':'pdf','application/zip':'zip','application/x-zip-compressed':'zip','application/msword':'doc','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'docx','application/vnd.ms-excel':'xls','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'xlsx','application/vnd.ms-powerpoint':'ppt','application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx','text/plain':'txt','text/csv':'csv'};return map[m]||'';}
 function extensionFromUrl(url){try{const p=new URL(String(url),location.href).pathname.split('/').pop()||'';const m=p.match(/\.([A-Za-z0-9]{1,8})$/);return m?m[1]:''}catch{return''}}
 async function loadFolder(course,folderId,push=true,title='Materials'){
   const el=document.getElementById('sectionProfileContent');if(!el)return;
@@ -1735,7 +1863,7 @@ async function loadFolder(course,folderId,push=true,title='Materials'){
         const a=data.attachments||data.attachment||{}; const files=a.files?.file||a.files||a.file||[]; const first=Array.isArray(files)?files[0]:files; fileUrl=first?.download_path||first?.downloadPath||first?.resolveDownloadUrl||first?.url||fileUrl;convertedUrl=convertedUrl||first?.converted_download_path||first?.convertedDownloadPath||'';
       }
       if(!fileUrl){ if(data.web_url||data.webUrl){await A.prepareWebSession();showEmbeddedWeb(data.web_url||data.webUrl,data.title||f.title||'Document');return} throw new Error('Schoology did not provide a downloadable file URL.'); }
-      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',displayFilename:filename,originalExtension:ext,mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
+      const rawName=data.filename||data.fileName||data.title||f.title||'Schoology file'; const mime=data.filemime||data.fileMIME||f.filemime||f.fileMIME||'application/octet-stream'; const ext=data.file_extension||data.fileExtension||data.extension||f.file_extension||f.fileExtension||f.extension||extensionFromUrl(fileUrl)||extensionFromMime(mime); const filename=/\.[A-Za-z0-9]{1,8}$/.test(rawName)?rawName:(ext?rawName+'.'+String(ext).replace(/^\./,''):rawName); const office=/^(docx?|pptx?|xlsx?|od[tp]|rtf)$/i.test(String(ext||extensionFromUrl(fileUrl)||'').replace(/^\./,'')); const originalInfo={url:fileUrl,filename,mime}; const downloadOriginal=async()=>{const r=await downloadWithFeedback(b,originalInfo);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)}; if(isAudioVideoAttachment(originalInfo)){showMediaAttachmentOptions(originalInfo,downloadOriginal);return;} if(isPdfAttachment({url:fileUrl,filename,mime})){showPdfAttachmentOptions(originalInfo,downloadOriginal);return} if(office&&convertedUrl){showPdfAttachmentOptions({url:convertedUrl,filename:filename.replace(/\.[^.]+$/,'')+'.pdf',displayFilename:filename,originalExtension:ext,mime:'application/pdf'},downloadOriginal);return} await downloadOriginal();
     }catch(e){alert('Unable to open file: '+e.message)}})();return
   }; el.addEventListener('click',el.__schoologyMaterialClickHandler);
   }catch(e){showSchoologyRequestError(e,()=>loadFolder(course,folderId,false,title));}
@@ -1866,7 +1994,7 @@ async function showPageNative(realm,realmId,pageId,title='Page'){
  try{const x=await A.api({path:`${realm}/${realmId}/pages/${pageId}`,params:{}});const page=x?.page||x;const body=page?.body||page?.description||page?.content||'';const pageTitle=page?.title||title||'Page';c.innerHTML=`<section class="pageAndroid"><div class="pageAndroidHeader"><h1>${esc(pageTitle)}</h1></div><div class="pageAndroidBody">${body||'<span class="muted">No page content.</span>'}</div></section>`;c.querySelectorAll('a[href]').forEach(a=>a.addEventListener('click',async ev=>{const href=a.href||a.getAttribute('href')||'';if(/^https?:\/\//i.test(href)){ev.preventDefault();ev.stopPropagation();try{if(await routeSchoologyLink(href))return;const result=await A.openExternal(href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(error){showAppDialog('Unable to open link',error.message||String(error))}}}));}catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this page.</b><br>${esc(e.message)}</div>`;}
 }
 async function showEmbeddedWeb(url,title,options={}){
- const c=options.courseApp?document.getElementById('sectionProfileContent'):document.getElementById('content');if(!c)return;
+ const c=options.container||(options.courseApp?document.getElementById('sectionProfileContent'):document.getElementById('content'));if(!c)return;
  try{url=new URL(String(url||''),options.baseUrl||(state.canadianInstance?'https://app.schoologyca.com/':'https://app.schoology.com/')).href}catch{throw new Error('This link does not contain a valid web address.')}
  if(!/^https?:/i.test(url))throw new Error('Only HTTP and HTTPS pages can be opened in the shared webview.');
  if(state.canadianInstance)url=String(url||'').replace(/app\.schoology\.com/gi,'app.schoologyca.com').replace(/api\.schoology\.com/gi,'api.schoologyca.com');
@@ -1878,15 +2006,17 @@ async function showEmbeddedWeb(url,title,options={}){
    try{const initial=new URL(String(url||''));const h=initial.hostname.toLowerCase();const schoolHost=h==='lms.lausd.net'||h==='schoology.com'||h.endsWith('.schoology.com')||h==='schoologyca.com'||h.endsWith('.schoologyca.com');if(['http:','https:'].includes(initial.protocol)&&!schoolHost){const handled=await routeSchoologyLink(initial.href);if(handled)return;const result=await A.openExternal(initial.href);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result);return;}}catch(error){if(error instanceof TypeError){/* Relative or non-HTTP destinations continue into the webview. */}else{showAppDialog('Unable to open link',error.message||String(error));return;}}
  }
  if(options.routeSchoology!==false){try{const u=new URL(String(url||''));if((u.hostname.toLowerCase()==='lms.lausd.net'||u.hostname.toLowerCase().endsWith('.schoology.com')||u.hostname.toLowerCase()==='schoologyca.com'||u.hostname.toLowerCase().endsWith('.schoologyca.com'))&&/^\/course(?:s)?\/\d+\/materials\/gp\/\d+\/?$/i.test(u.pathname)){if(await routeSchoologyLink(u.href))return;}}catch{}}
- try{await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
- if(options.courseApp){c.classList.remove('webContentHost','embeddedContentActive');c.classList.add('courseAppEmbeddedContent');}else{c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');}state.toolbarTitle=options.courseApp?(courseToolbarTitleOf(state.selectedCourse||{})||'Course'):(title||'Schoology');state.embeddedTitle=options.courseApp?null:(title||'Schoology');state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.courseApp?'':(options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':'')));syncToolbar();
+ let resourceAppSession=null;try{resourceAppSession=await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
+ if(options.resourceAppImport){c.classList.add('resourceAppImportWebHost');}
+ else{if(options.courseApp){c.classList.remove('webContentHost','embeddedContentActive');c.classList.add('courseAppEmbeddedContent');}else{c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');}state.toolbarTitle=options.courseApp?(courseToolbarTitleOf(state.selectedCourse||{})||'Course'):(title||'Schoology');state.embeddedTitle=options.courseApp?null:(title||'Schoology');state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.courseApp?'':(options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':'')));syncToolbar();}
  const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" data-open-popups-external="${options.courseApp===true}" data-course-app="${options.courseApp===true}" allowpopups></${embeddedTag}></section>`;
- const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=document.getElementById('embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
+ const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=c.querySelector('#embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
  w.addEventListener('dom-ready',()=>{if(!window.__TAURI__&&mainNavigation>0)setLoading(false)});
  w.addEventListener('did-finish-load',()=>{if(mainNavigation>0){setLoading(false);initialPageLoaded=true}});
 
- w.addEventListener('did-navigate',e=>{if(e.isMainFrame){loadingStartedAt=Date.now();setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200);}});
+ let resourceAppImportHandled=false;
+ w.addEventListener('did-navigate',e=>{if(!e.isMainFrame)return;loadingStartedAt=Date.now();if(options.resourceAppImport&&/\/content_app\/import(?:\/|$)/i.test(String(e.url||''))&&!resourceAppImportHandled){resourceAppImportHandled=true;setLoading(true);Promise.resolve(options.resourceAppImportHandler?.(String(e.url),resourceAppSession)).catch(error=>{c.innerHTML='<div class="resourcePickerError">'+esc(error?.message||String(error))+'</div>'})}setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden'))setLoading(false)},1200)});
  w.addEventListener('did-fail-load',e=>{if(e.isMainFrame){setLoading(false);if(e.errorCode&&e.errorCode!==-3)console.warn('Schoology embedded page failed:',e.errorDescription);const page=c.querySelector('.embeddedPage');if(page&&!page.querySelector('.embeddedWebviewError')){const error=document.createElement('div');error.className='embeddedWebviewError';error.innerHTML='<b>Unable to load this page</b><span></span><button type="button">Retry</button>';error.querySelector('span').textContent=e.errorDescription||e.message||'The website could not be loaded.';error.querySelector('button').addEventListener('click',()=>showEmbeddedWeb(url,title,options).catch(err=>showAppDialog('Unable to open page',err?.message||String(err))));page.appendChild(error)}}});
  setTimeout(()=>{if(spinner&&!spinner.classList.contains('hidden')&&mainNavigation>0)setLoading(false)},8000);
  w.addEventListener('new-window',async e=>{e.preventDefault();if(await routeSchoologyLink(e.url))return;if(externalLinks){try{const result=await A.openExternal(e.url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(err){showAppDialog('Unable to open link',err.message||String(err))}return;}try{w.src=e.url}catch{}});
@@ -2215,17 +2345,14 @@ function renderSharedCommentRow(comment,updateId,allComments=[],hydratedRow=null
  const replies=allComments.filter(reply=>String(reply.parent_id??reply.parentId??0)===String(id));
  const body=comment.body??comment.comment??comment.message??'',created=formatSchoologyDate(comment.created??comment.timestamp??comment.last_updated??'');const attachments=renderAttachments(comment.attachments||comment.attachment||{}),deleted=Number(comment.status??1)===0;
  const initials=String(name||'S').trim().split(/\s+/).filter(Boolean).slice(0,2).map(value=>value.charAt(0)).join('').toUpperCase()||'S';
- return '<article class="updateComment" data-comment-id="'+esc(id)+'" data-parent-id="'+parent+'" style="padding-left:'+(parent?18:0)+'px"><div class="updateCommentAuthor"><span class="updateCommentAvatar">'+(avatar?'<img data-media-image-url="'+esc(avatar)+'" alt="">':'<span>'+esc(initials)+'</span>')+'</span>'+(authorId?'<button type="button" class="updateCommentAuthorButton" data-update-comment-author="'+esc(authorId)+'">'+esc(name)+'</button>':'<b>'+esc(name)+'</b>')+(groupAdminBadgeMarkup(comment)||'')+'</div><div class="androidCommentContent '+(deleted?'commentDeleted':'')+'">'+(deleted?'Comment deleted':body)+'</div>'+attachments+(created?'<small>'+esc(created)+'</small>':'')+'<div class="activityActions updateCommentActions">'+(!deleted?'<button type="button" data-update-comment-reply="'+esc(id)+'">Reply</button>':'')+'<button type="button" data-update-comment-like="'+esc(id)+'" data-liked="'+(liked?'1':'0')+'">'+(liked?'Unlike':'Like')+'</button><button type="button" class="postCountButton likeCountButton" data-update-comment-like-count="'+esc(id)+'" data-like-count="'+likes+'" aria-label="'+esc(likes)+' likes"'+(likes?'':' hidden')+'><img class="updateLikeCountIcon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAYCAYAAADpnJ2CAAAFfElEQVRIx52Wy28b1xXGf/cxJDUyJZKWIlO2a1lVYr0iR0TtSk2DNmkXRTYNXKD7tm7TP6Cr+hHAsbPqrvEmcP+DVHDRVYw+UQRSEreCBVhSbaKRHJeURYlDih5R5Mzc24UYNQnlVO4AZ3XvOd+cc8853yd4im/u6tiEiaLvW2unsZwSUqQBrLEegn8KIWalUr+bunh34UkxxIGAro2NmjC8JJQ819mbjnUf68PNpJGxGACm2WS77FF9+Ai/5DVtZGak1m9OXbi7+NSAs1dHz5sw+lV64Eh3dnKUZLYXQQMbPsaa5m4QGUPoQ1ji1IolivOLeCtrVanVL6YvLt44MODslZFfCiWuHZ+aIDsxjAnKNKr/Imp6WNPEYlpBJELGULE08e5BpJOhuLDMJ3ML2MhemL689Nb/BJy9OvoTIbgx9J2vc/i5EzS8JaKdTwADSKLQYK3cDSIMSsu9M5U4Tjw9wua9VfJ//ABrOT99cfE3TwScuzY2HAXhhwMvTSb7J4dplO+w9ejfbDyIqJUjkJL+kcOkDgcAVDYdCkubYAzJjKLnK4quvqPEM6cpzC+z8rf5mnL02akLd5f1foBRGF1Jn8gmsxPDNCr3WbmzyuJHkvxD2Ai6+O4Pfsb46ABR8TIAmdE3WFpf4Q+/fYcex2fomGH0zCoDky7ZiWGqD9aS3oO1K8AP5T7ZjUslX+vPjWBCj53HPs+88Db+s6/zbj7OrXyT927ncXuyWCuwVuD2ZHnvdp5b+Sbv5uP4z77OMy+8zc5jHxN69OdGkEq+NndtbLwN0ITRuc7etJM80kujUkCqQ6QHpxkazyEBE9Q5OXAcjAWcXTOWkwPHMUEdCQyN50gPTiPVIRqVAskjvXT2ph0TRufaSmqtfTF1rA9ERBg0AYFtrjF1Nsf167+mUqnyzZe+TejPYa0FIPTX+en5HzFy6iSpVDe5XA7bXMNGTcKoCSIidayPWnHjxfY3tHaoI5PCRg2wEmt9GqWbJI7+nFwu17qzjb9+E4QDQGP9Jp1fPc0rr7y8F6ZRuok1PkLEsFGDjkwKrB1qAxRSppXjYEyERSGkS2PzFiaooLu+BqZJ4P2ZqJ5HSHe3ybbv4effwEm/DDJGuHWbYOtDhHSx1mJMhHIchJRpvf8UWkACCpAIoQmqHxFUPwBrEdIB0fGZv+wgqq8Q+u+AELs+MvFpV7Ri7Za//Q2N8aIgTEupEejWZRBS7zntO75CI1Si7VxgkFITBSHWGE+2O4p8vVxB6BhCxgCJtbIFqPay3t92z4XUrS0kW3s2Rr1cASHysh1PvF95+AiMQMVchNBUN3bwK010LN4qypNNx+L4lSbV0g5CaFTMBSOoPHyEEOL9NkCp1Yxf8oLaWol4Vzeg6Ey65OcLlIs+TiKOUg5CqP9mJBRKOTiJOOWiT36+gNvlAop4Vze1tRJ+yQukVjPqi4A3/lRa//G3Ms+H242x3uFBTGSREhJugjt/uU9tc5u4G8eJxdCORkpFFELN2+b+7Qd8vFDg1NlBkmkXnXBxXJeP//p36pWtmW9cWrq+b5cqrS97q4XvFRfuJfsnh/FLHqk+zZlXT7M0m2fu9wtIJdHObiOFQYSJDIePZjjz6mk6kwnQio5MisL8Mt5qoaYcffkA9CT26KlefkzYCJBSsr1Vp7qxRb22gwXcZILuniRul4sxBh136Mgc+gw92S+np88TsGwR8HNEoaFRa2BCgxDiiysRqSXxZBylJcWFey0CNgcj4DaJcaK/O5sbpivbA0JhQoM1tjWjAqkl2Iit4gbFfyzjrRaeXmJ8TkQF4SWh1bnO3kxLRHUjnd2eM0HEdrnaElHlpg2jGen8nyLqyTLRnhJSpj/dTghxIJn4H/neidrl8nS4AAAAAElFTkSuQmCC" alt=""><span>'+esc(likes)+'</span></button></div>'+(replies.length?'<button type="button" class="updateCommentRepliesToggle" data-comment-replies-toggle="'+esc(id)+'" aria-expanded="false">⌄ '+replies.length+' '+(replies.length===1?'reply':'replies')+'</button>':'')+'</article>';
+ return '<article class="updateComment" data-comment-id="'+esc(id)+'" data-parent-id="'+parent+'" style="padding-left:0"><div class="updateCommentAuthor"><span class="updateCommentAvatar">'+(avatar?'<img data-media-image-url="'+esc(avatar)+'" alt="">':'<span>'+esc(initials)+'</span>')+'</span>'+(authorId?'<button type="button" class="updateCommentAuthorButton" data-update-comment-author="'+esc(authorId)+'">'+esc(name)+'</button>':'<b>'+esc(name)+'</b>')+(groupAdminBadgeMarkup(comment)||'')+'</div><div class="androidCommentContent '+(deleted?'commentDeleted':'')+'">'+(deleted?'Comment deleted':body)+'</div>'+attachments+(created?'<small>'+esc(created)+'</small>':'')+'<div class="activityActions updateCommentActions">'+(!deleted?'<button type="button" data-update-comment-reply="'+esc(id)+'">Reply</button>':'')+'<button type="button" data-update-comment-like="'+esc(id)+'" data-liked="'+(liked?'1':'0')+'">'+(liked?'Unlike':'Like')+'</button><button type="button" class="postCountButton likeCountButton" data-update-comment-like-count="'+esc(id)+'" data-like-count="'+likes+'" aria-label="'+esc(likes)+' likes"'+(likes?'':' hidden')+'><img class="updateLikeCountIcon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAYCAYAAADpnJ2CAAAFfElEQVRIx52Wy28b1xXGf/cxJDUyJZKWIlO2a1lVYr0iR0TtSk2DNmkXRTYNXKD7tm7TP6Cr+hHAsbPqrvEmcP+DVHDRVYw+UQRSEreCBVhSbaKRHJeURYlDih5R5Mzc24UYNQnlVO4AZ3XvOd+cc8853yd4im/u6tiEiaLvW2unsZwSUqQBrLEegn8KIWalUr+bunh34UkxxIGAro2NmjC8JJQ819mbjnUf68PNpJGxGACm2WS77FF9+Ai/5DVtZGak1m9OXbi7+NSAs1dHz5sw+lV64Eh3dnKUZLYXQQMbPsaa5m4QGUPoQ1ji1IolivOLeCtrVanVL6YvLt44MODslZFfCiWuHZ+aIDsxjAnKNKr/Imp6WNPEYlpBJELGULE08e5BpJOhuLDMJ3ML2MhemL689Nb/BJy9OvoTIbgx9J2vc/i5EzS8JaKdTwADSKLQYK3cDSIMSsu9M5U4Tjw9wua9VfJ//ABrOT99cfE3TwScuzY2HAXhhwMvTSb7J4dplO+w9ejfbDyIqJUjkJL+kcOkDgcAVDYdCkubYAzJjKLnK4quvqPEM6cpzC+z8rf5mnL02akLd5f1foBRGF1Jn8gmsxPDNCr3WbmzyuJHkvxD2Ai6+O4Pfsb46ABR8TIAmdE3WFpf4Q+/fYcex2fomGH0zCoDky7ZiWGqD9aS3oO1K8AP5T7ZjUslX+vPjWBCj53HPs+88Db+s6/zbj7OrXyT927ncXuyWCuwVuD2ZHnvdp5b+Sbv5uP4z77OMy+8zc5jHxN69OdGkEq+NndtbLwN0ITRuc7etJM80kujUkCqQ6QHpxkazyEBE9Q5OXAcjAWcXTOWkwPHMUEdCQyN50gPTiPVIRqVAskjvXT2ph0TRufaSmqtfTF1rA9ERBg0AYFtrjF1Nsf167+mUqnyzZe+TejPYa0FIPTX+en5HzFy6iSpVDe5XA7bXMNGTcKoCSIidayPWnHjxfY3tHaoI5PCRg2wEmt9GqWbJI7+nFwu17qzjb9+E4QDQGP9Jp1fPc0rr7y8F6ZRuok1PkLEsFGDjkwKrB1qAxRSppXjYEyERSGkS2PzFiaooLu+BqZJ4P2ZqJ5HSHe3ybbv4effwEm/DDJGuHWbYOtDhHSx1mJMhHIchJRpvf8UWkACCpAIoQmqHxFUPwBrEdIB0fGZv+wgqq8Q+u+AELs+MvFpV7Ri7Za//Q2N8aIgTEupEejWZRBS7zntO75CI1Si7VxgkFITBSHWGE+2O4p8vVxB6BhCxgCJtbIFqPay3t92z4XUrS0kW3s2Rr1cASHysh1PvF95+AiMQMVchNBUN3bwK010LN4qypNNx+L4lSbV0g5CaFTMBSOoPHyEEOL9NkCp1Yxf8oLaWol4Vzeg6Ey65OcLlIs+TiKOUg5CqP9mJBRKOTiJOOWiT36+gNvlAop4Vze1tRJ+yQukVjPqi4A3/lRa//G3Ms+H242x3uFBTGSREhJugjt/uU9tc5u4G8eJxdCORkpFFELN2+b+7Qd8vFDg1NlBkmkXnXBxXJeP//p36pWtmW9cWrq+b5cqrS97q4XvFRfuJfsnh/FLHqk+zZlXT7M0m2fu9wtIJdHObiOFQYSJDIePZjjz6mk6kwnQio5MisL8Mt5qoaYcffkA9CT26KlefkzYCJBSsr1Vp7qxRb22gwXcZILuniRul4sxBh136Mgc+gw92S+np88TsGwR8HNEoaFRa2BCgxDiiysRqSXxZBylJcWFey0CNgcj4DaJcaK/O5sbpivbA0JhQoM1tjWjAqkl2Iit4gbFfyzjrRaeXmJ8TkQF4SWh1bnO3kxLRHUjnd2eM0HEdrnaElHlpg2jGen8nyLqyTLRnhJSpj/dTghxIJn4H/neidrl8nS4AAAAAElFTkSuQmCC" alt=""><span>'+esc(likes)+'</span></button></div>'+(replies.length?'<button type="button" class="updateCommentRepliesToggle" data-comment-replies-toggle="'+esc(id)+'" aria-expanded="false">⌄ '+replies.length+' '+(replies.length===1?'reply':'replies')+'</button>':'')+'</article>';
 }
 async function loadUpdateCommentsPanel(realm,realmId,updateId,panel,options={}){
  if(!panel)return;panel.hidden=false;panel.innerHTML='<div class="loading">Loading comments…</div>';
- try{const data=await A.api({path:`${realm}/${realmId}/updates/${updateId}/comments`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const rawComments=data?.comment??data?.comments??data?.data?.comment??data?.data?.comments??[];const comments=Array.isArray(rawComments)?rawComments:(rawComments&&typeof rawComments==='object'?[rawComments]:[]);const orderedComments=[],appendChildren=(parentId)=>comments.filter(c=>String(c.parent_id||c.parentId||0)===String(parentId)).forEach(c=>{orderedComments.push(c);appendChildren(c.id||c.comment_id||c.commentId)});appendChildren(0);comments.forEach(c=>{if(!orderedComments.includes(c))orderedComments.push(c)});
- const visibleComments=Number(options.limit)>0?orderedComments.slice(-Number(options.limit)):orderedComments;
- const hydratedComments=await hydrateDialogPeople(visibleComments);
-  panel.innerHTML='<div class="updateCommentsList unifiedCommentsView">'+(visibleComments.map((comment,index)=>renderSharedCommentRow(comment,updateId,comments,hydratedComments[index])).join('')||'<div class="empty">No comments yet.</div>')+'</div><div class="updateCommentComposer" hidden><textarea id="update-comment-'+esc(updateId)+'" placeholder="Write a comment…"></textarea><button type="button" data-post-update-comment="'+esc(updateId)+'">Post comment</button></div>';
- hydrateMediaImages(panel).catch(()=>{});
- panel.querySelectorAll('.updateComment[data-parent-id]:not([data-parent-id="0"])').forEach(reply=>{reply.hidden=true;});
- panel.querySelectorAll('[data-comment-replies-toggle]').forEach(button=>button.onclick=()=>{const id=button.dataset.commentRepliesToggle,rows=[...panel.querySelectorAll('.updateComment[data-parent-id]')].filter(row=>row.dataset.parentId===id),expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));rows.forEach(row=>row.hidden=expanded);button.textContent=`${expanded?'⌄':'⌃'} ${rows.length} ${rows.length===1?'reply':'replies'}`;});
+ try{const data=await A.api({path:`${realm}/${realmId}/updates/${updateId}/comments`,params:{start:0,limit:100,with_attachments:'TRUE',richtext:1}});const comments=flattenUnifiedComments(data);
+  const hydratedComments=await hydrateDialogPeople(comments);
+  panel.innerHTML='<div class="updateCommentsList unifiedCommentsView">'+(renderCommentThreadList(comments,updateId,hydratedComments)||'<div class="empty">No comments yet.</div>')+'</div><div class="updateCommentComposer" hidden><textarea id="update-comment-'+esc(updateId)+'" placeholder="Write a comment…"></textarea><button type="button" data-post-update-comment="'+esc(updateId)+'">Post comment</button></div>';
+  hydrateMediaImages(panel).catch(()=>{});
  panel.querySelectorAll('[data-update-comment-author]').forEach(button=>button.onclick=()=>{const id=button.dataset.updateCommentAuthor;if(id)openProfileById(id,button.textContent||'Profile')});panel.querySelectorAll('[data-update-comment-like]').forEach(button=>button.onclick=async()=>{const id=button.dataset.updateCommentLike;if(!id||button.disabled)return;const liked=button.dataset.liked==='1';button.disabled=true;try{const result=await A.api({path:`like/${updateId}/comment/${id}`,method:'POST',params:{like_action:!liked},json:true});const next=!liked;button.dataset.liked=next?'1':'0';button.textContent=next?'Unlike':'Like';syncCommentLikeCount(button,result,next,liked)}catch(e){showAppDialog('Unable to update comment like',e?.message||String(e)||'Unknown error')}finally{button.disabled=false}});
  panel.querySelectorAll('[data-update-comment-like-count]').forEach(button=>button.onclick=()=>showLikeUsers(`like/${updateId}/comment/${button.dataset.updateCommentLikeCount}`));
  panel.querySelectorAll('[data-update-comment-reply]').forEach(button=>button.onclick=()=>{const field=panel.querySelector('textarea'),composer=panel.querySelector('.updateCommentComposer');if(composer)composer.hidden=false;if(field){field.dataset.parentId=button.dataset.updateCommentReply||'0';field.placeholder='Write a reply…';field.focus()}});
@@ -2961,7 +3088,7 @@ async function openCollectionResource(item,button){
    }
    if(dt==='file'){
      const f=firstAttachment(item,'files');const u=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url||f?.url||f?.converted_download_path||f?.convertedDownloadPath;
-     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const r=await downloadWithFeedback(button,{url:u,filename,mime});const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);return}
+     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const info={url:u,filename,mime};const download=async()=>{const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);return}
    }
  }
  const u=item.web_url||item.webUrl||item.url||item.href||item.location||item.download_path||item.downloadPath||item.file_url||item.fileUrl;
