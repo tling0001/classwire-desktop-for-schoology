@@ -204,6 +204,7 @@
     onEmbeddedDownloadFinished: callback => subscribe('embedded-download-finished', callback),
     onFileUploadProgress: callback => subscribe('file-upload-progress', callback),
     launchCourseApp: value => invoke('launch-course-app', value),
+    importResourceApp: value => invoke('import-resource-app', value),
     openDownloadedFile: value => invoke('open-downloaded-file', value),
     revealDownloadedFile: value => invoke('reveal-downloaded-file', value),
     openExternal: url => invoke('open-external', url),
