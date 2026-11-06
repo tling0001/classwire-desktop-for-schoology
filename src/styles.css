@@ -4434,3 +4434,54 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 .nativeVariantPromptSnooze input{width:16px;height:16px;flex:0 0 16px;margin:0;accent-color:var(--theme-blue,#2e66a3);cursor:pointer}
 :root[data-theme="dark"] .nativeVariantPromptSnooze{color:var(--theme-muted,#aab4bf)}
 @media(prefers-reduced-motion:reduce){.nativeVariantPromptSnooze,.nativeVariantPromptSnooze input{transition:none!important;animation:none!important}}
+
+
+/* v50: nested replies stay directly beneath their parent comment. */
+.commentReplyThread{margin:0 0 0 24px;padding:2px 0 0 12px;border-left:2px solid var(--theme-border,#dfe5ea);min-width:0}
+.commentReplyThread .updateComment{padding-left:0!important}
+.commentReplyThread .commentReplyThread{margin-left:12px}
+.unifiedCommentsView .updateCommentsList>.updateComment{padding-left:0!important}
+
+/* v50: attachment resource picker mirrors standalone Resources categories. */
+.schoologyResourcePickerDialog #resourcePickerBody{overflow:auto;min-height:180px;padding:8px;background:var(--theme-bg,#f5f7f9);color:var(--theme-text,#263238)}
+.resourcePickerCategoryList{display:flex;flex-direction:column;gap:6px}
+.resourcePickerCategory{background:var(--theme-surface,#fff);border:1px solid var(--theme-border,#e0e5e9);border-radius:7px;overflow:hidden}
+.resourcePickerCategoryHeader{width:100%;min-height:58px;display:flex;align-items:center;gap:12px;padding:8px 14px;border:0;background:transparent;color:var(--theme-text,#263238);text-align:left}
+.resourcePickerCategoryHeader img{width:34px;height:34px;object-fit:contain}
+.resourcePickerCategoryHeader b{flex:1;font-size:14px}
+.resourcePickerCategoryHeader span{color:var(--theme-muted,#71808c);font-size:13px}
+.resourcePickerCollection,.resourcePickerItem{background:var(--theme-surface,#fff);color:var(--theme-text,#263238);border-bottom:1px solid var(--theme-border,#e1e6ea)}
+.resourcePickerBack{background:var(--theme-surface-2,#edf1f4);color:var(--theme-accent,#075a8b)}
+.resourcePickerItem.selected{background:var(--theme-selected,#eaf3f8)}
+:root[data-theme="dark"] .resourcePickerCollection,:root[data-theme="dark"] .resourcePickerItem,:root[data-theme="dark"] .resourcePickerCategory{background:#202b34;border-color:#3a4650;color:#e7edf2}
+:root[data-theme="dark"] .resourcePickerBack{background:#293640;color:#8bc9f2}
+:root[data-theme="dark"] .resourcePickerItem.selected{background:#243e50}
+
+/* v50: native HTML audio/video controls in the built-in file viewer. */
+.sharedMediaViewerBody{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;overflow:auto;background:var(--theme-bg,#f4f6f8)}
+.sharedMediaViewerType{font-size:12px;opacity:.8;white-space:nowrap}
+.sharedMediaElement{display:block;max-width:100%;max-height:100%;width:min(100%,1100px);margin:auto;background:#080b0e;border-radius:8px;object-fit:contain}
+.sharedMediaViewer audio.sharedMediaElement{width:min(720px,100%);background:transparent}
+.sharedMediaViewer video.sharedMediaElement{height:auto;max-height:calc(100dvh - 110px);aspect-ratio:16/9}
+.sharedMediaViewerError{width:min(520px,100%);padding:22px;border-radius:9px;background:var(--theme-surface,#fff);color:var(--theme-text,#263238);text-align:center;box-shadow:0 5px 24px #0002}
+.sharedMediaViewerError p{color:var(--theme-muted,#687783);line-height:1.5}
+.sharedMediaViewerError button,.resourceAppImportActions button{border:0;border-radius:5px;background:var(--theme-accent,#286aa0);color:#fff;padding:10px 16px;font:inherit;cursor:pointer}
+
+/* v50: modal Resource App import webview and imported-resource selection. */
+.resourceAppImportOverlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,15,28,.58)}
+.resourceAppImportDialog{width:min(980px,100%);height:min(760px,calc(100dvh - 36px));display:flex;flex-direction:column;overflow:hidden;border-radius:9px;background:var(--theme-surface,#fff);color:var(--theme-text,#263238);box-shadow:0 18px 60px #0005}
+.resourceAppImportDialog>header{height:54px;min-height:54px;display:flex;align-items:center;gap:12px;padding:0 14px;background:#002137;color:#fff}
+.resourceAppImportDialog>header b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resourceAppImportDialog>header button{border:0;background:transparent;color:inherit;font-size:20px}
+.resourceAppImportBody{position:relative;flex:1;min-height:0;overflow:auto}
+.resourceAppImportBody>.embeddedPage{height:100%;min-height:0}
+.resourceAppImportBody schoology-webview,.resourceAppImportBody webview{display:block;width:100%;height:100%;min-height:400px}
+.resourceAppImportInstructions{padding:16px;color:var(--theme-muted,#667782)}
+.resourceAppImportedList{max-height:calc(100% - 100px);overflow:auto}
+.resourceAppImportActions{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;border-top:1px solid var(--theme-border,#e1e6ea);background:var(--theme-surface,#fff)}
+.resourceAppImportActions button:disabled{opacity:.45;cursor:not-allowed}
+.resourceAppImportActions button[data-resource-app-cancel]{background:transparent;color:var(--theme-accent,#286aa0);border:1px solid var(--theme-border,#cbd5dd)}
+:root[data-theme="dark"] .resourceAppImportDialog,:root[data-theme="dark"] .resourceAppImportActions{background:#202b34;color:#e7edf2}
+:root[data-theme="dark"] .resourceAppImportActions{border-color:#3a4650}
+@media(max-width:700px){.resourceAppImportOverlay{padding:0}.resourceAppImportDialog{width:100vw;height:100dvh;border-radius:0}.sharedMediaViewerBody{padding:10px}.sharedMediaViewer video.sharedMediaElement{max-height:calc(100dvh - 86px)}}
+:root[data-reduced-motion="true"] .resourceAppImportDialog,:root[data-reduced-motion="true"] .sharedMediaViewer{transition:none!important}
