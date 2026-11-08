@@ -148,7 +148,7 @@ jobs:
       - name: Upload Tauri artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Tauri-${{ matrix.artifact }}
+          name: ClassWire-Tauri-${{ matrix.artifact }}
           path: src-tauri/target/release/bundle/**/*
           if-no-files-found: error
           retention-days: 14
@@ -194,7 +194,7 @@ jobs:
         run: npm run prepare:tauri && npx tauri android init
       - name: Prepare Android camera permission and status bar
         run: node scripts/prepare-android-mobile.mjs
-      - name: Prepare Schoology launcher icon
+      - name: Prepare ClassWire launcher icon
         run: node scripts/prepare-android-icon.mjs
       - name: Configure Android release signing
         shell: bash
@@ -227,12 +227,12 @@ jobs:
           VERSION="$(node -p 'require("./package.json").version')"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           mkdir -p release-apk
-          cp "$APK" "release-apk/Schoology-Android-${VERSION}.apk"
+          cp "$APK" "release-apk/ClassWire-Android-${VERSION}.apk"
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-Android-${{ steps.stage_android_apk.outputs.version }}-APK
-          path: release-apk/Schoology-Android-*.apk
+          name: ClassWire-Android-${{ steps.stage_android_apk.outputs.version }}-APK
+          path: release-apk/ClassWire-Android-*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -378,20 +378,20 @@ jobs:
           APP_INFO="$(find "$VALIDATE_DIR/Payload" -maxdepth 2 -type f -name Info.plist -print -quit)"
           APP_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")"
           test "$APP_BUNDLE_ID" = "com.schoologytauri.app" || { echo "Unexpected iOS bundle ID: $APP_BUNDLE_ID" >&2; exit 1; }
-          mkdir -p "$RUNNER_TEMP/Schoology-AdHoc-Export"
-          cp "$IPA" "$RUNNER_TEMP/Schoology-AdHoc-Export/Schoology.ipa"
+          mkdir -p "$RUNNER_TEMP/ClassWire-AdHoc-Export"
+          cp "$IPA" "$RUNNER_TEMP/ClassWire-AdHoc-Export/ClassWire.ipa"
       - name: Create QR installation manifest
         if: steps.adhoc.outputs.ready == 'true'
         shell: bash
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          IPA="$(find "$RUNNER_TEMP/Schoology-AdHoc-Export" -type f -name '*.ipa' -print -quit)"
+          IPA="$(find "$RUNNER_TEMP/ClassWire-AdHoc-Export" -type f -name '*.ipa' -print -quit)"
           test -n "$IPA"
           mkdir -p ios-install-assets
-          IPA_NAME="Schoology-${VERSION}-iOS-AdHoc.ipa"
-          MANIFEST_NAME="Schoology-${VERSION}-iOS-AdHoc.plist"
-          QR_NAME="Schoology-${VERSION}-iOS-Install-QR.png"
+          IPA_NAME="ClassWire-${VERSION}-iOS-AdHoc.ipa"
+          MANIFEST_NAME="ClassWire-${VERSION}-iOS-AdHoc.plist"
+          QR_NAME="ClassWire-${VERSION}-iOS-Install-QR.png"
           cp "$IPA" "ios-install-assets/$IPA_NAME"
           IPA_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}/${IPA_NAME}"
           cat > "ios-install-assets/$MANIFEST_NAME" <<PLIST
@@ -400,7 +400,7 @@ jobs:
           <plist version="1.0"><dict>
             <key>items</key><array><dict>
               <key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${IPA_URL}</string></dict></array>
-              <key>metadata</key><dict><key>bundle-identifier</key><string>com.schoologytauri.app</string><key>bundle-version</key><string>${TAURI_VERSION}</string><key>kind</key><string>software</string><key>title</key><string>Schoology</string></dict>
+              <key>metadata</key><dict><key>bundle-identifier</key><string>com.schoologytauri.app</string><key>bundle-version</key><string>${TAURI_VERSION}</string><key>kind</key><string>software</string><key>title</key><string>ClassWire</string></dict>
             </dict></array>
           </dict></plist>
           PLIST
@@ -417,7 +417,7 @@ jobs:
         if: steps.adhoc.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Schoology-iOS-AdHoc-Install
+          name: ClassWire-iOS-AdHoc-Install
           path: ios-install-assets/*
           if-no-files-found: error
           retention-days: 14
@@ -520,7 +520,7 @@ jobs:
       - name: Download platform packages
         uses: actions/download-artifact@v4
         with:
-          pattern: Schoology-*
+          pattern: ClassWire-*
           path: release-assets
           merge-multiple: true
           if-no-artifact-found: ignore
@@ -528,7 +528,18 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-upload release-assets
-          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.apk' -o -name '*.ipa' -o -name '*iOS-AdHoc.plist' -o -name '*iOS-Install-QR.png' -o -name 'README.txt' \) -print0 | while IFS= read -r -d '' file; do cp "$file" "release-upload/$(basename "$file")"; done
+          find release-assets -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.apk' -o -name '*.ipa' -o -name '*iOS-AdHoc.plist' -o -name '*iOS-Install-QR.png' -o -name 'README.txt' \) -print0 | while IFS= read -r -d '' file; do
+            name="$(basename "$file")"
+            case "$name" in
+              Schoology-*) name="ClassWire-${name#Schoology-}" ;;
+              schoology-*) name="ClassWire-${name#schoology-}" ;;
+              Schoology_*) name="ClassWire_${name#Schoology_}" ;;
+              schoology_*) name="ClassWire_${name#schoology_}" ;;
+            esac
+            cp "$file" "release-upload/$name"
+          done
+          unexpected="$(find release-upload -maxdepth 1 -type f ! -name 'README.txt' ! -name 'ClassWire*' -printf '%f\n')"
+          test -z "$unexpected" || { echo "Unexpected non-ClassWire release assets: $unexpected" >&2; exit 1; }
           echo "Available release assets:"
           find release-upload -maxdepth 1 -type f -printf '%f\n' | sort || true
       - name: Create GitHub Release
