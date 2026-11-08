@@ -4485,3 +4485,23 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 :root[data-theme="dark"] .resourceAppImportActions{border-color:#3a4650}
 @media(max-width:700px){.resourceAppImportOverlay{padding:0}.resourceAppImportDialog{width:100vw;height:100dvh;border-radius:0}.sharedMediaViewerBody{padding:10px}.sharedMediaViewer video.sharedMediaElement{max-height:calc(100dvh - 86px)}}
 :root[data-reduced-motion="true"] .resourceAppImportDialog,:root[data-reduced-motion="true"] .sharedMediaViewer{transition:none!important}
+
+/* ClassWire wordmark and rich text assignment composer. */
+.classWireLogo{display:block;width:265px;height:auto;margin:48px auto 0}
+.classWireLogo.small{width:230px;margin-top:38px}
+.androidSplashLogo{width:442px;max-width:72vw;height:auto;max-height:68vh;object-fit:contain}
+.submissionComposer .submissionFormattingToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:0 0 10px;padding:5px;border:1px solid #cfd6dd;border-radius:5px;background:#f4f6f8}
+.submissionFormattingToolbar button{min-width:34px;height:34px;padding:0 8px;border:1px solid transparent;border-radius:4px;background:transparent;color:#263238;font:14px Arial,sans-serif;cursor:pointer}
+.submissionFormattingToolbar button:hover,.submissionFormattingToolbar button:focus-visible{background:#e3e9ef;border-color:#c4ced8;outline:none}
+.submissionToolbarDivider{width:1px;height:22px;margin:0 3px;background:#cfd6dd}
+.submissionComposer .submissionEditor{display:block;flex:1 1 auto;width:100%;min-height:180px;margin:0;border:1px solid #cfd6dd;border-radius:4px;outline:none;padding:10px;overflow:auto;box-sizing:border-box;font:16px/1.5 Arial,sans-serif;color:#222;background:#fff;white-space:pre-wrap;overflow-wrap:anywhere}
+.submissionComposer .submissionEditor:focus{border-color:#2e66a3;box-shadow:0 0 0 1px #2e66a3}
+.submissionComposer .submissionEditor:empty:before{content:attr(data-placeholder);color:#868e96;pointer-events:none}
+:root[data-theme="dark"] .submissionComposer .submissionFormattingToolbar{background:var(--theme-input,#292d32);border-color:var(--theme-border,#454a52)}
+:root[data-theme="dark"] .submissionFormattingToolbar button{color:var(--theme-text,#e6e8eb)}
+:root[data-theme="dark"] .submissionFormattingToolbar button:hover,:root[data-theme="dark"] .submissionFormattingToolbar button:focus-visible{background:#3a414a;border-color:var(--theme-border,#454a52)}
+:root[data-theme="dark"] .submissionToolbarDivider{background:var(--theme-border,#454a52)}
+:root[data-theme="dark"] .submissionComposer .submissionEditor{background:var(--theme-input,#292d32);color:var(--theme-text,#e6e8eb);border-color:var(--theme-border,#454a52);color-scheme:dark}
+@media(max-width:600px){.classWireLogo{width:230px;margin-top:38px}.androidSplashLogo{max-width:72vw;max-height:68vh}.submissionComposer .submissionEditor{min-height:0}}
+
+.submissionFormattingToolbar button svg{display:block;fill:currentColor}

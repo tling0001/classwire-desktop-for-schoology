@@ -1,6 +1,6 @@
-# Schoology Desktop Port
+# ClassWire Desktop Port
 
-Schoology Desktop Port is a cross-platform desktop/mobile wrapper aligned with the supplied official Schoology Android 2026.10.0 source. The active GitHub Actions workflow builds and publishes versioned Tauri releases for Windows, macOS, Linux, and Android, with an optional Ad Hoc iPhone IPA and QR installation package when the required Apple signing and provisioning configuration is available.
+ClassWire is a cross-platform desktop/mobile app aligned with the supplied official Schoology Android 2026.10.0 source. The active GitHub Actions workflow builds and publishes versioned Tauri releases for Windows, macOS, Linux, and Android, with an optional Ad Hoc iPhone IPA and QR installation package when the required Apple signing and provisioning configuration is available.
 
 ## Releases and builds
 

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = path.join(root, 'assets', 'icons', 'ic_sgy_app_icon.svg');
 const output = path.join(root, 'src-tauri', 'icons');
-if (!fs.existsSync(source)) throw new Error('The shared Schoology app-icon SVG is missing.');
+if (!fs.existsSync(source)) throw new Error('The shared ClassWire app-icon SVG is missing.');
 
 const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const generated = spawnSync(command, ['tauri', 'icon', source, '--output', output], {
@@ -19,7 +19,7 @@ if (generated.status !== 0) throw new Error(`Tauri icon generation failed with e
 
 const copyRequired = (from, to) => {
   if (!fs.existsSync(from) || fs.statSync(from).size === 0) {
-    throw new Error(`Tauri did not generate the expected Schoology icon: ${path.relative(root, from)}`);
+    throw new Error(`Tauri did not generate the expected ClassWire icon: ${path.relative(root, from)}`);
   }
   fs.copyFileSync(from, to);
 };
@@ -36,4 +36,4 @@ const icon256 = path.join(output, '128x128@2x.png');
 if (fs.existsSync(icon256) && fs.statSync(icon256).size > 0) {
   fs.copyFileSync(icon256, path.join(assets, 'ic_launcher_256.png'));
 }
-console.log('Generated matching Schoology desktop and mobile icons from the shared SwiftUI vector artwork.');
+console.log('Generated matching ClassWire desktop and mobile icons from the shared SwiftUI vector artwork.');

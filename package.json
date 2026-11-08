@@ -1,7 +1,7 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.10.0-port.51",
-  "description": "Schoology desktop port aligned with the supplied Schoology Android 2026.10.0 source",
+  "version": "2026.10.0-port.52",
+  "description": "ClassWire desktop app aligned with the supplied Schoology Android 2026.10.0 source",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -27,13 +27,13 @@
     "pdfjs-dist": "^4.10.38"
   },
   "author": {
-    "name": "Schoology Desktop Port",
+    "name": "ClassWire Desktop",
     "email": "schoology-desktop-port@users.noreply.github.com"
   },
   "build": {
     "appId": "com.schoologytauri.app",
-    "productName": "Schoology",
-    "artifactName": "Schoology-${version}-${arch}.${ext}",
+    "productName": "ClassWire",
+    "artifactName": "ClassWire-${version}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
@@ -67,7 +67,7 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "artifactName": "Schoology-${version}-Setup-${arch}.${ext}"
+      "artifactName": "ClassWire-${version}-Setup-${arch}.${ext}"
     },
     "mac": {
       "target": [

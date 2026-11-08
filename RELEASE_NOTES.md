@@ -1,4 +1,13 @@
-# Schoology Desktop Port
+# ClassWire Desktop Port
+
+## [2026.10.0-port.52]
+
+### Added
+- Add a rich-text formatting toolbar to Create Text Submission with bold, italic, underline, hyperlinks, bulleted lists, numbered lists, and clear formatting.
+
+### Changed
+- Rebrand the desktop app, sign-in wordmark, startup splash, and generated launcher icons as ClassWire using the exact custom C mark and ring artwork from the SwiftUI icon generator.
+- Keep the app identifier, Schoology sign-in scheme, OAuth behavior, and existing user-data location stable for upgrades.
 
 ## [2026.10.0-port.51]
 
