@@ -4509,3 +4509,9 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 
 /* Keep the visible ClassWire artwork centered: the SVG viewBox has extra empty space to the right of the wordmark. */
 .androidSplashLogo{align-self:center!important;margin-left:auto!important;margin-right:auto!important;transform:translateX(11.7%)!important}
+
+
+/* Center the visible ClassWire wordmark on every login and secondary-auth screen.
+   The SVG viewBox has unused space on the right; the independent translate property
+   preserves each screen's existing transform-based positioning and fade animation. */
+.loginAnimated .logo{translate:11.7% 0!important}

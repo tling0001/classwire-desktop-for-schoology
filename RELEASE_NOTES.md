@@ -1,5 +1,11 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.57]
+
+### Fixed
+- Center the visible ClassWire wordmark on the primary login screen and every secondary sign-in/QR screen, accounting for the SVG's asymmetric viewBox without changing the existing positioning transforms.
+
+
 ## [2026.10.0-port.56]
 
 ### Fixed
