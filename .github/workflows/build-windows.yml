@@ -538,8 +538,34 @@ jobs:
             esac
             cp "$file" "release-upload/$name"
           done
-          unexpected="$(find release-upload -maxdepth 1 -type f ! -name 'README.txt' ! -name 'ClassWire*' -printf '%f\n')"
-          test -z "$unexpected" || { echo "Unexpected non-ClassWire release assets: $unexpected" >&2; exit 1; }
+          for file in release-upload/ClassWire-* release-upload/ClassWire_*; do
+            [ -f "$file" ] || continue
+            name="$(basename "$file")"
+            case "$name" in
+              ClassWire-*) alias="Schoology-${name#ClassWire-}" ;;
+              ClassWire_*) alias="Schoology_${name#ClassWire_}" ;;
+              *) continue ;;
+            esac
+            if [[ "$name" == *.plist ]]; then
+              sed 's/ClassWire-/Schoology-/g' "$file" > "release-upload/$alias"
+            else
+              cp "$file" "release-upload/$alias"
+            fi
+          done
+          unexpected="$(find release-upload -maxdepth 1 -type f ! -name 'README.txt' ! -name 'ClassWire*' ! -name 'Schoology*' -printf '%f\n')"
+          test -z "$unexpected" || { echo "Unexpected release assets: $unexpected" >&2; exit 1; }
+          missing_alias=""
+          for file in release-upload/ClassWire-* release-upload/ClassWire_*; do
+            [ -f "$file" ] || continue
+            name="$(basename "$file")"
+            case "$name" in
+              ClassWire-*) alias="Schoology-${name#ClassWire-}" ;;
+              ClassWire_*) alias="Schoology_${name#ClassWire_}" ;;
+              *) continue ;;
+            esac
+            [ -f "release-upload/$alias" ] || missing_alias="$missing_alias $alias"
+          done
+          test -z "$missing_alias" || { echo "Missing Schoology aliases:$missing_alias" >&2; exit 1; }
           echo "Available release assets:"
           find release-upload -maxdepth 1 -type f -printf '%f\n' | sort || true
       - name: Create GitHub Release

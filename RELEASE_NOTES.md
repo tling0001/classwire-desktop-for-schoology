@@ -1,5 +1,11 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.54]
+
+### Changed
+- Publish both ClassWire and Schoology-prefixed filenames for every platform package in GitHub Releases.
+- Preserve the existing platform suffixes so app update checks can resolve either filename.
+
 ## [2026.10.0-port.53]
 
 ### Changed

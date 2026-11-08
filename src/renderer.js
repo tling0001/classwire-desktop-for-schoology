@@ -3830,8 +3830,8 @@ function showStartupOfflineError(){
   splash.innerHTML=`${classWireLogoMarkup('androidSplashLogo')}<div class="startupOfflineError"><b>Unable to connect to Schoology</b><span>Check your internet connection and try again.</span><button id="startupRetry">Retry</button></div>`;
   splash.querySelector('#startupRetry')?.addEventListener('click',()=>startSchoologyStartup(true));
 }
-const CURRENT_RELEASE_NOTES_VERSION='2026.10.0-port.53';
-const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• GitHub Releases now publish app packages with ClassWire filenames only.\n• App update checks continue to find the renamed packages using their platform-specific installer suffixes.\n• Create Text Submission includes bold, italic, underline, links, and list formatting.\n• Post previews show the two most recent comments, with View more for the full thread.';
+const CURRENT_RELEASE_NOTES_VERSION='2026.10.0-port.54';
+const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• GitHub Releases now include both ClassWire and Schoology filenames for each platform package.\n• App update checks find both names through their platform-specific installer suffixes.\n• Create Text Submission includes bold, italic, underline, links, and list formatting.\n• Post previews show the two most recent comments, with View more for the full thread.';
 
 // Keep the landscape Upcoming pane usable at both full and icon-only widths.
 if(!window.__schoologyUpcomingCollapseBound){window.__schoologyUpcomingCollapseBound=true;document.addEventListener('click',event=>{const button=event.target?.closest?.('[data-upcoming-collapse-toggle]');if(!button)return;const page=button.closest('.courseLandscapePage,.groupProfilePage,.schoolProfileNativePage');if(!page)return;const collapsed=page.classList.toggle('upcoming-collapsed');button.classList.toggle('collapsed',collapsed);button.textContent=collapsed?'›':'‹';button.setAttribute('aria-label',collapsed?'Expand Upcoming':'Collapse Upcoming');button.title=collapsed?'Expand Upcoming':'Collapse Upcoming';});}
