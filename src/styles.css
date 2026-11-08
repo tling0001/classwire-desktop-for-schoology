@@ -4505,3 +4505,7 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 @media(max-width:600px){.classWireLogo{width:230px;margin-top:38px}.androidSplashLogo{max-width:72vw;max-height:68vh}.submissionComposer .submissionEditor{min-height:0}}
 
 .submissionFormattingToolbar button svg{display:block;fill:currentColor}
+
+
+/* Keep the visible ClassWire artwork centered: the SVG viewBox has extra empty space to the right of the wordmark. */
+.androidSplashLogo{align-self:center!important;margin-left:auto!important;margin-right:auto!important;transform:translateX(11.7%)!important}

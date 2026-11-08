@@ -1,5 +1,11 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.56]
+
+### Fixed
+- Center the visible ClassWire wordmark artwork horizontally on both startup splash screens, compensating for unused space in the SVG viewBox.
+
+
 ## [2026.10.0-port.55]
 
 ### Changed
