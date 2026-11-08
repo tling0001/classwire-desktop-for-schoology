@@ -4515,3 +4515,23 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
    The SVG viewBox has unused space on the right; the independent translate property
    preserves each screen's existing transform-based positioning and fade animation. */
 .loginAnimated .logo{translate:11.7% 0!important}
+
+/* Shared rich-text composer controls for submissions, discussions, events, updates, and messages. */
+.richTextFormattingToolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:0 0 10px;padding:5px;border:1px solid #cfd6dd;border-radius:5px;background:#f4f6f8}
+.richTextFormattingToolbar button{min-width:36px;height:34px;padding:0 9px;border:1px solid transparent;border-radius:4px;background:transparent;color:#263238;font:14px Arial,sans-serif;cursor:pointer}
+.richTextFormattingToolbar button:hover,.richTextFormattingToolbar button:focus-visible,.richTextFormattingToolbar button.active{background:#e3e9ef;border-color:#c4ced8;outline:none}
+.richTextFormattingToolbar button svg{display:block;fill:currentColor}
+.richTextEditor{display:block;width:100%;min-height:140px;box-sizing:border-box;border:1px solid #cbd1d6;border-radius:4px;outline:none;padding:10px;overflow:auto;font:16px/1.5 Arial,sans-serif;color:#222;background:#fff;white-space:pre-wrap;overflow-wrap:anywhere}
+.richTextEditor:focus{border-color:#2e66a3;box-shadow:0 0 0 1px #2e66a3}
+.richTextEditor:empty:before{content:attr(data-placeholder);color:#868e96;pointer-events:none}
+.postDescriptionEditor{min-height:150px}
+.updateRichTextEditor{min-height:110px}
+.messageRichTextEditor{min-height:230px}
+:root[data-theme="dark"] .richTextFormattingToolbar{background:var(--theme-input,#292d32);border-color:var(--theme-border,#454a52)}
+:root[data-theme="dark"] .richTextFormattingToolbar button{color:var(--theme-text,#e6e8eb)}
+:root[data-theme="dark"] .richTextFormattingToolbar button:hover,:root[data-theme="dark"] .richTextFormattingToolbar button:focus-visible,:root[data-theme="dark"] .richTextFormattingToolbar button.active{background:#3a414a;border-color:var(--theme-border,#454a52)}
+:root[data-theme="dark"] .richTextEditor{background:var(--theme-input,#292d32);color:var(--theme-text,#e6e8eb);border-color:var(--theme-border,#454a52);color-scheme:dark}
+:root[data-theme="dark"] .richTextEditor:empty:before{color:var(--theme-muted,#a9afb7)}
+.androidCreatePostBody .richTextEditor{font:16px/1.5 Arial,sans-serif}
+.composeBody .richTextEditor{resize:vertical}
+@media(max-width:600px){.messageRichTextEditor{min-height:180px}.postDescriptionEditor{min-height:120px}}

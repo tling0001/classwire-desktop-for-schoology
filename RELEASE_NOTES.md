@@ -1,5 +1,15 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.58]
+
+### Added
+- Add a shared rich-text editor to Create Text Submission, discussion and event descriptions, course/group updates, and message composition. Bold, italic, underline, and hyperlink controls preserve editor selection and send sanitized HTML through the existing Schoology API paths.
+
+### Fixed
+- Remove list and clear-format controls that were not reliable across composers; keep only verified core formatting actions.
+- Sanitize pasted and submitted rich text, preserve supported HTML formatting, and clean up editor listeners when composers close.
+
+
 ## [2026.10.0-port.57]
 
 ### Fixed
