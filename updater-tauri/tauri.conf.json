@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Schoology Updater",
+  "productName": "ClassWire Updater",
   "version": "1.0.0",
   "identifier": "com.schoology.app.updater",
   "build": {
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Schoology Update",
+        "title": "ClassWire Update",
         "width": 520,
         "height": 430,
         "minWidth": 520,

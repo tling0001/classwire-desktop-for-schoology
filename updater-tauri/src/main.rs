@@ -191,12 +191,12 @@ fn wait_for_parent(pid: u32, cancelled: &AtomicBool) -> Result<(), String> {
             }
             Ok(_) | Err(_) => {
                 if started.elapsed().unwrap_or_default() > Duration::from_secs(15) {
-                    return Err("Could not verify that Schoology has exited. Close Schoology and retry.".into());
+                    return Err("Could not verify that ClassWire has exited. Close ClassWire and retry.".into());
                 }
             }
         }
         if started.elapsed().unwrap_or_default() > Duration::from_secs(18) {
-            return Err("Schoology is still running. Close Schoology and retry the update.".into());
+            return Err("ClassWire is still running. Close ClassWire and retry the update.".into());
         }
         thread::sleep(Duration::from_millis(300));
     }
@@ -286,20 +286,20 @@ async fn run_update(
         path
     };
 
-    emit_progress(app, "schoologyDownload", "determinate", "Starting…", Some(0), "Downloading Schoology…");
+    emit_progress(app, "schoologyDownload", "determinate", "Starting…", Some(0), "Downloading ClassWire…");
     let downloaded_size = download_file(
         app,
         &payload.url,
         &installer,
         "schoologyDownload",
-        "Downloading Schoology…",
+        "Downloading ClassWire…",
         payload.size,
         cancelled,
     )
     .await?;
     if let Some(expected) = payload.size.filter(|size| *size > 0) {
         if downloaded_size != expected {
-            return Err("The downloaded Schoology installer size does not match the release metadata.".into());
+            return Err("The downloaded ClassWire installer size does not match the release metadata.".into());
         }
     }
     if let Some(expected) = payload.digest.as_deref().and_then(|value| value.strip_prefix("sha256:")) {
@@ -314,22 +314,22 @@ async fn run_update(
         let actual = format!("{:x}", hasher.finalize());
         if !actual.eq_ignore_ascii_case(expected) {
             let _ = fs::remove_file(&installer);
-            return Err("The downloaded Schoology installer failed its SHA-256 integrity check.".into());
+            return Err("The downloaded ClassWire installer failed its SHA-256 integrity check.".into());
         }
     }
 
-    emit_progress(app, "install", "indeterminate", "Waiting for Schoology to close…", None, "Preparing installation…");
+    emit_progress(app, "install", "indeterminate", "Waiting for ClassWire to close…", None, "Preparing installation…");
     wait_for_parent(payload.parent_pid.unwrap_or(0), cancelled)?;
     check_cancelled(cancelled)?;
     fs::create_dir_all(&extracted).map_err(|e| e.to_string())?;
-    emit_progress(app, "install", "determinate", "Extracting installer…", Some(15), "Installing Schoology…");
+    emit_progress(app, "install", "determinate", "Extracting installer…", Some(15), "Installing ClassWire…");
     run_command(
         Command::new(&seven)
             .arg("x")
             .arg(&installer)
             .arg(format!("-o{}", extracted.display()))
             .arg("-y"),
-        "Schoology installer extraction",
+        "ClassWire installer extraction",
     )?;
     check_cancelled(cancelled)?;
     if !extracted.join("schoology-desktop-port.exe").is_file() {
@@ -337,7 +337,7 @@ async fn run_update(
     }
 
     fs::create_dir_all(&install_dir).map_err(|e| e.to_string())?;
-    emit_progress(app, "install", "determinate", "Replacing application files…", Some(55), "Installing Schoology…");
+    emit_progress(app, "install", "determinate", "Replacing application files…", Some(55), "Installing ClassWire…");
     for entry in fs::read_dir(&install_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let kind = entry.file_type().map_err(|e| e.to_string())?;
@@ -345,7 +345,7 @@ async fn run_update(
             fs::remove_file(entry.path()).map_err(|e| format!("Could not replace {}: {e}", entry.path().display()))?;
         }
     }
-    emit_progress(app, "install", "determinate", "Copying application files…", Some(75), "Installing Schoology…");
+    emit_progress(app, "install", "determinate", "Copying application files…", Some(75), "Installing ClassWire…");
     let result = Command::new("robocopy.exe")
         .arg(&extracted)
         .arg(&install_dir)
@@ -359,9 +359,9 @@ async fn run_update(
         return Err(format!("Copying updated application files failed (robocopy exit code {code})."));
     }
     if !schoology_exe.is_file() {
-        return Err("The update copy finished, but schoology-desktop-port.exe is missing. Schoology was not relaunched.".into());
+        return Err("The update copy finished, but schoology-desktop-port.exe is missing. ClassWire was not relaunched.".into());
     }
-    emit_progress(app, "install", "done", "Complete", Some(100), "Update complete. Restarting Schoology…");
+    emit_progress(app, "install", "done", "Complete", Some(100), "Update complete. Restarting ClassWire…");
     let _ = fs::remove_file(&installer);
     let _ = fs::remove_file(&seven_msi);
     let staged_updater = payload
@@ -376,7 +376,7 @@ async fn run_update(
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("The update completed, but Schoology could not be relaunched: {e}"))?;
+        .map_err(|e| format!("The update completed, but ClassWire could not be relaunched: {e}"))?;
     let staged_loader = payload.staged_updater_loader_path.as_deref().map(PathBuf::from);
     schedule_cleanup(&staged_updater, staged_loader.as_deref(), &run_dir);
     Ok(())

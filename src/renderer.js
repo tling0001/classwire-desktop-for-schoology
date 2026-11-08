@@ -59,7 +59,7 @@ function alert(message){showAppDialog('ClassWire',String(message));}
 function showAppDialog(title,message,actions=[{label:'OK',action:null}]){let el=document.getElementById('appDialog');if(!el){el=document.createElement('div');el.id='appDialog';el.className='appDialogOverlay';document.body.appendChild(el)}el.innerHTML=`<div class="appDialog" role="dialog" aria-modal="true"><h2>${esc(title)}</h2><div class="appDialogMessage">${esc(message)}</div><div class="appDialogActions">${actions.map((a,i)=>`<button data-dialog-action="${i}">${esc(a.label)}</button>`).join('')}</div></div>`;el.classList.remove('closing');el.classList.add('open');el.querySelectorAll('[data-dialog-action]').forEach((b,i)=>b.onclick=async()=>{const fn=actions[i]?.action;closeDialogAnimated(el,async()=>{if(fn)await fn()})});return el}
 async function installProductUpdate(u,productName='ClassWire'){
  const iosUA=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&Number(navigator.maxTouchPoints)>1);
- const iosInstall=A.platform==='ios'||document.documentElement.dataset.electronPlatform==='ios'||iosUA;
+ const iosInstall=A.platform==='ios'||document.documentElement.dataset.tauriPlatform==='ios'||iosUA;
  if(iosInstall){try{await A.installUpdate(u);showAppDialog('Installing update',`${productName} installation will start after closing Schoology or going to your Home Screen.`)}catch(e){showAppDialog('Unable to open installation link',e.message||String(e))}return}
  const dlg=showAppDialog(`Downloading ${productName}`,'Downloading…',[]);
  const msg=dlg?.querySelector('.appDialogMessage');
@@ -195,7 +195,7 @@ function watchBackIconPlaceholders(){
  backIconRepairObserver.observe(app,{subtree:true,childList:true,characterData:true});
 }
 function syncIosStatusBarInset(){
- const platform=A.platform||document.documentElement.dataset.electronPlatform||'';
+ const platform=A.platform||document.documentElement.dataset.tauriPlatform||'';
  const enabled=(platform==='ios'||platform==='android')&&state.screen==='app'&&!!app.querySelector('.shell');
  const ios=enabled&&platform==='ios',android=enabled&&platform==='android';
  document.documentElement.classList.toggle('iosAppSafeArea',ios);
@@ -2035,7 +2035,7 @@ async function showEmbeddedWeb(url,title,options={}){
  let resourceAppSession=null;try{resourceAppSession=await A.prepareWebSession()}catch(e){console.warn('Schoology web session preparation failed:',e)}
  if(options.resourceAppImport){c.classList.add('resourceAppImportWebHost');}
  else{if(options.courseApp){c.classList.remove('webContentHost','embeddedContentActive');c.classList.add('courseAppEmbeddedContent');}else{c.classList.remove('webContentHost');c.classList.add('embeddedContentActive');}state.toolbarTitle=options.courseApp?(courseToolbarTitleOf(state.selectedCourse||{})||'Course'):(title||'Schoology');state.embeddedTitle=options.courseApp?null:(title||'Schoology');state.embeddedCanOpenExternal=options.allowBrowser!==false;state.embeddedTheme=options.courseApp?'':(options.accountInfo?'account':(options.lti?'lti':(options.quiz?'quiz':'')));syncToolbar();}
- const embeddedTag=window.__TAURI__?'schoology-webview':'webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" preload="${esc(String(A.webviewPreloadUrl||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" data-open-popups-external="${options.courseApp===true}" data-course-app="${options.courseApp===true}" allowpopups></${embeddedTag}></section>`;
+ const embeddedTag='schoology-webview';c.innerHTML=`<section class="embeddedPage"><${embeddedTag} id="schoologyWebview" src="${esc(String(url||''))}" data-lti="${options.lti===true}" data-external-links="${externalLinks}" data-open-popups-external="${options.courseApp===true}" data-course-app="${options.courseApp===true}" allowpopups></${embeddedTag}></section>`;
  const w=document.getElementById('schoologyWebview');if(!w)return;const spinner=c.querySelector('#embeddedWebviewLoading');const setLoading=v=>spinner?.classList.toggle('hidden',!v);let mainNavigation=0;let loadingStartedAt=0;let initialPageLoaded=false;setLoading(true);
  w.addEventListener('did-start-navigation',e=>{if(!e.isMainFrame)return;mainNavigation++;loadingStartedAt=Date.now();setLoading(true);});
  w.addEventListener('dom-ready',()=>{if(!window.__TAURI__&&mainNavigation>0)setLoading(false)});
@@ -3830,13 +3830,13 @@ function showStartupOfflineError(){
   splash.innerHTML=`${classWireLogoMarkup('androidSplashLogo')}<div class="startupOfflineError"><b>Unable to connect to Schoology</b><span>Check your internet connection and try again.</span><button id="startupRetry">Retry</button></div>`;
   splash.querySelector('#startupRetry')?.addEventListener('click',()=>startSchoologyStartup(true));
 }
-const CURRENT_RELEASE_NOTES_VERSION='2026.10.0-port.54';
-const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• GitHub Releases now include both ClassWire and Schoology filenames for each platform package.\n• App update checks find both names through their platform-specific installer suffixes.\n• Create Text Submission includes bold, italic, underline, links, and list formatting.\n• Post previews show the two most recent comments, with View more for the full thread.';
+const CURRENT_RELEASE_NOTES_VERSION='2026.10.0-port.55';
+const CURRENT_RELEASE_NOTES_TEXT='What’s new\n\n• GitHub Releases include ClassWire assets plus Schoology aliases for older installs.\n• Tauri app updates now select only ClassWire-named installers.\n• Create Text Submission includes bold, italic, underline, links, and list formatting.\n• Post previews show the two most recent comments, with View more for the full thread.';
 
 // Keep the landscape Upcoming pane usable at both full and icon-only widths.
 if(!window.__schoologyUpcomingCollapseBound){window.__schoologyUpcomingCollapseBound=true;document.addEventListener('click',event=>{const button=event.target?.closest?.('[data-upcoming-collapse-toggle]');if(!button)return;const page=button.closest('.courseLandscapePage,.groupProfilePage,.schoolProfileNativePage');if(!page)return;const collapsed=page.classList.toggle('upcoming-collapsed');button.classList.toggle('collapsed',collapsed);button.textContent=collapsed?'›':'‹';button.setAttribute('aria-label',collapsed?'Expand Upcoming':'Collapse Upcoming');button.title=collapsed?'Expand Upcoming':'Collapse Upcoming';});}
 function nativeVariantPromptDetails(){
- const platform=A.platform||document.documentElement.dataset.electronPlatform||'';
+ const platform=A.platform||document.documentElement.dataset.tauriPlatform||'';
  if(platform==='win32')return {platform,key:'windows',os:'Windows',setting:'Try ClassWire WinUI',description:'Meet ClassWire redesigned for Windows. The native app uses familiar Windows controls and window behavior, with performance improvements that make everyday navigation and page loading feel faster and more responsive.'};
  if(platform==='darwin')return {platform,key:'macos',os:'macOS',setting:'Try ClassWire SwiftUI',description:'Enjoy ClassWire as a native Mac app. It is designed around macOS windows and controls, with performance improvements for faster navigation and a smoother, more responsive experience on your Mac.'};
  if(platform==='ios'){
@@ -3877,7 +3877,7 @@ function scheduleNativeVariantPrompt(delay=1800,attempt=0){
  setTimeout(show,delay);
 }
 async function maybeShowReleaseNotesAfterUpdate(){
- try{const version=CURRENT_RELEASE_NOTES_VERSION;const key='schoology.release-notes-version';if(localStorage.getItem(key)===version)return;localStorage.setItem(key,version);setTimeout(()=>showAppDialog('What’s new in Schoology '+version,CURRENT_RELEASE_NOTES_TEXT),650)}catch(error){console.debug('Could not check release notes version:',error)}
+ try{const version=CURRENT_RELEASE_NOTES_VERSION;const key='schoology.release-notes-version';if(localStorage.getItem(key)===version)return;localStorage.setItem(key,version);setTimeout(()=>showAppDialog('What’s new in ClassWire '+version,CURRENT_RELEASE_NOTES_TEXT),650)}catch(error){console.debug('Could not check release notes version:',error)}
 }
 async function startSchoologyStartup(retry=false){
   try{

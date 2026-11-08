@@ -1,14 +1,8 @@
 {
   "name": "schoology-desktop-port",
-  "version": "2026.10.0-port.54",
+  "version": "2026.10.0-port.55",
   "description": "ClassWire desktop app aligned with the supplied Schoology Android 2026.10.0 source",
-  "main": "src/main.js",
   "scripts": {
-    "start": "electron .",
-    "dist": "npm run prepare:icons && electron-builder --win nsis --publish never",
-    "dist:win": "npm run prepare:icons && electron-builder --win nsis --publish never",
-    "dist:mac": "npm run prepare:icons && electron-builder --mac dmg --publish never",
-    "dist:linux": "npm run prepare:icons && electron-builder --linux deb rpm --publish never",
     "build:updater": "cargo build --release --manifest-path updater-tauri/Cargo.toml && node scripts/stage-updater.mjs",
     "prepare:tauri": "npm run prepare:icons && node scripts/prepare-tauri.mjs",
     "tauri:dev": "npm run prepare:tauri && tauri dev",
@@ -17,8 +11,6 @@
     "prepare:icons": "node scripts/prepare-icons.mjs"
   },
   "devDependencies": {
-    "electron": "^39.1.0",
-    "electron-builder": "^26.15.3",
     "@tauri-apps/cli": "^2.12.3"
   },
   "dependencies": {
@@ -29,76 +21,5 @@
   "author": {
     "name": "ClassWire Desktop",
     "email": "schoology-desktop-port@users.noreply.github.com"
-  },
-  "build": {
-    "appId": "com.schoologytauri.app",
-    "productName": "ClassWire",
-    "artifactName": "ClassWire-${version}-${arch}.${ext}",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "src/**/*",
-      "assets/**/*",
-      "node_modules/jsqr/**/*",
-      "package.json",
-      "node_modules/pdfjs-dist/**/*"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "assets/ic_launcher_256.ico",
-      "requestedExecutionLevel": "asInvoker",
-      "extraResources": [
-        {
-          "from": "updater-tauri/dist/SchoologyUpdater.exe",
-          "to": "SchoologyUpdater.exe"
-        },
-        {
-          "from": "chrome-link-handler",
-          "to": "chrome-link-handler"
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "artifactName": "ClassWire-${version}-Setup-${arch}.${ext}"
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "identity": "-",
-      "hardenedRuntime": false,
-      "icon": "assets/ic_launcher.icns",
-      "extraResources": [
-        {
-          "from": "chrome-link-handler",
-          "to": "chrome-link-handler"
-        }
-      ]
-    },
-    "protocols": [
-      {
-        "name": "Schoology Link",
-        "schemes": [
-          "schoology"
-        ]
-      }
-    ],
-    "linux": {
-      "extraResources": [
-        {
-          "from": "chrome-link-handler",
-          "to": "chrome-link-handler"
-        }
-      ]
-    }
-  },
-  "productName": "Schoology"
+  }
 }

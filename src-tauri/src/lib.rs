@@ -88,7 +88,7 @@ fn auth_state(app: &AppHandle) -> Option<Value> {
         }
     }
 
-    // Electron stored credentials in %APPDATA%/Schoology/auth.json (and in the
+    // Earlier desktop installs stored credentials in %APPDATA%/Schoology/auth.json (and in the
     // older app-specific userData directory). Migrate them when Tauri takes over.
     let app_data = app.path().app_data_dir().ok()?;
     let parent = app_data.parent()?;
@@ -833,7 +833,7 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     let authorization = plaintext_header(auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp);
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
 
-    // First use the same FileService endpoint as the Electron implementation.
+    // First use the established FileService endpoint.
     // If it rejects the multipart request or returns no file id, fall back to
     // Schoology's legacy metadata + raw PUT upload sequence.
     let mut primary_error = String::new();
@@ -1126,6 +1126,17 @@ fn update_asset_suffixes() -> Vec<&'static str> {
     }
 }
 
+fn classwire_update_asset_suffixes() -> Vec<&'static str> {
+    match std::env::consts::OS {
+        "windows" => vec!["_x64-setup.exe"],
+        "macos" => vec![".dmg"],
+        "linux" => vec!["amd64.deb", "x86_64.rpm"],
+        "android" => vec![".apk"],
+        "ios" => vec!["-iOS-AdHoc.plist"],
+        _ => vec![],
+    }
+}
+
 async fn fetch_release(repo: &str) -> Result<Value, String> {
     let url = Url::parse(&format!("https://api.github.com/repos/{repo}/releases/latest")).map_err(|e| e.to_string())?;
     let response = reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e| e.to_string())?
@@ -1146,6 +1157,22 @@ fn select_update_asset(release: &Value) -> Result<Value, String> {
     Err(format!("No compatible installer was found for {} ({}).", std::env::consts::OS, std::env::consts::ARCH))
 }
 
+fn select_classwire_update_asset(release: &Value) -> Result<Value, String> {
+    if release.get("draft").and_then(Value::as_bool).unwrap_or(false) || release.get("prerelease").and_then(Value::as_bool).unwrap_or(false) {
+        return Err("No stable release is currently available.".into());
+    }
+    let assets = release.get("assets").and_then(Value::as_array).ok_or("The release has no downloadable assets.")?;
+    for suffix in classwire_update_asset_suffixes() {
+        if let Some(asset) = assets.iter().find(|asset| {
+            let name = asset.get("name").and_then(Value::as_str).unwrap_or("");
+            (name.starts_with("ClassWire-") || name.starts_with("ClassWire_")) && name.ends_with(suffix)
+        }) {
+            return Ok(asset.clone());
+        }
+    }
+    Err(format!("No compatible ClassWire installer was found for {} ({}).", std::env::consts::OS, std::env::consts::ARCH))
+}
+
 fn release_asset_info(release: &Value, asset: &Value, repo: &str, product_name: &str) -> Value {
     json!({
         "checked": true,
@@ -1157,7 +1184,7 @@ fn release_asset_info(release: &Value, asset: &Value, repo: &str, product_name: 
         "digest": asset.get("digest").cloned().unwrap_or(Value::Null),
         "repository": repo,
         "productName": product_name,
-        "useWindowsUpdater": cfg!(target_os = "windows") && product_name == "Schoology"
+        "useWindowsUpdater": cfg!(target_os = "windows") && product_name == "ClassWire"
     })
 }
 
@@ -1169,32 +1196,35 @@ async fn check_for_updates() -> Result<Value, String> {
     if remote == 0 || remote <= local || release.get("draft").and_then(Value::as_bool).unwrap_or(false) || release.get("prerelease").and_then(Value::as_bool).unwrap_or(false) {
         return Ok(json!({"checked":true,"available":false,"version":local}));
     }
-    let asset = select_update_asset(&release)?;
-    let mut info = release_asset_info(&release, &asset, "tling0001/schoology-for-desktop-port", "Schoology");
+    let asset = select_classwire_update_asset(&release)?;
+    let mut info = release_asset_info(&release, &asset, "tling0001/schoology-for-desktop-port", "ClassWire");
     info["available"] = json!(true);
     Ok(info)
 }
 
 async fn check_for_swiftui_updates() -> Result<Value, String> {
-    const REPOSITORY: &str = "tling0001/schoology-swiftui";
+    const REPOSITORY: &str = "tling0001/classwire-swiftui-for-schoology";
     let suffix = match std::env::consts::OS {
         "macos" => "-macOS.dmg",
         "ios" => "-iOS-AdHoc.plist",
-        _ => return Err("Schoology SwiftUI is available only on iOS, iPadOS, and macOS.".into()),
+        _ => return Err("ClassWire SwiftUI is available only on iOS, iPadOS, and macOS.".into()),
     };
     let release = fetch_release(REPOSITORY).await?;
     if release.get("draft").and_then(Value::as_bool).unwrap_or(false)
         || release.get("prerelease").and_then(Value::as_bool).unwrap_or(false) {
-        return Err("No stable Schoology SwiftUI release is currently available.".into());
+        return Err("No stable ClassWire SwiftUI release is currently available.".into());
     }
     let assets = release.get("assets").and_then(Value::as_array)
-        .ok_or("The Schoology SwiftUI release has no downloadable assets.")?;
+        .ok_or("The ClassWire SwiftUI release has no downloadable assets.")?;
     let asset = assets.iter()
-        .find(|asset| asset.get("name").and_then(Value::as_str).unwrap_or("").ends_with(suffix))
-        .ok_or_else(|| format!("The latest Schoology SwiftUI release does not contain the required {} installer.", suffix))?;
+        .find(|asset| {
+            let name = asset.get("name").and_then(Value::as_str).unwrap_or("");
+            name.starts_with("ClassWire-") && name.ends_with(suffix)
+        })
+        .ok_or_else(|| format!("The latest ClassWire SwiftUI release does not contain the required {} installer.", suffix))?;
     // This is a platform switch, not an in-place Tauri update. Its port number
     // belongs to a separate release sequence, so never compare it with APP_VERSION.
-    let mut info = release_asset_info(&release, asset, REPOSITORY, "Schoology SwiftUI");
+    let mut info = release_asset_info(&release, asset, REPOSITORY, "ClassWire SwiftUI");
     info["available"] = json!(true);
     Ok(info)
 }
@@ -1477,29 +1507,29 @@ fn play_system_notification_sound() {
 
 #[cfg(target_os = "windows")]
 async fn try_winui(app: &AppHandle) -> Result<Value, String> {
-    let executable = std::env::current_exe().map_err(|e| format!("Could not locate the current Schoology installation: {e}"))?;
-    let install_dir = executable.parent().ok_or("Could not determine the Schoology installation directory.")?;
+    let executable = std::env::current_exe().map_err(|e| format!("Could not locate the current ClassWire installation: {e}"))?;
+    let install_dir = executable.parent().ok_or("Could not determine the ClassWire installation directory.")?;
     let uninstaller = install_dir.join("uninstall.exe");
     if !uninstaller.is_file() {
-        return Err(format!("The current Schoology uninstaller was not found at {}.", uninstaller.display()));
+        return Err(format!("The current ClassWire uninstaller was not found at {}.", uninstaller.display()));
     }
     let architecture = match std::env::consts::ARCH {
         "x86_64" => "x64",
         "aarch64" => "ARM64",
-        other => return Err(format!("Schoology WinUI does not currently publish an installer for Windows architecture {other}.")),
+        other => return Err(format!("ClassWire WinUI does not currently publish an installer for Windows architecture {other}.")),
     };
-    let release = fetch_release("tling0001/schoology-winui").await?;
+    let release = fetch_release("tling0001/classwire-winui-for-schoology").await?;
     if release.get("draft").and_then(Value::as_bool).unwrap_or(false)
         || release.get("prerelease").and_then(Value::as_bool).unwrap_or(false) {
-        return Err("The latest Schoology WinUI release is not a stable release.".into());
+        return Err("The latest ClassWire WinUI release is not a stable release.".into());
     }
     let tag = release.get("tag_name").and_then(Value::as_str)
         .filter(|tag| !tag.is_empty() && tag.chars().all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_')))
-        .ok_or("The latest Schoology WinUI release has an invalid version tag.")?;
-    let expected_name = format!("Schoology-WinUI-{tag}-{architecture}-Setup.exe");
+        .ok_or("The latest ClassWire WinUI release has an invalid version tag.")?;
+    let expected_name = format!("ClassWire-WinUI-{tag}-{architecture}-Setup.exe");
     let asset = release.get("assets").and_then(Value::as_array)
         .and_then(|assets| assets.iter().find(|asset| asset.get("name").and_then(Value::as_str) == Some(expected_name.as_str())))
-        .ok_or_else(|| format!("The latest Schoology WinUI release does not contain the required {architecture} installer ({expected_name})."))?;
+        .ok_or_else(|| format!("The latest ClassWire WinUI release does not contain the required {architecture} installer ({expected_name})."))?;
     let digest = asset.get("digest").and_then(Value::as_str)
         .filter(|digest| digest.starts_with("sha256:"))
         .ok_or("GitHub did not provide a SHA-256 digest for the WinUI installer; refusing to run an unverified installer.")?;
@@ -1509,8 +1539,8 @@ async fn try_winui(app: &AppHandle) -> Result<Value, String> {
         "size": asset.get("size").and_then(Value::as_u64).unwrap_or(0),
         "digest": digest,
         "version": tag,
-        "repository": "tling0001/schoology-winui",
-        "productName": "Schoology WinUI"
+        "repository": "tling0001/classwire-winui-for-schoology",
+        "productName": "ClassWire WinUI"
     });
     let installer = download_update(app, &info).await?;
     // Wait for this process to exit before uninstalling; NSIS cannot safely

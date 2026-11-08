@@ -1,5 +1,12 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.55]
+
+### Changed
+- Remove the Electron entry point, runtime, packaging configuration, and preload scripts; the desktop package now describes the Tauri app only.
+- Use Tauri-specific platform selectors and installer patterns, and make app updates select only ClassWire-named release assets. Schoology-named aliases remain published for older installs.
+- Follow the canonical ClassWire SwiftUI and WinUI release repositories and select their ClassWire-prefixed installer names.
+
 ## [2026.10.0-port.54]
 
 ### Changed

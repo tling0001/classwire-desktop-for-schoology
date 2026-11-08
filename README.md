@@ -15,7 +15,7 @@ ClassWire is a cross-platform desktop/mobile app aligned with the supplied offic
 The Windows NSIS setup executable supports NSIS silent mode. Run the installer with the case-sensitive `/S` switch to install or update without showing the wizard:
 
 ```powershell
-Start-Process -FilePath ".\\Schoology-2026.10.0-port.35-Setup-x64.exe" -ArgumentList "/S" -Wait
+Start-Process -FilePath ".\\ClassWire_2026.10.0-port.55_x64-setup.exe" -ArgumentList "/S" -Wait
 ```
 
 To uninstall without prompts, run the installed uninstaller with the same switch:
@@ -28,7 +28,7 @@ Use the actual setup artifact name/architecture produced by the release. NSIS al
 
 ## Implementation notes
 
-The active native host is Tauri v2 (`src-tauri`) with the compatibility bridge in `src/tauri-bridge.js`. The legacy Electron implementation remains in the repository as reference/compatibility code; it is not the current release runtime.
+The native host, app updater, package scripts, and GitHub release workflow use Tauri v2 (`src-tauri`) with the bridge in `src/tauri-bridge.js`. Electron runtime and preload code have been removed. Schoology aliases remain in releases for users on older installs.
 
 Desktop native child webviews are implemented with Tauri's native webview APIs. Tauri's current mobile targets do not support the same multiple-child-webview API, so mobile flows that depend on embedded remote pages still need a mobile-compatible native navigation implementation. Native background push on iOS also requires APNs delivery and a server-side device-token workflow; five-minute polling alone is not equivalent to background push.
 

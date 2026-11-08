@@ -46,8 +46,6 @@ page = page.replace('../node_modules/jsqr/dist/jsQR.js', 'jsQR.js');
 if (!page.includes('tauri-bridge.js')) page = page.replace('<script src="appboot.js"></script>', '<script src="tauri-bridge.js"></script>\n<script src="appboot.js"></script>');
 fs.writeFileSync(html, page);
 fs.writeFileSync(path.join(out, 'index.html'), page);
-// Custom Element names must contain a hyphen; Electron's built-in <webview>
-// element cannot be registered as a custom element in Tauri/WebView2/WKWebView.
 const renderer = path.join(out, 'renderer.js');
 let rendererSource = fs.readFileSync(renderer, 'utf8');
 // Generate the first-launch "What's new" dialog from the release-notes section
@@ -71,11 +69,9 @@ rendererSource = rendererSource.replace(
   /const CURRENT_RELEASE_NOTES_VERSION=.*;\r?\nconst CURRENT_RELEASE_NOTES_TEXT=.*;/,
   "const CURRENT_RELEASE_NOTES_VERSION=" + JSON.stringify(packageJsonForNotes.version) + ";\nconst CURRENT_RELEASE_NOTES_TEXT=" + JSON.stringify(releaseText) + ";"
 );
-rendererSource = rendererSource.replace(/<\/?webview\b/gi, tag => tag.replace(/webview/i, 'schoology-webview'));
 fs.writeFileSync(renderer, rendererSource);
 const styles = path.join(out, 'styles.css');
 let css = fs.readFileSync(styles, 'utf8');
-css = css.replace(/\bwebview\b/g, 'schoology-webview');
 fs.writeFileSync(styles, css);
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 // SemVer rejects leading zeroes in numeric identifiers; retain the user-facing version separately.

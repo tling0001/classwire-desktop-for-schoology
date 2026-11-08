@@ -154,9 +154,9 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .gradesAndroid{background:#fff}.gradesOverall{padding:0 0}.gradePeriod{border-top:1px solid #ddd}.gradePeriodHeader{min-height:45px;background:#5d5d5d;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:13px}.gradePeriodHeader strong{font-size:17px;font-weight:500}.gradeAssignmentRow{min-height:54px}.gradeAssignmentName{flex:1}.gradeValue{min-width:55px;text-align:right;color:#333;font-size:14px}
 .upcomingList{background:#fff}.upcomingAssignment{width:100%;border:0;border-bottom:1px solid #e1e1e1;background:#fff;display:flex;align-items:center;text-align:left;padding:13px 16px;min-height:68px;cursor:pointer}.assignmentIcon{width:42px;font-size:20px}.assignmentInfo{flex:1}.assignmentInfo b{display:block;color:#333;font-size:15px;font-weight:500}.assignmentInfo small{display:block;color:#888;font-size:12px;margin-top:4px}.rowChevron{color:#999;font-size:24px}
 .androidActivityCard{background:#fff;border-bottom:1px solid #ddd;padding:13px 12px}.activityHeader{display:flex;align-items:center;gap:9px}.activityHeader img,.activityAvatar{width:38px;height:38px;border-radius:50%;object-fit:cover;background:#56607d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}.activityUser{font-size:14px;font-weight:500;color:#333}.activityBody{padding:10px 2px 7px;font-size:15px;line-height:1.45;color:#333}.activityBody img{max-width:100%;height:auto}.activityMeta{font-size:11px;color:#888}.activityActions{display:flex;gap:22px;padding-top:9px}.activityActions button{border:0;background:none;padding:0;color:#6b737b;font-size:13px;cursor:pointer}
-.embeddedPage{height:100%;width:100%;background:#fff}.embeddedPage webview{display:block;width:100%;height:100%;border:0}
+.embeddedPage{height:100%;width:100%;background:#fff}.embeddedPage schoology-webview{display:block;width:100%;height:100%;border:0}
 
-.dashboardHybrid webview{width:100%;height:100%;border:0;display:block}.dashboardFallback{padding:8px 10px;background:#fff}.dashboardFallback:before{content:"Course Dashboard";display:block;font-size:18px;color:#333;padding:10px 4px}.dashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboardCard{background:#fff;border:1px solid #ddd;border-radius:3px;text-align:left;padding:0;overflow:hidden;cursor:pointer}.dashboardThumb{height:86px;background:#e8ecef;position:relative}.dashboardThumb img{width:100%;height:100%;object-fit:cover;display:block}.dashboardThumbFallback{width:100%;height:100%;align-items:center;justify-content:center;background:#56607d;color:#fff;font-size:28px}.dashboardCard>div:last-child{padding:10px}.dashboardCard b,.dashboardCard small{display:block}.dashboardCard b{font-size:14px;color:#333}.dashboardCard small{font-size:11px;color:#888;margin-top:4px}
+.dashboardHybrid schoology-webview{width:100%;height:100%;border:0;display:block}.dashboardFallback{padding:8px 10px;background:#fff}.dashboardFallback:before{content:"Course Dashboard";display:block;font-size:18px;color:#333;padding:10px 4px}.dashboardGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dashboardCard{background:#fff;border:1px solid #ddd;border-radius:3px;text-align:left;padding:0;overflow:hidden;cursor:pointer}.dashboardThumb{height:86px;background:#e8ecef;position:relative}.dashboardThumb img{width:100%;height:100%;object-fit:cover;display:block}.dashboardThumbFallback{width:100%;height:100%;align-items:center;justify-content:center;background:#56607d;color:#fff;font-size:28px}.dashboardCard>div:last-child{padding:10px}.dashboardCard b,.dashboardCard small{display:block}.dashboardCard b{font-size:14px;color:#333}.dashboardCard small{font-size:11px;color:#888;margin-top:4px}
 
 /* v36 Android navigation/media/submission parity */
 .toolbar .iconButton{border:0!important;outline:none!important;box-shadow:none!important;-webkit-appearance:none!important}
@@ -173,7 +173,7 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .activityAvatar{width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;border-radius:50%!important;object-fit:cover!important;overflow:hidden}
 .authenticatedMediaImage{max-width:100%;height:auto;border-radius:2px}
 .embeddedPage{height:calc(100vh - 56px)!important;width:100%;background:#fff}
-.embeddedPage webview{width:100%!important;height:100%!important;min-height:calc(100vh - 56px)!important;border:0}
+.embeddedPage schoology-webview{width:100%!important;height:100%!important;min-height:calc(100vh - 56px)!important;border:0}
 .assignmentAndroidPage{background:#fff;min-height:100%}
 .assignmentTabs,.profileTabs,.groupTabs{display:flex;background:#002137;overflow-x:auto;white-space:nowrap}
 .assignmentTab,.profileTab,.groupTab{height:48px;padding:0 16px;border:0;background:transparent;color:rgba(255,255,255,.8);position:relative;flex:0 0 auto}
@@ -195,12 +195,12 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .groupListItem{width:100%;display:flex;align-items:center;min-height:96px;padding:12px 16px;border:0;border-bottom:1px solid rgba(255,255,255,.12);background:#002137;color:#fff;text-align:left}
 .groupList{background:#002137}.groupImage{width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex:0 0 72px;background:#2e66a3;margin-right:16px}.groupImage span{font-size:28px}.groupListItem>b,.groupListItem>span:nth-child(2){flex:1}.groupListItem small{display:block;color:#fff;margin-top:4px}.groupRow{width:100%;padding:14px 16px;border:0;border-bottom:1px solid #ddd;background:#fff;text-align:left}.groupRow b,.groupRow small{display:block}.groupRow small{color:#888;margin-top:5px}
 .courseAppIcon{width:56px;height:56px;flex:0 0 56px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-right:12px}.courseAppIcon img{width:56px;height:56px;object-fit:contain}.courseAppIcon span{font-size:24px;color:#2e66a3}
-.dashboardHybrid{height:calc(100vh - 152px)!important}.dashboardHybrid webview{height:100%!important}
+.dashboardHybrid{height:calc(100vh - 152px)!important}.dashboardHybrid schoology-webview{height:100%!important}
 
 /* v38: Android message pager/thread, full-screen hybrid pages, and file opening */
 .shell #content:has(.embeddedPage),.shell #content:has(.dashboardHybrid){padding:0!important;height:calc(100vh - 56px)!important;min-height:0!important;overflow:hidden}
 .shell #content:has(.embeddedPage) .embeddedPage,.shell #content:has(.dashboardHybrid) .dashboardHybrid{height:100%!important;min-height:0!important}
-.shell #content:has(.embeddedPage) webview,.shell #content:has(.dashboardHybrid) webview{display:block!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
+.shell #content:has(.embeddedPage) schoology-webview,.shell #content:has(.dashboardHybrid) schoology-webview{display:block!important;width:100%!important;height:100%!important;min-height:0!important;border:0!important}
 .dashboardHybrid{height:100%!important;width:100%;padding:0!important;margin:0!important;overflow:hidden;background:#fff}
 .messagesAndroidPage{background:#fff;min-height:100%;padding:0!important}
 .messageTabs{height:48px;display:flex;background:#fff;border-bottom:1px solid #d9dde0}
@@ -240,7 +240,7 @@ body.androidSplashPage .androidSplash{position:fixed;inset:0;z-index:9999;height
 .drawerItem:active,.profileRow:active,.courseSubItem:active{transform:scale(.99)}
 .webContentHost,.embeddedContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important;background:#fff!important;z-index:20!important}
 .webContentHost .embeddedPage,.webContentHost .dashboardHybrid,.embeddedContentActive .embeddedPage,.embeddedContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;display:block!important}
-.webContentHost webview,.embeddedContentActive webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important;border:0!important;margin:0!important;padding:0!important}
+.webContentHost schoology-webview,.embeddedContentActive schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important;border:0!important;margin:0!important;padding:0!important}
 .toolbarPlus{font-size:34px!important;font-weight:300!important}
 .composeMessagePage{background:#fff;min-height:100%;padding:18px}
 .composeField{margin-bottom:18px}.composeField label{display:block;font-size:13px;color:#777;margin-bottom:7px}.composeField input,.composeField textarea{width:100%;border:0;border-bottom:1px solid #c9ced2;outline:0;padding:10px 4px;font-size:16px;background:#fff;color:#333}.composeBody textarea{min-height:230px;resize:vertical;border:1px solid #c9ced2;padding:12px}.composeActions{display:flex;justify-content:flex-end}.composeActions .androidPrimary{min-width:100px}.composeMessagePage #composeStatus{margin-top:12px;color:#666}
@@ -255,7 +255,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .shell>main#content{position:relative!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;padding:0!important;margin:0!important;overflow:auto!important}
 .shell>.webContentHost,.shell>#content.embeddedContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;width:auto!important;height:auto!important;z-index:20!important}
 .shell>.webContentHost .embeddedPage,.shell>.webContentHost .dashboardHybrid,.shell>#content.embeddedContentActive .embeddedPage,.shell>#content.embeddedContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;margin:0!important;overflow:hidden!important}
-.shell>.webContentHost webview,.shell>#content.embeddedContentActive webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
+.shell>.webContentHost schoology-webview,.shell>#content.embeddedContentActive schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
 .toolbarTitle{min-width:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;display:block!important;flex:1 1 auto!important;line-height:56px!important;height:56px!important}
 .sectionProfileTabs,.messageTabs,.homeTabs{flex:0 0 auto}
 .tabSlideViewport{position:relative;overflow:hidden;min-height:120px}
@@ -291,7 +291,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 /* v42: definitive WebView layout — keep the host in #content's flex flow. */
 .shell>main#content{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;position:relative!important;min-height:0!important;height:auto!important;overflow:hidden!important}
 .shell>main#content>.embeddedPage,.shell>main#content>.dashboardHybrid{position:relative!important;inset:auto!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}
-.shell>main#content>.embeddedPage webview,.shell>main#content>.dashboardHybrid webview{position:relative!important;inset:auto!important;display:flex!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important}
+.shell>main#content>.embeddedPage schoology-webview,.shell>main#content>.dashboardHybrid schoology-webview{position:relative!important;inset:auto!important;display:flex!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important}
 .shell>main#content .webContentHost,.shell>.webContentHost{position:relative!important;inset:auto!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
 .shell>main#content .webContentHost .embeddedPage,.shell>main#content .webContentHost .dashboardHybrid{position:relative!important;inset:auto!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important}
 /* Keep animated tab content in its viewport; never paint over the tab strip. */
@@ -302,10 +302,10 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 /* v43: restore stable tab paging; the custom full-slide animation caused content to paint over tab bars. */
 .tabSlidePage,.tabSlidePage.forward,.tabSlidePage.back{animation:none!important;transform:none!important;opacity:1!important}
 .tabSlideViewport{overflow:hidden!important}
-/* v43: absolute fill is more reliable for Electron webview's replaced-element layout. */
+/* Fill the native schoology-webview host so its contents size reliably. */
 .shell>main#content{position:relative!important;display:block!important;flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important}
 .shell>main#content>.embeddedPage,.shell>main#content>.dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;display:block!important;overflow:hidden!important}
-.shell>main#content>.embeddedPage webview,.shell>main#content>.dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;display:flex!important;border:0!important;margin:0!important;padding:0!important}
+.shell>main#content>.embeddedPage schoology-webview,.shell>main#content>.dashboardHybrid schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;display:flex!important;border:0!important;margin:0!important;padding:0!important}
 .toolbarSpacer{width:44px;height:56px;display:block;flex:0 0 44px}
 .drawerIcon img{width:28px;height:28px;object-fit:contain;display:block}.drawerProfileGlyph{display:flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;background:#7881e3;color:#fff;font-size:16px}
 .officialEventIcon{display:flex!important;align-items:center;justify-content:center}.officialEventIcon img{width:28px;height:28px;object-fit:contain}
@@ -328,7 +328,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .homeRightPane .homeTabs{flex:0 0 48px}
 .homeRightPane #homeTabContent{flex:1 1 auto;min-height:0;height:auto;overflow:auto}
 .homePaneHeader{height:48px;background:#002137;color:#fff;display:flex;align-items:center;padding:0 16px;font-size:14px}
-@media (min-width:801px){.homeLandscapeSplit .dashboardHybrid,.homeLandscapeSplit .dashboardHybrid webview{position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-height:0!important;flex:1 1 auto!important}.homeLandscapeSplit #homeTabContent:has(.dashboardHybrid){display:flex!important;flex-direction:column!important;padding:0!important;overflow:hidden!important}.homeLandscapeSplit #homeTabContent .dashboardHybrid{display:flex!important;flex:1 1 auto!important;overflow:hidden!important}}
+@media (min-width:801px){.homeLandscapeSplit .dashboardHybrid,.homeLandscapeSplit .dashboardHybrid schoology-webview{position:relative!important;inset:auto!important;width:100%!important;height:100%!important;min-height:0!important;flex:1 1 auto!important}.homeLandscapeSplit #homeTabContent:has(.dashboardHybrid){display:flex!important;flex-direction:column!important;padding:0!important;overflow:hidden!important}.homeLandscapeSplit #homeTabContent .dashboardHybrid{display:flex!important;flex:1 1 auto!important;overflow:hidden!important}}
 .toolbar{position:relative!important}.toolbarActionSlot{margin-left:auto!important;flex:0 0 48px!important;width:48px!important;height:56px!important;display:flex!important;align-items:center!important;justify-content:flex-end!important}.toolbarActionSlot .iconButton{margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
 .sectionProfilePage{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}.sectionProfileContent{flex:1 1 auto;min-height:0;overflow:auto}.materialList,.gradesNativeList,.upcomingList{overflow:visible}
 .resourcesAndroidPage{height:100%;min-height:0;overflow:auto;background:#fff}.resourceCategory{border-bottom:1px solid #ddd}.resourceCategoryHeader{width:100%;height:56px;border:0;background:#fff;display:flex;align-items:center;text-align:left;padding:0 16px;color:#333;cursor:pointer}.resourceCategoryHeader img{width:40px;height:40px;object-fit:contain;margin-right:12px}.resourceCategoryHeader b{font-size:16px;font-weight:400;flex:1}.resourceChevron{font-size:25px;color:#888;transform:rotate(0deg);transition:transform .15s}.resourceCategory.open .resourceChevron{transform:rotate(90deg)}.resourceCategoryChildren{display:none;background:#fafafa}.resourceCategory.open .resourceCategoryChildren{display:block}.resourceCollectionRow,.resourceFileRow{width:100%;min-height:58px;border:0;border-bottom:1px solid #e5e5e5;background:#fff;display:flex;align-items:center;text-align:left;padding:8px 16px 8px 32px;color:#333;cursor:pointer}.resourceCollectionRow img,.resourceFileRow img{width:40px;height:40px;object-fit:contain;margin-right:12px;flex:0 0 40px}.resourceCollectionRow span:nth-child(2),.resourceFileRow span:nth-child(2){flex:1;min-width:0}.resourceCollectionRow b,.resourceFileRow b{display:block;font-size:15px;font-weight:400;color:#2e66a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.resourceCollectionRow small,.resourceFileRow small{display:block;color:#888;font-size:11px;margin-top:3px}.resourceCollectionRow>span:last-child,.resourceFileRow>span:last-child{font-size:24px;color:#999}.resourceEmpty{padding:14px 32px;color:#888;font-size:13px}.resourceBackTitle{padding:14px 16px;font-size:18px;color:#333;border-bottom:1px solid #ddd;background:#fff}
@@ -339,7 +339,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .homeLandscapeSplit .homeRightPane #homeTabContent{min-height:0;flex:1 1 auto;overflow:auto}
 .homeLandscapeSplit .homeRightPane #homeTabContent:has(.dashboardHybrid){display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:0!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;overflow:hidden!important}
-.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid webview{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;flex:1 1 auto!important;display:block!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid schoology-webview{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;flex:1 1 auto!important;display:block!important}
 
 /* People — mirrors the Android UserResource/people_list_item_layout structure. */
 .peoplePage{background:#fff;min-height:100%;padding:0}.peopleStickyHeader{position:sticky;top:0;z-index:3;background:#343434;color:#7ce6ff;padding:8px 16px;font-size:14px;font-family:Arial,sans-serif}.peopleRow{width:100%;min-height:68px;border:0;border-bottom:1px solid #e5e5e5;background:#fff;display:flex;align-items:center;text-align:left;padding:10px 12px;cursor:pointer}.peopleRow:hover{background:#f5f5f5}.peopleAvatar{width:48px;height:48px;flex:0 0 48px;margin-right:8px;display:block;position:relative;overflow:hidden}.peopleAvatar img{width:48px;height:48px;display:block;object-fit:cover}.peopleAvatarFallback{width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:#e7ebee;color:#66727a;font-size:19px}.peopleNames{min-width:0;display:flex;flex-direction:column;justify-content:center}.peopleName{font-size:16px;line-height:20px;color:#000}.peopleName strong{font-size:16px;font-weight:700}.peoplePreferred{font-size:13px;line-height:18px;color:#777}.peopleListLoading{padding:50px;text-align:center;color:#777}
@@ -351,7 +351,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{position:relative!important;min-height:0!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent:has(.dashboardHybrid){height:100%!important;flex:1 1 auto!important;overflow:hidden!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;display:block!important;overflow:hidden!important}
-.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
 
 /* v49: In desktop/landscape course view, Upcoming is the right-side pane rather than a tab. */
 .courseLandscapePage{display:grid!important;grid-template-columns:minmax(0,1fr) 320px;height:100%!important;min-height:0!important;overflow:hidden!important}
@@ -396,7 +396,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 /* v51: the supplied Android source uses the same full-parent WebView contract for Course Dashboard.
    Keep it on the same embeddedPage sizing path as Account Info and other embedded pages. */
 .shell>main#content>.dashboardHybrid.embeddedPage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;display:block!important;overflow:hidden!important;background:#fff!important}
-.shell>main#content>.dashboardHybrid.embeddedPage webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
+.shell>main#content>.dashboardHybrid.embeddedPage schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
 
 @media (min-width:801px){
   .courseLandscapePage{grid-template-columns:minmax(0,1fr) minmax(0,3fr) minmax(0,1fr)!important;height:100%!important;min-height:0!important;overflow:hidden!important}
@@ -436,15 +436,15 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 /* v52: Course Dashboard uses the exact full-height embedded WebView contract. */
 .shell>main#content:has(.dashboardHybrid){height:calc(100vh - 56px)!important;min-height:0!important;max-height:none!important;padding:0!important;margin:0!important;overflow:hidden!important;display:block!important}
 .shell>main#content:has(.dashboardHybrid)>.embeddedPage.dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important}
-.shell>main#content:has(.dashboardHybrid) webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important}
+.shell>main#content:has(.dashboardHybrid) schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important}
 
 /* v54 */
-.courseImage{width:64px;height:64px;flex:0 0 64px;border-radius:2px;background:#e7ebee;color:#002137;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;margin-right:16px;overflow:hidden}.courseImage img{width:100%;height:100%;object-fit:cover;display:block}.courseImageFallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%}.courseAppFallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#eef2f4;border-radius:50%}.courseAppFallback img{width:70%;height:70%;object-fit:contain}.officialMaterialIcon img{width:24px;height:24px;object-fit:contain;display:block}.folderLoadingState{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:#68757e;text-align:center}.folderLoadingState img{width:48px;height:48px}.folderLoadingState b{font-size:16px;font-weight:400;color:#34424c}.folderLoadingState small{font-size:13px;color:#8a949b}.schoologyErrorOverlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,33,55,.34);padding:24px}.schoologyErrorDialog{position:relative;width:min(440px,92vw);background:#fff;border-radius:5px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:28px 28px 24px;text-align:center;color:#263640}.schoologyErrorDialog h2{font-size:20px;font-weight:400;margin:8px 0 10px;color:#22303e}.schoologyErrorDialog p{font-size:14px;line-height:1.45;color:#68757e;margin:0 0 18px}.schoologyErrorClose{position:absolute;right:8px;top:5px;border:0;background:transparent;color:#66737c;font-size:28px;cursor:pointer}.schoologyErrorSpinner img{width:48px;height:48px}.schoologyErrorActions{display:flex;justify-content:center;gap:10px}.androidSecondary{border:1px solid #9ba5ab;background:#fff;color:#2e66a3;border-radius:3px;padding:9px 18px;cursor:pointer}.schoologyErrorDialog .androidPrimary{border:0;background:#2e66a3;color:#fff;border-radius:3px;padding:9px 20px;cursor:pointer}.homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane .homeTabs{flex:0 0 48px!important;height:48px!important}.homeLandscapeSplit .homeRightPane #homeTabContent{flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}@media (max-width:800px){.homeTabViewport{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeTabViewport #homeTabContent{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeTabViewport #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}.homeTabViewport #homeTabContent .dashboardHybrid webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}}
+.courseImage{width:64px;height:64px;flex:0 0 64px;border-radius:2px;background:#e7ebee;color:#002137;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;margin-right:16px;overflow:hidden}.courseImage img{width:100%;height:100%;object-fit:cover;display:block}.courseImageFallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%}.courseAppFallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#eef2f4;border-radius:50%}.courseAppFallback img{width:70%;height:70%;object-fit:contain}.officialMaterialIcon img{width:24px;height:24px;object-fit:contain;display:block}.folderLoadingState{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:#68757e;text-align:center}.folderLoadingState img{width:48px;height:48px}.folderLoadingState b{font-size:16px;font-weight:400;color:#34424c}.folderLoadingState small{font-size:13px;color:#8a949b}.schoologyErrorOverlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,33,55,.34);padding:24px}.schoologyErrorDialog{position:relative;width:min(440px,92vw);background:#fff;border-radius:5px;box-shadow:0 8px 30px rgba(0,0,0,.28);padding:28px 28px 24px;text-align:center;color:#263640}.schoologyErrorDialog h2{font-size:20px;font-weight:400;margin:8px 0 10px;color:#22303e}.schoologyErrorDialog p{font-size:14px;line-height:1.45;color:#68757e;margin:0 0 18px}.schoologyErrorClose{position:absolute;right:8px;top:5px;border:0;background:transparent;color:#66737c;font-size:28px;cursor:pointer}.schoologyErrorSpinner img{width:48px;height:48px}.schoologyErrorActions{display:flex;justify-content:center;gap:10px}.androidSecondary{border:1px solid #9ba5ab;background:#fff;color:#2e66a3;border-radius:3px;padding:9px 18px;cursor:pointer}.schoologyErrorDialog .androidPrimary{border:0;background:#2e66a3;color:#fff;border-radius:3px;padding:9px 20px;cursor:pointer}.homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane .homeTabs{flex:0 0 48px!important;height:48px!important}.homeLandscapeSplit .homeRightPane #homeTabContent{flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid schoology-webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important;inset:auto!important}@media (max-width:800px){.homeTabViewport{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeTabViewport #homeTabContent{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important}.homeTabViewport #homeTabContent .dashboardHybrid{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}.homeTabViewport #homeTabContent .dashboardHybrid schoology-webview{flex:1 1 auto!important;min-height:0!important;height:auto!important;position:relative!important}}
 
 /* v55 Android fidelity fixes */
 .loginAnimated .logo,.loginAnimated .loginBody,.loginAnimated .loginBottom,.loginAnimated .back{animation:schoologyLoginFadeIn .38s ease both}.loginAnimated .loginBody{animation-delay:.08s}.loginAnimated .loginBottom{animation-delay:.16s}.loginAnimated .back{animation-delay:0s}@keyframes schoologyLoginFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .courseImage{overflow:hidden;background:#eef1f3}.courseImage img{display:block!important;width:100%;height:100%;object-fit:cover}.courseImageFallback{position:absolute}.courseImage:has(img[style*="display: block"]) .courseImageFallback{display:none}
-.notificationsAndroidPage,.peopleAndroidPage{background:#fff;min-height:100%;padding:0}.notificationList,.peopleList{background:#fff}.androidNotificationItem{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #e0e4e7;min-height:64px}.androidNotificationItem>img{width:24px;height:24px;object-fit:contain;margin-top:2px}.notificationText{flex:1;font-size:14px;line-height:1.4;color:#333}.notificationText small{display:block;color:#8a949b;font-size:12px;margin-top:6px}.peopleSectionHeader{height:28px;padding:7px 16px 4px;background:#f1f3f4;color:#6f7b84;font-size:12px;font-weight:700}.peopleListItem{width:100%;display:flex;align-items:center;text-align:left;border:0;border-bottom:1px solid #e0e4e7;background:#fff;padding:10px 12px;min-height:68px;color:#333}.peopleAvatar{width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 8px 0 0;background:#e7ebee}.peopleListItem span{display:flex;flex-direction:column}.peopleListItem b{font-size:15px;font-weight:400}.peopleListItem small{font-size:13px;color:#7c878f;margin-top:3px}.activityAvatarImage{object-fit:contain;background:#fff;padding:3px}.courseUpdatesToolbar{height:42px;display:flex;justify-content:flex-end;align-items:center;padding:0 10px;background:#fff;border-bottom:1px solid #e1e5e7}.courseUpdatesToolbar button{border:0;background:transparent;color:#2e66a3;padding:7px 10px}.sectionFullUpdate{border-bottom:1px solid #dfe3e6;background:#fff;padding:14px 14px 10px}.sectionFullUpdate .activityHeader{display:flex;align-items:center;gap:9px}.sectionFullUpdate .activityUser{font-size:15px;color:#333}.sectionFullUpdate .activityBody{font-size:15px;line-height:1.5;margin:10px 0;color:#333}.sectionFullUpdate .activityMeta{font-size:12px;color:#8a949b}.sectionFullUpdate .activityActions{border-top:1px solid #e7eaec;margin-top:10px;padding-top:8px}.shell>main#content:has(.dashboardHybrid){position:relative!important;height:calc(100vh - 56px)!important;min-height:calc(100vh - 56px)!important;max-height:calc(100vh - 56px)!important;padding:0!important;margin:0!important;overflow:hidden!important}.shell>main#content>.dashboardHybrid{position:absolute!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;display:block!important}.shell>main#content>.dashboardHybrid webview{position:absolute!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
+.notificationsAndroidPage,.peopleAndroidPage{background:#fff;min-height:100%;padding:0}.notificationList,.peopleList{background:#fff}.androidNotificationItem{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid #e0e4e7;min-height:64px}.androidNotificationItem>img{width:24px;height:24px;object-fit:contain;margin-top:2px}.notificationText{flex:1;font-size:14px;line-height:1.4;color:#333}.notificationText small{display:block;color:#8a949b;font-size:12px;margin-top:6px}.peopleSectionHeader{height:28px;padding:7px 16px 4px;background:#f1f3f4;color:#6f7b84;font-size:12px;font-weight:700}.peopleListItem{width:100%;display:flex;align-items:center;text-align:left;border:0;border-bottom:1px solid #e0e4e7;background:#fff;padding:10px 12px;min-height:68px;color:#333}.peopleAvatar{width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 8px 0 0;background:#e7ebee}.peopleListItem span{display:flex;flex-direction:column}.peopleListItem b{font-size:15px;font-weight:400}.peopleListItem small{font-size:13px;color:#7c878f;margin-top:3px}.activityAvatarImage{object-fit:contain;background:#fff;padding:3px}.courseUpdatesToolbar{height:42px;display:flex;justify-content:flex-end;align-items:center;padding:0 10px;background:#fff;border-bottom:1px solid #e1e5e7}.courseUpdatesToolbar button{border:0;background:transparent;color:#2e66a3;padding:7px 10px}.sectionFullUpdate{border-bottom:1px solid #dfe3e6;background:#fff;padding:14px 14px 10px}.sectionFullUpdate .activityHeader{display:flex;align-items:center;gap:9px}.sectionFullUpdate .activityUser{font-size:15px;color:#333}.sectionFullUpdate .activityBody{font-size:15px;line-height:1.5;margin:10px 0;color:#333}.sectionFullUpdate .activityMeta{font-size:12px;color:#8a949b}.sectionFullUpdate .activityActions{border-top:1px solid #e7eaec;margin-top:10px;padding-top:8px}.shell>main#content:has(.dashboardHybrid){position:relative!important;height:calc(100vh - 56px)!important;min-height:calc(100vh - 56px)!important;max-height:calc(100vh - 56px)!important;padding:0!important;margin:0!important;overflow:hidden!important}.shell>main#content>.dashboardHybrid{position:absolute!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;display:block!important}.shell>main#content>.dashboardHybrid schoology-webview{position:absolute!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
 
 .drawer.noSlide{transition:none!important}.recentActivityScroll{overflow-y:auto!important;min-height:0!important;height:100%!important}.calendarAndroidPage{background:#fff;min-height:100%;display:flex;flex-direction:column}.calendarMonthHeader{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #dfe3e6;color:#34424c}.calendarMonthHeader button{border:0;background:none;font-size:28px;color:#5e6a72}.calendarWeekLabels{display:grid;grid-template-columns:repeat(7,1fr);padding:8px 8px 4px;color:#7b858c;font-size:11px;text-align:center}.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#dfe3e6;margin:0 8px}.calendarDay{min-height:64px;border:0;background:#fff;text-align:left;padding:5px;display:flex;flex-direction:column;gap:2px;overflow:hidden}.calendarDay.outside{background:#f5f6f7;color:#b2b8bc}.calendarDay.today b{background:#2e66a3;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center}.calendarDay span{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#4e5b63}.calendarUpcomingHeader{font-size:15px;font-weight:500;padding:15px 16px 8px;color:#34424c}.calendarEventList{overflow:auto}.calendarEventRow{display:flex;gap:14px;width:100%;text-align:left;border:0;border-bottom:1px solid #e0e4e7;background:#fff;padding:11px 16px}.calendarEventDate{width:88px;flex:0 0 88px;color:#7b858c;font-size:12px}.calendarEventRow span:not(.calendarEventDate){display:flex;flex-direction:column}.calendarEventRow small{margin-top:3px;color:#8a949b}
 
@@ -473,7 +473,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 @media (min-width:801px){
  .shell>main#content.dashboardContentActive{position:absolute!important;left:0!important;right:0!important;top:56px!important;bottom:0!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;flex:none!important}
  .dashboardContentActive .dashboardHybrid{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
- .dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important}
+ .dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important}
  .homeTabViewport #homeTabContent.recentActivityScroll,.homeRightPane #homeTabContent.recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:auto!important;min-height:0!important;display:block!important}
 }
 @media (max-width:800px){
@@ -508,7 +508,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 .loading{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px}
 .shell>main#content.dashboardContentActive{position:relative!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;height:calc(100vh - 56px)!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;flex:none!important}
 .dashboardContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important}
-.dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
+.dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
 .recentActivityScroll{overflow-y:auto!important;overflow-x:hidden!important;height:100%!important;min-height:0!important}
 /* v64: compact in-button download/update feedback; preserve the row's original label. */
 .downloadProgressWrap,.settingProgress{display:inline-flex!important;align-items:center;gap:6px;float:right;margin-left:10px;white-space:nowrap;font-size:12px;color:#68757e}
@@ -526,7 +526,7 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 /* v65 Android/source fidelity fixes */
 .shell>main#content.dashboardContentActive{position:relative!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;flex:1 1 auto!important;overflow:hidden!important;margin:0!important;padding:0!important;display:block!important}
 .dashboardContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;display:block!important}
-.dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
+.dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;display:block!important}
 .materialRow .materialIcon{flex:0 0 38px}.materialRow>span:nth-child(2){min-width:0}
 .messageListItem:focus,.messageListItem:active,.messageListItem:focus-visible{color:#333!important;background:#eef3f7!important}
 .messageListItem:focus .messageListText b,.messageListItem:active .messageListText b,.messageListItem:focus .messageListText strong,.messageListItem:active .messageListText strong{color:#333!important}
@@ -538,14 +538,14 @@ html,body,#app{width:100%;height:100%;margin:0;overflow:hidden}
 /* v67: dashboard is nested inside the home right pane; fill the actual flex chain. */
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{position:relative!important;display:flex!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;top:auto!important;bottom:auto!important;overflow:hidden!important;margin:0!important;padding:0!important;}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{position:relative!important;inset:auto!important;display:flex!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;}
-.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:relative!important;inset:auto!important;display:block!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;max-height:none!important;border:0!important;}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{position:relative!important;inset:auto!important;display:block!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;max-height:none!important;border:0!important;}
 .requestsAndroidPage{background:#fff;min-height:100%;}.requestItem{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid #e0e4e7;background:#fff;}.requestAvatar{width:48px;height:48px;flex:0 0 48px;border-radius:50%;background:#e7ebee;color:#44505d;display:flex;align-items:center;justify-content:center;font-size:20px;}.requestMain{min-width:0;flex:1;}.requestTitle{border:0;background:transparent;padding:0;color:#333;font-size:15px;text-align:left;cursor:pointer;}.requestMain small{display:block;color:#7c878f;font-size:13px;margin-top:4px;}.requestActions{display:flex;gap:8px;margin-top:10px;}.requestActions button{border:1px solid #2e66a3;background:#fff;color:#2e66a3;border-radius:3px;padding:5px 12px;cursor:pointer;}.notificationClickable{width:100%;border:0;text-align:left;cursor:pointer;background:#fff;}
 /* v69 */
-html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:calc(env(titlebar-area-width, 150px) + 8px)!important}
+html[data-tauri-platform=win32] .toolbar,html[data-tauri-platform=linux] .toolbar{padding-right:calc(env(titlebar-area-width, 150px) + 8px)!important}
 .embeddedPage{position:relative!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;background:#fff!important}
-.embeddedPage webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important;display:block!important}
+.embeddedPage schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important;display:block!important}
 .webviewLoading{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;background:rgba(0,0,0,.20);backdrop-filter:blur(1px);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);pointer-events:none}.webviewLoading img{width:48px;height:48px}.webviewLoading.hidden{opacity:0;visibility:hidden}
-.shell>main#content:has(.homeLandscapeSplit){flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;padding:0!important}.homeLandscapeSplit{height:100%!important;min-height:0!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:0!important}.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;position:relative!important;inset:auto!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{height:100%!important;min-height:0!important;flex:1 1 auto!important;position:absolute!important;inset:0!important}
+.shell>main#content:has(.homeLandscapeSplit){flex:1 1 auto!important;min-height:0!important;height:auto!important;overflow:hidden!important;padding:0!important}.homeLandscapeSplit{height:100%!important;min-height:0!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:0!important}.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;position:relative!important;inset:auto!important;overflow:hidden!important}.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{height:100%!important;min-height:0!important;flex:1 1 auto!important;position:absolute!important;inset:0!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.recentActivityScroll{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:block!important;overflow-y:auto!important;overflow-x:hidden!important}.homeTabViewport #homeTabContent.recentActivityScroll{height:100%!important;min-height:0!important;display:block!important;overflow-y:auto!important;overflow-x:hidden!important}
 .pageAndroid{height:100%;overflow:auto;background:#fff;color:#333}.pageAndroidHeader{padding:20px 18px 12px;border-bottom:1px solid #ddd;background:#fff}.pageAndroidHeader h1{font-size:22px;font-weight:400;margin:0;color:#22303e}.pageAndroidBody{padding:18px;line-height:1.6;font-size:15px;word-break:break-word}.pageAndroidBody a{color:#2e66a3;text-decoration:underline}.notificationBodyRich .notificationBodyLink{color:#2e66a3;text-decoration:underline;cursor:pointer}
 
@@ -556,12 +556,12 @@ html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .
 /* v72 definitive fixes */
 body.splashVisible #content > *{animation:none!important;animation-play-state:paused!important}
 body:not(.splashVisible) #content > *{animation:schoologyPageEnter .20s ease-out both}
-html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:8px!important}
-html[data-electron-platform=win32] .toolbarActionSlot,html[data-electron-platform=linux] .toolbarActionSlot{display:flex!important;align-items:center!important;flex:0 0 auto!important;margin-right:140px!important;min-width:44px!important;position:relative!important;z-index:25!important}
-html[data-electron-platform=win32] .toolbarTitle,html[data-electron-platform=linux] .toolbarTitle{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+html[data-tauri-platform=win32] .toolbar,html[data-tauri-platform=linux] .toolbar{padding-right:8px!important}
+html[data-tauri-platform=win32] .toolbarActionSlot,html[data-tauri-platform=linux] .toolbarActionSlot{display:flex!important;align-items:center!important;flex:0 0 auto!important;margin-right:140px!important;min-width:44px!important;position:relative!important;z-index:25!important}
+html[data-tauri-platform=win32] .toolbarTitle,html[data-tauri-platform=linux] .toolbarTitle{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{display:flex!important;flex-direction:column!important;flex:1 1 auto!important;height:auto!important;min-height:0!important;overflow:hidden!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{display:flex!important;position:relative!important;inset:auto!important;flex:1 1 auto!important;width:100%!important;height:auto!important;min-height:0!important;overflow:hidden!important;background:#fff!important}
-.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;display:block!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;display:block!important}
 .dashboardOfficialLoading{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;background:#fff;pointer-events:auto}
 .dashboardOfficialLoading img{width:96px;height:96px;image-rendering:auto}
 .dashboardOfficialLoading.hidden{opacity:0;visibility:hidden;pointer-events:none}
@@ -572,43 +572,43 @@ html[data-electron-platform=win32] .toolbarTitle,html[data-electron-platform=lin
 .resourceRows{position:relative;min-height:100%}.resourcesAndroidPage{position:relative}
 
 /* v72.1: native Windows/Linux caption buttons occupy an overlay region. Keep all app-bar actions outside it. */
-html[data-electron-platform=win32] .toolbarActionSlot,html[data-electron-platform=linux] .toolbarActionSlot{margin-right:156px!important;z-index:50!important}
-html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:4px!important}
+html[data-tauri-platform=win32] .toolbarActionSlot,html[data-tauri-platform=linux] .toolbarActionSlot{margin-right:156px!important;z-index:50!important}
+html[data-tauri-platform=win32] .toolbar,html[data-tauri-platform=linux] .toolbar{padding-right:4px!important}
 .shell>main#content:has(.homeLandscapeSplit){height:calc(100vh - 56px)!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important}
 .homeLandscapeSplit{height:100%!important;min-height:0!important;flex:1 1 auto!important}
 .homeLandscapeSplit .homeRightPane{height:100%!important;min-height:0!important}
 
 /* v73: macOS keeps native traffic lights in a separate 28px Schoology-colored title strip. */
-html[data-electron-platform=darwin] body{background:#002137!important}
-html[data-electron-platform=darwin] .shell{padding-top:28px!important}
-html[data-electron-platform=darwin] .shell>.toolbar{flex:0 0 56px!important}
-html[data-electron-platform=darwin] .login,html[data-electron-platform=darwin] .qr{min-height:100vh!important;padding-top:28px!important}
+html[data-tauri-platform=darwin] body{background:#002137!important}
+html[data-tauri-platform=darwin] .shell{padding-top:28px!important}
+html[data-tauri-platform=darwin] .shell>.toolbar{flex:0 0 56px!important}
+html[data-tauri-platform=darwin] .login,html[data-tauri-platform=darwin] .qr{min-height:100vh!important;padding-top:28px!important}
 /* v73: Windows/Linux caption controls are an overlay; reserve their full region and physically push app actions left. */
-html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:164px!important}
-html[data-electron-platform=win32] .toolbarActionSlot,html[data-electron-platform=linux] .toolbarActionSlot{position:absolute!important;right:164px!important;top:0!important;width:48px!important;min-width:48px!important;height:56px!important;margin:0!important;z-index:100!important}
-html[data-electron-platform=win32] .toolbarTitle,html[data-electron-platform=linux] .toolbarTitle{padding-right:56px!important}
+html[data-tauri-platform=win32] .toolbar,html[data-tauri-platform=linux] .toolbar{padding-right:164px!important}
+html[data-tauri-platform=win32] .toolbarActionSlot,html[data-tauri-platform=linux] .toolbarActionSlot{position:absolute!important;right:164px!important;top:0!important;width:48px!important;min-width:48px!important;height:56px!important;margin:0!important;z-index:100!important}
+html[data-tauri-platform=win32] .toolbarTitle,html[data-tauri-platform=linux] .toolbarTitle{padding-right:56px!important}
 
 /* v74: Android-style attachment/file rows. */
 .activityAttachment.fileAttachment,.messageAttachment{width:100%;box-sizing:border-box;display:flex;align-items:center;gap:11px;text-align:left;background:#fff;border:1px solid #e1e5e8;border-radius:8px;padding:10px 12px;color:#26343d;box-shadow:0 1px 2px rgba(0,0,0,.06);min-height:58px}.attachmentFileIcon{width:38px;height:38px;flex:0 0 38px;border-radius:6px;background:#f0f3f5;display:flex;align-items:center;justify-content:center}.attachmentFileIcon img{width:25px;height:25px;object-fit:contain}.attachmentFileText{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.attachmentFileText b{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.attachmentFileText small{font-size:11px;color:#7a858c}.attachmentDownloadIcon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex:0 0 28px}.attachmentDownloadIcon img{width:20px;height:20px;object-fit:contain}
 :root:not([data-theme="dark"]) .attachmentDownloadIcon img{filter:invert(1)}.activityAttachment:not(.fileAttachment){display:flex;align-items:center;gap:11px;width:100%;box-sizing:border-box;background:#fff;border:1px solid #e1e5e8;border-radius:8px;padding:11px 12px;color:#2e66a3;box-shadow:0 1px 2px rgba(0,0,0,.06);min-height:58px}.downloadBusy{opacity:.75}.downloadBusy .attachmentDownloadIcon{opacity:.45}
 /* v74: caption controls are outside the Schoology toolbar on macOS; reserve a real Windows/Linux caption region. */
-html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:156px!important}.toolbarActionSlot{margin-left:auto;display:flex;align-items:center;gap:2px;flex:0 0 auto}.toolbarActionSlot .iconButton{flex:0 0 44px}
+html[data-tauri-platform=win32] .toolbar,html[data-tauri-platform=linux] .toolbar{padding-right:156px!important}.toolbarActionSlot{margin-left:auto;display:flex;align-items:center;gap:2px;flex:0 0 auto}.toolbarActionSlot .iconButton{flex:0 0 44px}
 /* v74: dashboard is a pixel-sized viewport, not a percentage chain. */
-.dashboardContentActive .dashboardHybrid{height:100%!important;min-height:0!important;overflow:hidden!important}.dashboardContentActive .dashboardHybrid webview{height:100%!important;min-height:0!important;max-height:none!important}
+.dashboardContentActive .dashboardHybrid{height:100%!important;min-height:0!important;overflow:hidden!important}.dashboardContentActive .dashboardHybrid schoology-webview{height:100%!important;min-height:0!important;max-height:none!important}
 
 /* v74: dashboard loader matches the native Android animation aspect ratio and sits above center. */
 .dashboardOfficialLoading{align-items:flex-start!important;justify-content:center!important;padding-top:42px;box-sizing:border-box}.dashboardOfficialLoading img{width:180px!important;height:auto!important;aspect-ratio:480/385;object-fit:contain}
 
 /* v75 fixes: keep toolbar actions in normal flow left of Windows/Linux caption controls. */
-html[data-electron-platform=win32] .toolbar,html[data-electron-platform=linux] .toolbar{padding-right:156px!important;overflow:hidden!important}
-html[data-electron-platform=win32] .toolbar .toolbarActionSlot,html[data-electron-platform=linux] .toolbar .toolbarActionSlot{position:static!important;right:auto!important;top:auto!important;width:auto!important;min-width:44px!important;height:56px!important;margin-left:auto!important;margin-right:0!important;flex:0 0 auto!important;z-index:1!important}
-html[data-electron-platform=win32] .toolbar .toolbarTitle,html[data-electron-platform=linux] .toolbar .toolbarTitle{flex:1 1 auto!important;min-width:0!important;padding-right:0!important}
+html[data-tauri-platform=win32] .toolbar,html[data-tauri-platform=linux] .toolbar{padding-right:156px!important;overflow:hidden!important}
+html[data-tauri-platform=win32] .toolbar .toolbarActionSlot,html[data-tauri-platform=linux] .toolbar .toolbarActionSlot{position:static!important;right:auto!important;top:auto!important;width:auto!important;min-width:44px!important;height:56px!important;margin-left:auto!important;margin-right:0!important;flex:0 0 auto!important;z-index:1!important}
+html[data-tauri-platform=win32] .toolbar .toolbarTitle,html[data-tauri-platform=linux] .toolbar .toolbarTitle{flex:1 1 auto!important;min-width:0!important;padding-right:0!important}
 /* v75: dashboard occupies the entire flex remainder beneath the home tabs. */
 .homeLandscapeSplit{display:flex!important;height:100%!important;min-height:0!important;overflow:hidden!important}
 .homeLandscapeSplit .homeRightPane{flex:2 1 0!important;height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;position:relative!important;inset:auto!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;position:relative!important;inset:auto!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
-.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-height:none!important;display:block!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-height:none!important;display:block!important}
 /* MIME icons should never inherit a broken intrinsic size. */
 .attachmentFileIcon{width:40px!important;height:40px!important;min-width:40px!important;display:flex!important;align-items:center!important;justify-content:center!important}
 .attachmentFileIcon img{width:32px!important;height:32px!important;object-fit:contain!important;display:block!important}
@@ -622,18 +622,18 @@ html[data-electron-platform=win32] .toolbar .toolbarTitle,html[data-electron-pla
 .homeLandscapeSplit .homeRightPane .homeTabs{flex:0 0 48px!important;height:48px!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{flex:1 1 0!important;height:auto!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{flex:1 1 0!important;height:auto!important;min-height:0!important;max-height:none!important;display:flex!important;flex-direction:column!important;position:relative!important;inset:auto!important;overflow:hidden!important}
-.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{flex:1 1 0!important;width:100%!important;height:100%!important;min-height:0!important;position:absolute!important;inset:0!important;display:block!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{flex:1 1 0!important;width:100%!important;height:100%!important;min-height:0!important;position:absolute!important;inset:0!important;display:block!important}
 /* v76: homepage landscape Upcoming stays between 1/4 and 1/3 of the split width. */
 @media (min-width:801px){.homeLandscapeSplit{grid-template-columns:minmax(0,17fr) minmax(0,7fr)!important;display:grid!important}.homeLandscapeSplit .homeRightPane{min-width:0!important}.homeLandscapeSplit .homeUpcomingPane{min-width:0!important}}
 /* v76: diagnostic overlay setting. When disabled, no app-bar space is reserved for native controls. */
 html[data-window-controls-overlay="false"] .toolbarActionSlot{margin-right:0!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="false"] .toolbar,html[data-electron-platform="linux"][data-window-controls-overlay="false"] .toolbar{padding-right:4px!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:200px!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="false"] .toolbar,html[data-tauri-platform="linux"][data-window-controls-overlay="false"] .toolbar{padding-right:4px!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:200px!important}
 
 /* v77: reserve the full native Windows/Linux caption region while keeping Schoology actions in normal flex flow. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:200px!important;overflow:visible!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot{position:static!important;right:auto!important;top:auto!important;width:auto!important;min-width:48px!important;height:56px!important;margin-left:auto!important;margin-right:0!important;flex:0 0 auto!important;z-index:2!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton{position:relative!important;z-index:3!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:200px!important;overflow:visible!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot,html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot{position:static!important;right:auto!important;top:auto!important;width:auto!important;min-width:48px!important;height:56px!important;margin-left:auto!important;margin-right:0!important;flex:0 0 auto!important;z-index:2!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton,html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton{position:relative!important;z-index:3!important}
 /* v77: make the landscape home dashboard remainder explicit: the home tabs consume
    48px and the dashboard owns every pixel below them. This avoids percentage-height
    collapse through nested flex/grid containers. */
@@ -641,7 +641,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .homeLandscapeSplit .homeRightPane .homeTabs{height:48px!important;min-height:48px!important;flex:0 0 48px!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{position:absolute!important;left:0!important;right:0!important;top:48px!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;display:block!important;overflow:hidden!important;margin:0!important;padding:0!important}
 .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;display:block!important;overflow:hidden!important;margin:0!important;padding:0!important}
-.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;display:block!important;margin:0!important;padding:0!important;border:0!important}
 
 /* v78: homepage Upcoming is a fixed landscape pane with its own non-scrolling header. */
 .homeLandscapeSplit{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
@@ -657,16 +657,16 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
   .homeLandscapeSplit .homeRightPane .homeTabs{grid-row:1!important;height:48px!important;min-height:48px!important}
   .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive{grid-row:2!important;position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;overflow:hidden!important;padding:0!important;margin:0!important;display:block!important}
   .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important;margin:0!important;padding:0!important;display:block!important}
-  .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid webview{position:absolute!important;left:0!important;top:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important;display:block!important}
+  .homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid schoology-webview{position:absolute!important;left:0!important;top:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important;display:block!important}
 }
 
 /* v78: native Windows/Linux caption buttons must never cover Schoology toolbar actions. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:0!important;overflow:hidden!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot{position:static!important;width:auto!important;min-width:48px!important;height:56px!important;flex:0 0 auto!important;margin-left:auto!important;margin-right:200px!important;padding:0!important;z-index:1!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton{position:relative!important;z-index:2!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{padding-right:0!important;overflow:hidden!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot{position:static!important;width:auto!important;min-width:48px!important;height:56px!important;flex:0 0 auto!important;margin-left:auto!important;margin-right:200px!important;padding:0!important;z-index:1!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbarActionSlot .iconButton{position:relative!important;z-index:2!important}
 
 /* v79: landscape assignment page mirrors the homepage split proportions (17/24 + 7/24). */
 @media (min-width:801px){
@@ -700,24 +700,24 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
    previous margin/padding approach could still let flex content occupy the
    overlay region. The native controls are 200px wide, so this column is exactly
    200px and no Schoology action can enter it. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{
   display:grid!important;
   grid-template-columns:48px minmax(0,1fr) max-content 200px!important;
   grid-template-rows:56px!important;
   padding:0!important;
   overflow:visible!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!important;grid-row:1!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!important;grid-row:1!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
   grid-column:3!important;grid-row:1!important;position:static!important;width:auto!important;min-width:48px!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;z-index:1!important
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{position:relative!important;z-index:1!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{position:relative!important;z-index:1!important}
 
 /* v79: use the actual measured content area for the landscape dashboard. */
 @media (min-width:801px){
@@ -777,14 +777,14 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 
 
 /* v82: deterministic native titlebar action placement. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{position:relative!important;display:flex!important;padding:0!important;overflow:hidden!important;box-sizing:border-box!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{position:fixed!important;right:200px!important;top:0!important;width:48px!important;height:56px!important;min-width:48px!important;max-width:48px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;z-index:10000!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{position:static!important;width:44px!important;height:44px!important;flex:0 0 44px!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{margin-right:260px!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{position:relative!important;display:flex!important;padding:0!important;overflow:hidden!important;box-sizing:border-box!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{position:fixed!important;right:200px!important;top:0!important;width:48px!important;height:56px!important;min-width:48px!important;max-width:48px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;z-index:10000!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{position:static!important;width:44px!important;height:44px!important;flex:0 0 44px!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{margin-right:260px!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 
 /* v82: fixed-height dashboard images independent of grid column count. */
 .nativeDashboardCourses{grid-auto-rows:max-content!important;align-items:start!important}
@@ -823,19 +823,19 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 .nativeDashboardCourseImage{width:100%!important;height:130px!important;min-height:130px!important;max-height:130px!important;aspect-ratio:auto!important;flex:0 0 130px!important;overflow:hidden!important}
 .nativeDashboardCourseImage img{position:absolute!important;inset:0!important;width:100%!important;height:130px!important;min-height:130px!important;max-height:130px!important;object-fit:cover!important}
 /* v83: keep every right toolbar action strictly on the right-safe side of the native caption controls. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) 48px 200px!important;column-gap:0!important;padding:0!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!important;grid-row:1!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important;width:auto!important;margin:0!important;padding-left:12px!important;padding-right:12px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:48px!important;min-width:48px!important;max-width:48px!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;z-index:2!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex:0 0 44px!important;margin:0!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) 48px 200px!important;column-gap:0!important;padding:0!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:1!important;grid-row:1!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:2!important;grid-row:1!important;min-width:0!important;width:auto!important;margin:0!important;padding-left:12px!important;padding-right:12px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:3!important;grid-row:1!important;position:static!important;width:48px!important;min-width:48px!important;max-width:48px!important;height:56px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:visible!important;z-index:2!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex:0 0 44px!important;margin:0!important}
 /* The fourth grid column is deliberately empty: it is the native caption-control exclusion area. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar::after,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar::after{content:"";grid-column:4!important;grid-row:1!important;width:200px!important;height:56px!important;display:block!important;pointer-events:none!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar::after,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar::after{content:"";grid-column:4!important;grid-row:1!important;width:200px!important;height:56px!important;display:block!important;pointer-events:none!important}
 /* v83: exact local embedded icons for the comment composer. */
 .androidDialogIcon .officialEmbeddedIcon{width:24px!important;height:24px!important;display:block!important;object-fit:contain!important}
 /* v83: startup offline error remains on the Android splash. */
@@ -847,16 +847,16 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 /* v84: native caption controls are an overlay region. Keep every Schoology
    action button comfortably to the LEFT of that region instead of placing it
    directly against the native buttons. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{
   position:relative!important;
   display:flex!important;
   padding-right:0!important;
   overflow:hidden!important;
   box-sizing:border-box!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
   position:absolute!important;
   right:240px!important;
   top:0!important;
@@ -871,8 +871,8 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
   justify-content:center!important;
   z-index:2!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{
   position:static!important;
   width:44px!important;
   min-width:44px!important;
@@ -880,8 +880,8 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
   height:44px!important;
   flex:0 0 44px!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{
   margin-right:288px!important;
   min-width:0!important;
   overflow:hidden!important;
@@ -909,22 +909,22 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
    region. Do not put the Schoology action slot in that region. Absolute
    positioning makes its safe position independent of the toolbar flex/grid
    rules accumulated by earlier layouts. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar{
   position:relative!important;
   display:flex!important;
   align-items:center!important;
   padding:0!important;
   overflow:visible!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.iconButton{
   flex:0 0 48px!important;
   width:48px!important;
   margin:0!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{
   flex:1 1 auto!important;
   min-width:0!important;
   max-width:calc(100% - 304px)!important;
@@ -933,8 +933,8 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
   white-space:nowrap!important;
   text-overflow:ellipsis!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{
   position:absolute!important;
   right:240px!important;
   top:0!important;
@@ -951,8 +951,8 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
   z-index:10!important;
   pointer-events:auto!important;
 }
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
-html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton,
+html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot .iconButton{
   position:relative!important;
   z-index:11!important;
   width:48px!important;
@@ -970,8 +970,8 @@ html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolb
 .toolbarAccountInfo{background:#ff0000!important}.toolbarAccountInfo .toolbarTitle{color:#fff!important}.toolbarAccountInfo .iconButton{color:#fff!important}.toolbarAccountInfo .toolbarActionSlot img{width:24px;height:24px;object-fit:contain}.toolbarLti{background:#90caf9!important}
 .groupProfilePage .groupTabs,.courseTabs{justify-content:center!important}.groupProfilePage .groupTabs button,.courseTabs button{flex:0 0 auto!important}
 /* v86: keep native caption controls outside the action area with an additional safe inset. */
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{right:272px!important;width:48px!important;min-width:48px!important;max-width:48px!important;position:absolute!important;z-index:20!important}
-html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,html[data-electron-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{max-width:calc(100% - 336px)!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot,html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{right:272px!important;width:48px!important;min-width:48px!important;max-width:48px!important;position:absolute!important;z-index:20!important}
+html[data-tauri-platform="win32"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle,html[data-tauri-platform="linux"][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{max-width:calc(100% - 336px)!important}
 .groupLandscapeSplit{min-height:0;display:flex;flex-direction:column}.groupUpcomingPane{display:none}@media (min-width:801px){.groupLandscapeSplit{display:grid;grid-template-columns:minmax(0,17fr) minmax(0,7fr);height:calc(100vh - 56px);min-height:0}.groupLandscapeSplit>#groupTabContent{min-width:0;min-height:0;overflow:auto}.groupUpcomingPane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border-left:1px solid #d9dee2}.groupUpcomingPane #groupUpcomingContent{flex:1;min-height:0;overflow:auto;padding:8px}}
 .loginIconButton{display:flex!important;align-items:center;justify-content:center;gap:10px}.loginIconButton img{width:30px;height:30px;object-fit:contain}.loginIconButton>span{display:inline-block}
 /* v87: group Upcoming follows the same 1/5 side-pane proportion as Course Apps/Upcoming. */
@@ -1705,7 +1705,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 :root[data-theme="dark"] .messageAttachment{background:var(--theme-surface-raised,#292d33)!important;color:var(--theme-blue,#8abfff)!important;border:1px solid var(--theme-border,#393d43)!important}
 
 
-/* Classic QR authorization state and webview scrollbar affordance. */
+/* Classic QR authorization state and schoology-webview scrollbar affordance. */
 .qrAuthorizationLoading{display:flex;min-height:260px;flex-direction:column;align-items:center;justify-content:center;gap:12px}.qrAuthorizationLoading img{width:72px;height:72px;object-fit:contain}.qrAuthorizationLoading p{margin:0;color:var(--theme-muted,#868e96)}
 :root[data-theme="dark"] .qrAuthorizationLoading p{color:var(--theme-muted,#a9afb7)}
 :root[data-theme="dark"] .sectionProfileTabs{background:var(--theme-surface,#202327)!important;border-color:var(--theme-border,#3a3f46)!important}
@@ -2329,7 +2329,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 }
 
 
-/* v179: align login elements and embedded-webview loading with the official Android layout. */
+/* v179: align login elements and embedded-schoology-webview loading with the official Android layout. */
 .login.loginAnimated:has(#schoolLogin) .logo{top:clamp(58px,13.7vh,126px)!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;margin:0!important;width:min(265px,72vw)!important}
 .login.loginAnimated:has(#schoolLogin) .loginBody.loginActionCenter{margin-top:clamp(38px,6vh,70px)!important}
 .login.loginAnimated:has(#schoolLogin) #schoolLogin{background:#2e66a3!important;color:#fff!important;border:1px solid #2e66a3!important;border-radius:6px!important}
@@ -2354,7 +2354,7 @@ html[data-electron-platform="win32"][data-window-controls-overlay="true"] .toolb
 .messageThreadHeader .messageThreadAuthor{display:block!important;visibility:visible!important;opacity:1!important;color:#333!important;font-size:15px!important;font-weight:600!important;line-height:1.3!important;position:relative!important;z-index:1!important}
 .messageThreadHeader small{visibility:visible!important;opacity:1!important}
 .embeddedPage{position:relative!important;min-height:0!important;overflow:hidden!important}
-.embeddedPage webview{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
+.embeddedPage schoology-webview{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;border:0!important}
 .embeddedPage .webviewLoading{z-index:20!important;background:rgba(34,48,62,.88)!important;backdrop-filter:blur(4px)!important;transition:opacity .12s ease,visibility .12s ease}
 #tauriWindowControls{width:138px!important}
 html[data-window-controls-overlay="true"] .toolbar{display:grid!important;grid-template-columns:44px minmax(0,1fr) auto 138px!important;column-gap:0!important;padding:0!important;width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
@@ -2364,20 +2364,20 @@ html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-colum
 html[data-window-controls-overlay="true"] .toolbar::after{content:""!important;grid-column:4!important;grid-row:1!important;width:138px!important;height:56px!important;display:block!important;pointer-events:none!important}
 
 /* v181: native Windows caption glyph font and macOS left-side overlay layout. */
-html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
-html[data-electron-platform=darwin] #tauriWindowControls{top:0!important;left:0!important;right:auto!important;z-index:2147483647!important;width:138px!important;height:56px!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .shell>.toolbar{padding-left:138px!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="false"] .shell>.toolbar{padding-left:8px!important}
-html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
-html[data-electron-platform=darwin] #drawer{z-index:40!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar{grid-template-columns:138px 44px minmax(0,1fr) auto!important;padding:0!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:2!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:3!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:4!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important;content:none!important}
+html[data-tauri-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
+html[data-tauri-platform=darwin] #tauriWindowControls{top:0!important;left:0!important;right:auto!important;z-index:2147483647!important;width:138px!important;height:56px!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .shell>.toolbar{padding-left:138px!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="false"] .shell>.toolbar{padding-left:8px!important}
+html[data-tauri-platform=darwin] .drawerShade{z-index:30!important}
+html[data-tauri-platform=darwin] #drawer{z-index:40!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar{grid-template-columns:138px 44px minmax(0,1fr) auto!important;padding:0!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar>.iconButton{grid-column:2!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar>.toolbarTitle{grid-column:3!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{grid-column:4!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important;content:none!important}
 
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .login .back,html[data-electron-platform=darwin][data-window-controls-overlay="true"] .qr .back{left:138px!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="false"] .login .back,html[data-electron-platform=darwin][data-window-controls-overlay="false"] .qr .back{left:16px!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .login .back,html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .qr .back{left:138px!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="false"] .login .back,html[data-tauri-platform=darwin][data-window-controls-overlay="false"] .qr .back{left:16px!important}
 
 
 /* v185: compact platform-native titlebar controls and no artificial toolbar gap. */
@@ -2385,43 +2385,43 @@ html[data-electron-platform=darwin][data-window-controls-overlay="false"] .login
 #tauriWindowControls .tauriWindowDragArea{flex:1 1 auto!important;min-width:0!important}
 #tauriWindowControls button{position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 46px!important;width:46px!important;height:56px!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;font:inherit!important}
 #tauriWindowControls button::before{display:block;line-height:1;pointer-events:none}
-html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important}
-html[data-electron-platform=win32] #tauriWindowControls [data-window-action=minimize]::before{content:"\e921"}
-html[data-electron-platform=win32] #tauriWindowControls [data-window-action=maximize]::before{content:"\e922"}
-html[data-electron-platform=win32] #tauriWindowControls [data-window-action=maximize][data-maximized=true]::before{content:"\e923"}
-html[data-electron-platform=win32] #tauriWindowControls [data-window-action=close]::before{content:"\e8bb"}
-html[data-electron-platform=linux] #tauriWindowControls button{font-family:system-ui,"Noto Sans Symbols 2",sans-serif!important;font-size:18px!important}
-html[data-electron-platform=linux] #tauriWindowControls [data-window-action=minimize]::before{content:"−"}
-html[data-electron-platform=linux] #tauriWindowControls [data-window-action=maximize]::before{content:"□"}
-html[data-electron-platform=linux] #tauriWindowControls [data-window-action=maximize][data-maximized=true]::before{content:"❐"}
-html[data-electron-platform=linux] #tauriWindowControls [data-window-action=close]::before{content:"×"}
-html[data-electron-platform=darwin] #tauriWindowControls{top:28px!important;left:0!important;right:auto!important;z-index:20!important;width:80px!important;min-width:80px!important;height:56px!important;padding:0 10px!important;box-sizing:border-box!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important}
-html[data-electron-platform=darwin] #tauriWindowControls .tauriWindowDragArea{order:4!important;flex:1 1 auto!important}
-html[data-electron-platform=darwin] #tauriWindowControls button{flex:0 0 12px!important;width:12px!important;min-width:12px!important;height:12px!important;min-height:12px!important;border-radius:50%!important;border:1px solid rgba(0,0,0,.14)!important}
-html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=minimize]{background:#ffbd2e!important}
-html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=maximize]{background:#28c840!important}
-html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=close]{background:#ff5f57!important}
-html[data-electron-platform=darwin] #tauriWindowControls button::before{font-family:system-ui,sans-serif!important;font-size:8px!important;font-weight:700!important;color:rgba(0,0,0,.72)!important;opacity:0;content:""}
-html[data-electron-platform=darwin] #tauriWindowControls:hover button::before{opacity:1}
-html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=close]::before{content:"×"}
-html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=minimize]::before{content:"−"}
-html[data-electron-platform=darwin] #tauriWindowControls [data-window-action=maximize]::before{content:"+"}
+html[data-tauri-platform=win32] #tauriWindowControls button{font-family:"Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important}
+html[data-tauri-platform=win32] #tauriWindowControls [data-window-action=minimize]::before{content:"\e921"}
+html[data-tauri-platform=win32] #tauriWindowControls [data-window-action=maximize]::before{content:"\e922"}
+html[data-tauri-platform=win32] #tauriWindowControls [data-window-action=maximize][data-maximized=true]::before{content:"\e923"}
+html[data-tauri-platform=win32] #tauriWindowControls [data-window-action=close]::before{content:"\e8bb"}
+html[data-tauri-platform=linux] #tauriWindowControls button{font-family:system-ui,"Noto Sans Symbols 2",sans-serif!important;font-size:18px!important}
+html[data-tauri-platform=linux] #tauriWindowControls [data-window-action=minimize]::before{content:"−"}
+html[data-tauri-platform=linux] #tauriWindowControls [data-window-action=maximize]::before{content:"□"}
+html[data-tauri-platform=linux] #tauriWindowControls [data-window-action=maximize][data-maximized=true]::before{content:"❐"}
+html[data-tauri-platform=linux] #tauriWindowControls [data-window-action=close]::before{content:"×"}
+html[data-tauri-platform=darwin] #tauriWindowControls{top:28px!important;left:0!important;right:auto!important;z-index:20!important;width:80px!important;min-width:80px!important;height:56px!important;padding:0 10px!important;box-sizing:border-box!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important}
+html[data-tauri-platform=darwin] #tauriWindowControls .tauriWindowDragArea{order:4!important;flex:1 1 auto!important}
+html[data-tauri-platform=darwin] #tauriWindowControls button{flex:0 0 12px!important;width:12px!important;min-width:12px!important;height:12px!important;min-height:12px!important;border-radius:50%!important;border:1px solid rgba(0,0,0,.14)!important}
+html[data-tauri-platform=darwin] #tauriWindowControls [data-window-action=minimize]{background:#ffbd2e!important}
+html[data-tauri-platform=darwin] #tauriWindowControls [data-window-action=maximize]{background:#28c840!important}
+html[data-tauri-platform=darwin] #tauriWindowControls [data-window-action=close]{background:#ff5f57!important}
+html[data-tauri-platform=darwin] #tauriWindowControls button::before{font-family:system-ui,sans-serif!important;font-size:8px!important;font-weight:700!important;color:rgba(0,0,0,.72)!important;opacity:0;content:""}
+html[data-tauri-platform=darwin] #tauriWindowControls:hover button::before{opacity:1}
+html[data-tauri-platform=darwin] #tauriWindowControls [data-window-action=close]::before{content:"×"}
+html[data-tauri-platform=darwin] #tauriWindowControls [data-window-action=minimize]::before{content:"−"}
+html[data-tauri-platform=darwin] #tauriWindowControls [data-window-action=maximize]::before{content:"+"}
 html[data-window-controls-overlay="true"] .shell>.toolbar{display:flex!important;grid-template-columns:none!important;column-gap:0!important;box-sizing:border-box!important;overflow:hidden!important;min-width:0!important}
 html[data-window-controls-overlay="true"] .toolbar>.iconButton{flex:0 0 48px!important;width:48px!important;min-width:48px!important}
 html[data-window-controls-overlay="true"] .toolbar>.toolbarTitle{flex:1 1 auto!important;min-width:0!important;padding:0 8px!important;margin:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot{display:flex!important;flex:0 0 auto!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important;gap:0!important;overflow:visible!important;justify-content:flex-end!important}
 html[data-window-controls-overlay="true"] .toolbar>.toolbarActionSlot>.iconButton{flex:0 0 48px!important;width:48px!important;min-width:48px!important;margin:0!important}
 html[data-window-controls-overlay="true"] .toolbar::after{display:none!important;content:none!important}
-html[data-electron-platform=win32][data-window-controls-overlay="true"] .shell>.toolbar,html[data-electron-platform=linux][data-window-controls-overlay="true"] .shell>.toolbar{padding-right:138px!important;padding-left:4px!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .shell>.toolbar{padding-left:80px!important;padding-right:4px!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="false"] .shell>.toolbar{padding-left:4px!important}
-html[data-electron-platform=darwin] .drawerShade{z-index:30!important}
-html[data-electron-platform=darwin] #drawer{z-index:40!important}
+html[data-tauri-platform=win32][data-window-controls-overlay="true"] .shell>.toolbar,html[data-tauri-platform=linux][data-window-controls-overlay="true"] .shell>.toolbar{padding-right:138px!important;padding-left:4px!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .shell>.toolbar{padding-left:80px!important;padding-right:4px!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="false"] .shell>.toolbar{padding-left:4px!important}
+html[data-tauri-platform=darwin] .drawerShade{z-index:30!important}
+html[data-tauri-platform=darwin] #drawer{z-index:40!important}
 
 
-html[data-electron-platform=win32] #tauriWindowControls button{font-family:"Segoe Fluent Icons","Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
-html[data-electron-platform=win32] #tauriWindowControls button:hover{background:rgba(255,255,255,.12)!important}
-html[data-electron-platform=win32] #tauriWindowControls [data-window-action=close]:hover{background:#c42b1c!important}
+html[data-tauri-platform=win32] #tauriWindowControls button{font-family:"Segoe Fluent Icons","Segoe MDL2 Assets","Segoe UI Symbol",sans-serif!important;font-size:10px!important;font-weight:400!important}
+html[data-tauri-platform=win32] #tauriWindowControls button:hover{background:rgba(255,255,255,.12)!important}
+html[data-tauri-platform=win32] #tauriWindowControls [data-window-action=close]:hover{background:#c42b1c!important}
 
 
 /* Match overlay caption controls to the active login/app bar color. */
@@ -2545,25 +2545,25 @@ html,body,#app,.shell{box-shadow:none!important}
 }
 
 
-/* Tauri uses <schoology-webview>, not Electron's built-in <webview> tag.
+/* Tauri uses the <schoology-schoology-webview> custom element.
    Give the native child surface the same full-size host box, and anchor it to the
    content panel so its OS-level z-order does not cover the toolbar. */
 .embeddedPage,
 .dashboardHybrid{position:relative!important;overflow:hidden!important}
-.embeddedPage>schoology-webview,
-.dashboardHybrid>schoology-webview,
-.shell #content:has(.embeddedPage) schoology-webview,
-.shell #content:has(.dashboardHybrid) schoology-webview,
-.shell>.webContentHost schoology-webview,
-.shell>main#content>.embeddedPage schoology-webview,
-.shell>main#content>.dashboardHybrid schoology-webview{
+.embeddedPage>schoology-schoology-webview,
+.dashboardHybrid>schoology-schoology-webview,
+.shell #content:has(.embeddedPage) schoology-schoology-webview,
+.shell #content:has(.dashboardHybrid) schoology-schoology-webview,
+.shell>.webContentHost schoology-schoology-webview,
+.shell>main#content>.embeddedPage schoology-schoology-webview,
+.shell>main#content>.dashboardHybrid schoology-schoology-webview{
  position:absolute!important;inset:0!important;display:block!important;
  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
  max-width:none!important;max-height:none!important;border:0!important;margin:0!important;padding:0!important;
 }
-/* The right-hand Course Dashboard pane needs the same native-surface bounds as its Electron counterpart. */
-.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid>schoology-webview,
-.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid>schoology-webview{
+/* The right-hand Course Dashboard pane needs the same native-surface bounds in both panes. */
+.homeLandscapeSplit .homeRightPane #homeTabContent .dashboardHybrid>schoology-schoology-webview,
+.homeLandscapeSplit .homeRightPane #homeTabContent.dashboardContentActive .dashboardHybrid>schoology-schoology-webview{
  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
  min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
 }
@@ -2601,22 +2601,22 @@ html,body,#app,.shell{box-shadow:none!important}
 
 
 /* Keep hidden native desktop webviews from covering the app shell. */
-.embeddedPage>schoology-webview,
-.dashboardHybrid>schoology-webview{pointer-events:auto}
-.embeddedPage[hidden]>schoology-webview,
-.dashboardHybrid[hidden]>schoology-webview{display:none!important}
+.embeddedPage>schoology-schoology-webview,
+.dashboardHybrid>schoology-schoology-webview{pointer-events:auto}
+.embeddedPage[hidden]>schoology-schoology-webview,
+.dashboardHybrid[hidden]>schoology-schoology-webview{display:none!important}
 
 
 /* v203: native window controls stay above splash/login and track pushed-drawer layouts. */
 html[data-window-controls-overlay="true"] #tauriWindowControls{z-index:2147483647!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] #tauriWindowControls{top:0!important;height:56px!important}
-@media(max-width:1499px){html[data-electron-platform=darwin][data-window-controls-overlay="true"] body:has(.shell>.drawer.open) #tauriWindowControls{display:none!important}}
-@media(min-width:1500px){html[data-electron-platform=darwin][data-window-controls-overlay="true"] body:has(.shell>.drawer.open) #tauriWindowControls{left:340px!important}}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] #tauriWindowControls{top:0!important;height:56px!important}
+@media(max-width:1499px){html[data-tauri-platform=darwin][data-window-controls-overlay="true"] body:has(.shell>.drawer.open) #tauriWindowControls{display:none!important}}
+@media(min-width:1500px){html[data-tauri-platform=darwin][data-window-controls-overlay="true"] body:has(.shell>.drawer.open) #tauriWindowControls{left:340px!important}}
 html[data-window-controls-overlay="true"] .toolbar{grid-template-columns:44px minmax(0,1fr) auto var(--tauri-window-controls-width,138px)!important}
 html[data-window-controls-overlay="true"] .toolbar::after{width:var(--tauri-window-controls-width,138px)!important}
-html[data-electron-platform=darwin] .shell>.toolbar{padding-left:var(--tauri-window-controls-width,138px)!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar{grid-template-columns:var(--tauri-window-controls-width,138px) 44px minmax(0,1fr) auto!important;padding:0!important}
-html[data-electron-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important}
+html[data-tauri-platform=darwin] .shell>.toolbar{padding-left:var(--tauri-window-controls-width,138px)!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar{grid-template-columns:var(--tauri-window-controls-width,138px) 44px minmax(0,1fr) auto!important;padding:0!important}
+html[data-tauri-platform=darwin][data-window-controls-overlay="true"] .toolbar::after{display:none!important}
 .peopleListDialogOverlay,.pdfAttachmentOptionsOverlay{opacity:0;transition:opacity .16s ease-out}
 .peopleListDialogOverlay.open,.pdfAttachmentOptionsOverlay.open{opacity:1}
 .peopleListDialog,.pdfAttachmentOptions{transform:translateY(8px) scale(.98);transition:transform .16s ease-out}
@@ -2659,7 +2659,7 @@ html.iosAppSafeArea .assignmentCommentDialogOverlay .assignmentCommentDialog,htm
 
 /* v206: remove the legacy macOS shell spacer for both titlebar modes. */
 /* The v73 28px spacer predates the current Tauri titlebar layout and leaves a strip in both overlay and normal titlebar mode. */
-html[data-electron-platform=darwin] .shell{padding-top:0!important}
+html[data-tauri-platform=darwin] .shell{padding-top:0!important}
 
 /* v207: native child webviews track the HTML host through CSS motion. */
 
@@ -2736,11 +2736,11 @@ button[data-activity-like-count]::before,button[data-course-update-like-count]::
 @media(max-width:700px){.activityActions{padding-left:0;flex-wrap:wrap}}
 
 
-/* port.214: Tauri's shared webview is a distinct custom element, not Electron's <webview>. */
-.embeddedPage schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto;position:absolute;inset:0;z-index:1}
-.dashboardHybrid schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto}
+/* Tauri's shared view uses a dedicated custom element. */
+.embeddedPage schoology-schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto;position:absolute;inset:0;z-index:1}
+.dashboardHybrid schoology-schoology-webview{display:block;width:100%;height:100%;min-width:0;min-height:0;border:0;pointer-events:auto}
 .embeddedPage{position:relative;isolation:isolate;overflow:hidden}
-.embeddedPage schoology-webview:focus{outline:none}
+.embeddedPage schoology-schoology-webview:focus{outline:none}
 .embeddedWebviewError{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:28px;background:var(--theme-surface,#fff);color:var(--theme-text,#263238);text-align:center}
 .embeddedWebviewError span{max-width:560px;overflow-wrap:anywhere;color:var(--theme-secondary,#64727d);font-size:13px}
 .embeddedWebviewError button{border:0;border-radius:5px;background:#0072ce;color:#fff;padding:10px 18px;cursor:pointer}
@@ -3444,7 +3444,7 @@ html[data-reduced-motion="true"] .homeTabs,html[data-reduced-motion="true"] .cou
   .groupProfilePage.upcoming-collapsed .groupLandscapeSplit,.schoolProfileNativePage.upcoming-collapsed .schoolProfileLandscapeSplit{grid-template-columns:minmax(176px,17%) minmax(0,1fr) 76px!important}
   .sectionProfileContent.courseAppEmbeddedContent{position:relative!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:hidden!important;padding:0!important;margin:0!important;flex:1 1 auto!important;background:#fff!important}
   .sectionProfileContent.courseAppEmbeddedContent .embeddedPage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;overflow:hidden!important}
-  .sectionProfileContent.courseAppEmbeddedContent webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
+  .sectionProfileContent.courseAppEmbeddedContent schoology-webview{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:100%!important;min-height:100%!important;display:block!important}
 }
 
 .profileNavIcon .schoologyIosPeopleIcon{width:26px!important;height:30px!important;max-width:26px!important;max-height:30px!important;object-fit:contain!important}
@@ -4467,7 +4467,7 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 .sharedMediaViewerError p{color:var(--theme-muted,#687783);line-height:1.5}
 .sharedMediaViewerError button,.resourceAppImportActions button{border:0;border-radius:5px;background:var(--theme-accent,#286aa0);color:#fff;padding:10px 16px;font:inherit;cursor:pointer}
 
-/* v50: modal Resource App import webview and imported-resource selection. */
+/* v50: modal Resource App import schoology-webview and imported-resource selection. */
 .resourceAppImportOverlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,15,28,.58)}
 .resourceAppImportDialog{width:min(980px,100%);height:min(760px,calc(100dvh - 36px));display:flex;flex-direction:column;overflow:hidden;border-radius:9px;background:var(--theme-surface,#fff);color:var(--theme-text,#263238);box-shadow:0 18px 60px #0005}
 .resourceAppImportDialog>header{height:54px;min-height:54px;display:flex;align-items:center;gap:12px;padding:0 14px;background:#002137;color:#fff}
@@ -4475,7 +4475,7 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 .resourceAppImportDialog>header button{border:0;background:transparent;color:inherit;font-size:20px}
 .resourceAppImportBody{position:relative;flex:1;min-height:0;overflow:auto}
 .resourceAppImportBody>.embeddedPage{height:100%;min-height:0}
-.resourceAppImportBody schoology-webview,.resourceAppImportBody webview{display:block;width:100%;height:100%;min-height:400px}
+.resourceAppImportBody schoology-schoology-webview,.resourceAppImportBody schoology-webview{display:block;width:100%;height:100%;min-height:400px}
 .resourceAppImportInstructions{padding:16px;color:var(--theme-muted,#667782)}
 .resourceAppImportedList{max-height:calc(100% - 100px);overflow:auto}
 .resourceAppImportActions{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;border-top:1px solid var(--theme-border,#e1e6ea);background:var(--theme-surface,#fff)}

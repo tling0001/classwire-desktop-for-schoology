@@ -8,7 +8,7 @@
   let finished=false;
   function setStep(data){
     if(data.status)status.textContent=data.status;
-    const row=document.getElementById('activeStep'),titles={sevenDownload:'Download 7-Zip',sevenInstall:'Prepare 7-Zip',schoologyDownload:'Download Schoology',install:'Install Schoology'};
+    const row=document.getElementById('activeStep'),titles={sevenDownload:'Download 7-Zip',sevenInstall:'Prepare 7-Zip',schoologyDownload:'Download ClassWire',install:'Install ClassWire'};
     if(row){row.hidden=false;row.classList.toggle('done',data.state==='done');row.classList.toggle('indeterminate',data.state==='indeterminate');row.classList.toggle('error',data.state==='error');
       const title=document.getElementById('stageTitle'),label=document.getElementById('stageState'),bar=document.getElementById('stageBar');
       if(title)title.textContent=titles[data.id]||'Update';if(label)label.textContent=data.text||'';
@@ -23,7 +23,7 @@
     }
     if(data.state==='done'&&data.id==='install'){
       finished=true;
-      foot.textContent='Update complete. Restarting Schoology…';
+      foot.textContent='Update complete. Restarting ClassWire…';
       cancel.disabled=true;
     }
   }
@@ -31,8 +31,8 @@
     if(!invoke){status.textContent='The updater interface could not initialize.';return}
     try{
       const payload=await invoke('get_update_payload');
-      const product=String(payload.productName||'Schoology');
-      document.getElementById('title').textContent=(product==='Schoology'?'Updating ':'Switching to ')+product;
+      const product=String(payload.productName||'ClassWire');
+      document.getElementById('title').textContent=(product==='ClassWire'?'Updating ':'Switching to ')+product;
       const dark=payload.darkTheme===true||payload.themeMode==='dark'||(payload.themeMode!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.dataset.theme=dark?'dark':'light';
       if(listen)await listen('updater-progress',event=>setStep(event.payload||{}));

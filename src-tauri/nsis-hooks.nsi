@@ -1,4 +1,4 @@
 !macro NSIS_HOOK_PREINSTALL
-  ; Match electron-builder's default per-user installation directory.
+  ; Keep the existing per-user install directory so upgrades reuse installed data.
   StrCpy $INSTDIR "$LOCALAPPDATA\Programs\Schoology"
 !macroend

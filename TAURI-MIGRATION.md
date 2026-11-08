@@ -1,6 +1,6 @@
 # Tauri v2 migration status
 
-This migration is in progress. Electron remains the supported release runtime and is intentionally preserved as the reference implementation. Do not publish Tauri installers until the native backend and embedded webview behavior have feature parity.
+The migration is complete for the shipped app: the native host, updater, package scripts, and release workflow use Tauri. The Electron runtime, packaging configuration, and preload scripts have been removed. The checkpoint notes below are retained as migration history and may describe the earlier transition state.
 
 ## In this checkpoint
 

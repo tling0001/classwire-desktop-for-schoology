@@ -70,9 +70,9 @@
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const platform = /Android/i.test(ua) ? 'android' : isIOS ? 'ios' : /Windows/i.test(ua) ? 'win32' : /Macintosh/i.test(ua) ? 'darwin' : 'linux';
-  document.documentElement.dataset.electronPlatform = platform;
+  document.documentElement.dataset.tauriPlatform = platform;
   const schoologyLayoutStyle = document.createElement('style');
-  schoologyLayoutStyle.textContent = '.profileAndroidPage:not(.profileLandscapePage){display:flex!important;flex-direction:column!important;min-height:100%}.profileAndroidPage:not(.profileLandscapePage)>.profileTabs{order:0!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>.profileHeader{order:1!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>#profileTabContent{order:2!important;flex:1 1 auto!important;min-height:0!important}html[data-electron-platform="android"] .settingsPage label:has(#windowChromeOverlayToggle),html[data-electron-platform="ios"] .settingsPage label:has(#windowChromeOverlayToggle){display:none!important}';
+  schoologyLayoutStyle.textContent = '.profileAndroidPage:not(.profileLandscapePage){display:flex!important;flex-direction:column!important;min-height:100%}.profileAndroidPage:not(.profileLandscapePage)>.profileTabs{order:0!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>.profileHeader{order:1!important;flex:0 0 auto!important}.profileAndroidPage:not(.profileLandscapePage)>#profileTabContent{order:2!important;flex:1 1 auto!important;min-height:0!important}html[data-tauri-platform="android"] .settingsPage label:has(#windowChromeOverlayToggle),html[data-tauri-platform="ios"] .settingsPage label:has(#windowChromeOverlayToggle){display:none!important}';
   document.head.appendChild(schoologyLayoutStyle);
   const syncToolbarIdentity = () => { if (document.querySelector('#content .courseLandscapePage')) return; const profile = document.querySelector('#content .profileHeader h1'); const desired = String(profile?.textContent || '').trim(); const title = document.querySelector('.toolbarTitle'); if (desired && title && title.textContent !== desired) title.textContent = desired; }; // Course titles are managed by the renderer so the official `Course : Section` title is not overwritten by the plain identity-card title.
   if (typeof MutationObserver !== 'undefined') { const titleObserver = new MutationObserver(() => requestAnimationFrame(syncToolbarIdentity)); titleObserver.observe(document.documentElement, {subtree:true,childList:true,characterData:true}); }
@@ -210,7 +210,6 @@
     openExternal: url => invoke('open-external', url),
     openChromeExtensionFolder: () => invoke('open-chrome-extension-folder'),
     platform,
-    webviewPreloadUrl: new URL('webview-preload.js', window.location.href).href,
     pickFile: () => invoke('pick-file'),
     pickFiles: () => invoke('pick-files')
   };
@@ -322,8 +321,7 @@
     if (!root) return;
     // Disable all browser/native context menus inside embedded Schoology pages.
     document.addEventListener('contextmenu', event => event.preventDefault(), true);
-Tauri child webviews do not implement Electron's native allowpopups/preload
-    // contract. Keep Schoology pages inside this view, but send non-Schoology
+// Tauri child webviews provide neither native popup support nor preload behavior. Keep Schoology pages inside this view, but send non-Schoology
     // destinations to the user's default browser.
     const internalHost = value => { try { const u = new URL(value, location.href); const h = u.hostname.toLowerCase(); return ['app.schoology.com','schoology.com','app.schoologyca.com','schoologyca.com','lms.lausd.net'].includes(h) || h.endsWith('.schoology.com') || h.endsWith('.schoologyca.com') || h.endsWith('.lms.lausd.net'); } catch (_) { return false; } };
     const openExternal = value => { try { const href = new URL(String(value || ''), location.href); if (href.protocol === 'https:' || href.protocol === 'http:') location.href = href.href; } catch (_) {} };
