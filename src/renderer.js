@@ -58,30 +58,63 @@ function richTextEditorMarkup(editorId,toolbarId,label,placeholder,editorClass='
   '<button type="button" data-rich-command="bold" aria-label="Bold" title="Bold" aria-pressed="false"><b>B</b></button>'+
   '<button type="button" data-rich-command="italic" aria-label="Italic" title="Italic" aria-pressed="false"><i>I</i></button>'+
   '<button type="button" data-rich-command="underline" aria-label="Underline" title="Underline" aria-pressed="false"><u>U</u></button>'+
+  '<span class="richTextToolbarDivider" aria-hidden="true"></span>'+
+  '<button type="button" data-rich-command="insertUnorderedList" aria-label="Bulleted list" title="Bulleted list" aria-pressed="false">• List</button>'+
+  '<button type="button" data-rich-command="insertOrderedList" aria-label="Numbered list" title="Numbered list" aria-pressed="false">1. List</button>'+
   '<button type="button" data-rich-action="link" aria-label="Insert hyperlink" title="Insert hyperlink"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3.9 12a5 5 0 0 1 5-5h4v2h-4a3 3 0 0 0 0 6h4v2h-4a5 5 0 0 1-5-5zm5-1h6v2h-6zm6-4h4a5 5 0 0 1 0 10h-4v-2h4a3 3 0 0 0 0-6h-4z"/></svg></button>'+
   '</div><div id="'+esc(editorId)+'" class="'+editorClasses+'" contenteditable="true" role="textbox" aria-multiline="true" aria-label="'+esc(label)+'" data-placeholder="'+esc(placeholder)+'" spellcheck="true"></div>';
 }
 function bindRichTextEditor(editor,toolbar){
  if(!editor||!toolbar)return {destroy(){}};
- let savedRange=null;
+ let savedRange=null,linkDialog=null;
  const inside=range=>!!range&&editor.contains(range.commonAncestorContainer);
  const saveRange=()=>{const selection=window.getSelection();if(selection?.rangeCount){const range=selection.getRangeAt(0);if(inside(range))savedRange=range.cloneRange()}};
- const restoreRange=()=>{
-  editor.focus();const selection=window.getSelection();if(!selection)return null;
+ const restoreRange=(focus=true)=>{
+  if(focus)editor.focus();const selection=window.getSelection();if(!selection)return null;
   if(savedRange&&editor.contains(savedRange.startContainer)&&editor.contains(savedRange.endContainer)){selection.removeAllRanges();selection.addRange(savedRange)}
   else if(!inside(selection.rangeCount?selection.getRangeAt(0):null)){const range=document.createRange();range.selectNodeContents(editor);range.collapse(false);selection.removeAllRanges();selection.addRange(range)}
   return selection.rangeCount?selection.getRangeAt(0):null;
  };
  const updateStates=()=>{const selection=window.getSelection();if(selection?.rangeCount&&inside(selection.getRangeAt(0)))for(const button of toolbar.querySelectorAll('[data-rich-command]')){let active=false;try{active=!!document.queryCommandState(button.dataset.richCommand)}catch{}button.setAttribute('aria-pressed',String(active));button.classList.toggle('active',active)}};
  const wrapSelection=tag=>{const selection=window.getSelection();if(!selection?.rangeCount)return false;const range=selection.getRangeAt(0);if(range.collapsed||!inside(range))return false;const wrapper=document.createElement(tag);try{range.surroundContents(wrapper)}catch{const fragment=range.extractContents();wrapper.appendChild(fragment);range.insertNode(wrapper)}const next=document.createRange();next.selectNodeContents(wrapper);selection.removeAllRanges();selection.addRange(next);savedRange=next.cloneRange();return true};
- const insertLink=()=>{const prior=restoreRange();const input=window.prompt('Enter a web address for this link:');if(!input?.trim()){restoreRange();return}const candidate=/^[a-z][a-z0-9+.-]*:/i.test(input.trim())?input.trim():'https://'+input.trim();let url;try{url=new URL(candidate)}catch{showAppDialog('Invalid link','Enter a valid web address.');restoreRange();return}if(!['https:','http:','mailto:'].includes(url.protocol)){showAppDialog('Invalid link','Use an http, https, or email link.');restoreRange();return}const range=restoreRange()||prior;const selection=window.getSelection();if(!range||!inside(range))return;if(range.collapsed){const anchor=document.createElement('a');anchor.href=url.href;anchor.textContent=url.href;range.insertNode(anchor);range.setStartAfter(anchor);range.collapse(true);selection.removeAllRanges();selection.addRange(range)}else{let applied=false;try{applied=document.execCommand('createLink',false,url.href)}catch{}if(!applied){const anchor=document.createElement('a');anchor.href=url.href;try{range.surroundContents(anchor)}catch{anchor.appendChild(range.extractContents());range.insertNode(anchor)}}}saveRange();updateStates()};
+ const closeLinkDialog=()=>{if(!linkDialog)return;linkDialog.remove();linkDialog=null;editor.focus();restoreRange(false)};
+ const applyLink=value=>{
+  const raw=String(value||'').trim();if(!raw)return false;
+  const candidate=/^[a-z][a-z0-9+.-]*:/i.test(raw)?raw:'https://'+raw;let url;
+  try{url=new URL(candidate)}catch{return 'invalid'}
+  if(!['https:','http:','mailto:'].includes(url.protocol))return 'invalid';
+  const range=restoreRange(false);if(!range||!inside(range))return false;
+  const selection=window.getSelection();const startAnchor=range.startContainer.nodeType===1?range.startContainer.closest?.('a'):range.startContainer.parentElement?.closest('a');const endAnchor=range.endContainer.nodeType===1?range.endContainer.closest?.('a'):range.endContainer.parentElement?.closest('a');
+  if(startAnchor&&startAnchor===endAnchor){startAnchor.href=url.href;startAnchor.rel='noopener noreferrer'}
+  else{
+   const anchor=document.createElement('a');anchor.href=url.href;anchor.rel='noopener noreferrer';
+   if(range.collapsed){anchor.textContent=url.href;range.insertNode(anchor)}
+   else{const fragment=range.extractContents();for(const nested of [...(fragment.querySelectorAll?.('a')||[])])nested.replaceWith(...nested.childNodes);anchor.appendChild(fragment);range.insertNode(anchor)}
+   range.setStartAfter(anchor);range.collapse(true);selection.removeAllRanges();selection.addRange(range);
+  }
+  saveRange();updateStates();return true;
+ };
+ const openLinkDialog=()=>{
+  saveRange();
+  linkDialog?.remove();
+  const overlay=document.createElement('div');overlay.className='richTextLinkDialogOverlay';
+  overlay.innerHTML='<section class="richTextLinkDialog" role="dialog" aria-modal="true" aria-labelledby="richTextLinkTitle"><h2 id="richTextLinkTitle">Insert hyperlink</h2><label for="richTextLinkUrl">Web address</label><input id="richTextLinkUrl" type="url" inputmode="url" placeholder="https://example.com" autocomplete="url"><p class="richTextLinkError" role="alert" aria-live="polite"></p><div class="richTextLinkActions"><button type="button" data-link-cancel>Cancel</button><button type="button" data-link-apply>Insert link</button></div></section>';
+  document.body.appendChild(overlay);linkDialog=overlay;
+  const input=overlay.querySelector('#richTextLinkUrl'),error=overlay.querySelector('.richTextLinkError');
+  const close=()=>closeLinkDialog();
+  overlay.querySelector('[data-link-cancel]').addEventListener('click',close);
+  overlay.addEventListener('click',event=>{if(event.target===overlay)close()});
+  overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close()}else if(event.key==='Enter'&&event.target===input){event.preventDefault();overlay.querySelector('[data-link-apply]').click()}});
+  overlay.querySelector('[data-link-apply]').addEventListener('click',()=>{const result=applyLink(input.value);if(result==='invalid'){error.textContent='Enter a valid http, https, or email address.';input.focus();return}if(result)close()});
+  input.focus();
+ };
  const onToolbarPointer=event=>{if(event.target.closest('button'))event.preventDefault()};
- const onToolbarClick=event=>{const button=event.target.closest('button');if(!button)return;if(button.dataset.richAction==='link'){insertLink();return}const command=button.dataset.richCommand;if(!['bold','italic','underline'].includes(command))return;const range=restoreRange();if(!range)return;let applied=false;try{applied=document.execCommand(command,false,null)}catch{}if(!applied)wrapSelection(command==='bold'?'strong':command==='italic'?'em':'u');saveRange();updateStates()};
+ const onToolbarClick=event=>{const button=event.target.closest('button');if(!button)return;if(button.dataset.richAction==='link'){openLinkDialog();return}const command=button.dataset.richCommand;if(!['bold','italic','underline','insertUnorderedList','insertOrderedList'].includes(command))return;const range=restoreRange();if(!range)return;let applied=false;try{applied=document.execCommand(command,false,null)}catch{}if(!applied&&['bold','italic','underline'].includes(command))wrapSelection(command==='bold'?'strong':command==='italic'?'em':'u');saveRange();updateStates()};
  const onPaste=event=>{const html=event.clipboardData?.getData('text/html')||'';const plain=event.clipboardData?.getData('text/plain')||'';if(!html&&!plain)return;event.preventDefault();restoreRange();const safe=html?sanitizeRichTextHtml(html):esc(plain).replace(/\r?\n/g,'<br>');let inserted=false;try{inserted=document.execCommand('insertHTML',false,safe)}catch{}if(!inserted){const selection=window.getSelection();if(selection?.rangeCount){const range=selection.getRangeAt(0);range.deleteContents();const fragment=range.createContextualFragment(safe);const last=fragment.lastChild;range.insertNode(fragment);if(last){range.setStartAfter(last);range.collapse(true);selection.removeAllRanges();selection.addRange(range)}}}saveRange();updateStates()};
  toolbar.addEventListener('pointerdown',onToolbarPointer);toolbar.addEventListener('mousedown',onToolbarPointer);toolbar.addEventListener('click',onToolbarClick);
  editor.addEventListener('keyup',saveRange);editor.addEventListener('mouseup',saveRange);editor.addEventListener('input',()=>{saveRange();updateStates()});editor.addEventListener('paste',onPaste);
  document.addEventListener('selectionchange',saveRange);editor.addEventListener('keyup',updateStates);editor.addEventListener('mouseup',updateStates);
- return {editor,destroy(){document.removeEventListener('selectionchange',saveRange);toolbar.removeEventListener('pointerdown',onToolbarPointer);toolbar.removeEventListener('mousedown',onToolbarPointer);toolbar.removeEventListener('click',onToolbarClick);editor.removeEventListener('keyup',saveRange);editor.removeEventListener('mouseup',saveRange);editor.removeEventListener('paste',onPaste)}};
+ return {editor,destroy(){closeLinkDialog();document.removeEventListener('selectionchange',saveRange);toolbar.removeEventListener('pointerdown',onToolbarPointer);toolbar.removeEventListener('mousedown',onToolbarPointer);toolbar.removeEventListener('click',onToolbarClick);editor.removeEventListener('keyup',saveRange);editor.removeEventListener('mouseup',saveRange);editor.removeEventListener('paste',onPaste)}};
 }
 
 function fixDarkRichTextColors(root=document.getElementById('content')){

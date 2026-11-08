@@ -4535,3 +4535,19 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 .androidCreatePostBody .richTextEditor{font:16px/1.5 Arial,sans-serif}
 .composeBody .richTextEditor{resize:vertical}
 @media(max-width:600px){.messageRichTextEditor{min-height:180px}.postDescriptionEditor{min-height:120px}}
+
+.richTextToolbarDivider{width:1px;height:22px;margin:0 3px;background:#cbd1d6}
+.richTextLinkDialogOverlay{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.42)}
+.richTextLinkDialog{width:min(420px,100%);box-sizing:border-box;padding:22px;border-radius:12px;background:var(--theme-card,#fff);color:var(--theme-text,#263238);box-shadow:0 12px 40px rgba(0,0,0,.28)}
+.richTextLinkDialog h2{margin:0 0 18px;font-size:19px;font-weight:600}
+.richTextLinkDialog label{display:block;margin-bottom:7px;font-size:13px;font-weight:600}
+.richTextLinkDialog input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--theme-border,#cbd1d6);border-radius:6px;background:var(--theme-input,#fff);color:var(--theme-text,#263238);font:inherit}
+.richTextLinkDialog input:focus{outline:2px solid var(--theme-accent,#2e66a3);outline-offset:1px}
+.richTextLinkError{min-height:18px;margin:7px 0 0;color:#c43d3d;font-size:12px}
+.richTextLinkActions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.richTextLinkActions button{padding:8px 14px;border:1px solid var(--theme-border,#cbd1d6);border-radius:6px;background:var(--theme-input,#fff);color:var(--theme-text,#263238);cursor:pointer}
+.richTextLinkActions button[data-link-apply]{background:var(--theme-accent,#2e66a3);border-color:var(--theme-accent,#2e66a3);color:#fff}
+:root[data-theme="dark"] .richTextToolbarDivider{background:var(--theme-border,#454a52)}
+:root[data-theme="dark"] .richTextLinkDialog{background:var(--theme-card,#252a30)}
+:root[data-theme="dark"] .richTextLinkDialog input,:root[data-theme="dark"] .richTextLinkActions button{background:var(--theme-input,#292d32);color:var(--theme-text,#e6e8eb);border-color:var(--theme-border,#454a52)}
+@media(prefers-reduced-motion:no-preference){.richTextLinkDialogOverlay{animation:richTextLinkFade .14s ease-out}@keyframes richTextLinkFade{from{opacity:0}to{opacity:1}}}

@@ -1,5 +1,12 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.59]
+
+### Fixed
+- Restore the working bulleted and numbered list formatting controls in every rich-text composer.
+- Replace the unreliable browser prompt and createLink command with an in-app hyperlink dialog that preserves selected text and inserts safe links directly into the editor.
+- Support inserting a hyperlink around selected text or inserting the URL itself when the cursor is collapsed.
+
 ## [2026.10.0-port.58]
 
 ### Added
