@@ -833,10 +833,6 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     let mime = mime_for_path(&file_path, info.get("mime").and_then(Value::as_str));
     let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
     let authorization = plaintext_header(auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp);
-    let tools=args.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
-    let openai_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"type":"function","function":{"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"parameters":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}}))}).collect();
-    let anthropic_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"input_schema":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}))}).collect();
-    let gemini_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"parameters":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}))}).collect();
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
 
     // First use the established FileService endpoint.
@@ -1755,6 +1751,10 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
     if clean_messages.is_empty() { return Err("There are no valid AI messages to send.".into()); }
     let system = args.get("system").and_then(Value::as_str).unwrap_or("You are ClassWire AI, a read-only learning assistant.");
     if system.len() > 12000 { return Err("AI instructions exceed the allowed size.".into()); }
+    let tools=args.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
+    let openai_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"type":"function","function":{"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"parameters":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}}))}).collect();
+    let anthropic_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"input_schema":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}))}).collect();
+    let gemini_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"parameters":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}))}).collect();
     let key = Entry::new("ClassWire AI", provider).ok().and_then(|entry|entry.get_password().ok()).or_else(||state.ai_provider_keys.lock().ok().and_then(|keys|keys.get(provider).cloned())).unwrap_or_default();
     if provider != "ollama" && key.is_empty() { return Err(format!("Add an API key for {} in ClassWire AI settings.", provider)); }
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;

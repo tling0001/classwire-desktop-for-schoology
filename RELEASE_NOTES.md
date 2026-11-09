@@ -1,5 +1,19 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.64]
+
+### Fixed
+- Fix the Rust AI provider tool-schema regression that had placed tool conversion code inside the file-upload function and left provider tool variables out of scope. This was the shared compile failure behind the Android, Windows, Linux, macOS, and iPhone CI builds.
+
+### Improved
+- Expand message understanding to search both inbox and sent folders, return message metadata and attachment references, retrieve folder-specific message details, and resolve participant names when Schoology provides them.
+- Expand assignment understanding with richer assignment details and attachments, plus an explicit revision-history lookup that requires the real submission ID rather than assuming the assignment ID is a submission ID.
+- Give the assistant clearer instructions to distinguish assignment requirements, student work, submission revisions, files, and teacher feedback.
+- Allow a confirmed text-submission proposal to identify a searched assignment by assignment and section IDs when it is not already open. File attachments remain outside the text-only proposal flow.
+
+### Changed
+- Bump the port version to 2026.10.0-port.64.
+
 ## [2026.10.0-port.63]
 
 ### Added
