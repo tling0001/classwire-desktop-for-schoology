@@ -1,3 +1,9 @@
+## 2026.10.0-port.66
+- Add Google desktop OAuth sign-in with PKCE using the system browser and a loopback callback.
+- Provision a dedicated ClassWire service account and Gemini authorization API key, restricted to the Gemini API.
+- Store the Google OAuth client secret, refresh token, and Gemini key in the operating-system credential vault; do not create or store service-account JSON private keys.
+- Keep OpenAI, Anthropic, and Ollama available alongside Gemini in AI provider settings.
+
 # ClassWire Desktop Port
 
 ## [2026.10.0-port.65]

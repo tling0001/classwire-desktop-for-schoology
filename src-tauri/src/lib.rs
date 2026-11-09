@@ -1734,6 +1734,268 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
 }
 
 
+
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const GOOGLE_CLOUD_PROJECT_ID: &str = "classwire-ai";
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const GOOGLE_OAUTH_CLIENT_ID: &str = "813096753007-fb3mqttvtampk2j0klquf0cckeicc67r.apps.googleusercontent.com";
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_api_call(
+    client: &reqwest::Client,
+    method: reqwest::Method,
+    url: &str,
+    access_token: &str,
+    body: Option<Value>,
+) -> Result<Value, String> {
+    let mut request = client.request(method, url).bearer_auth(access_token);
+    if let Some(payload) = body { request = request.json(&payload); }
+    let response = request.send().await.map_err(|e| format!("Could not reach Google Cloud: {e}"))?;
+    let status = response.status();
+    let text = response.text().await.map_err(|e| format!("Google Cloud returned an unreadable response: {e}"))?;
+    if !status.is_success() {
+        return Err(format!("Google Cloud request failed (HTTP {}): {}", status.as_u16(), text.chars().take(1200).collect::<String>()));
+    }
+    if text.trim().is_empty() { return Ok(json!({})); }
+    serde_json::from_str(&text).map_err(|_| "Google Cloud returned invalid JSON.".into())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_wait_operation(
+    client: &reqwest::Client,
+    base: &str,
+    operation: &str,
+    access_token: &str,
+) -> Result<Value, String> {
+    let url = format!("{}/{}", base.trim_end_matches('/'), operation.trim_start_matches('/'));
+    for _ in 0..60 {
+        let result = google_api_call(client, reqwest::Method::GET, &url, access_token, None).await?;
+        if result.get("done").and_then(Value::as_bool) == Some(true) {
+            if let Some(error) = result.get("error") {
+                return Err(format!("Google Cloud operation failed: {}", error));
+            }
+            return Ok(result.get("response").cloned().unwrap_or(result));
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    Err("Google Cloud is still processing the request. Wait a moment and try connecting again.".into())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_enable_service(
+    client: &reqwest::Client,
+    service: &str,
+    access_token: &str,
+) -> Result<(), String> {
+    let encoded_service = url::form_urlencoded::byte_serialize(service.as_bytes()).collect::<String>();
+    let resource = format!("https://serviceusage.googleapis.com/v1/projects/{}/services/{}", GOOGLE_CLOUD_PROJECT_ID, encoded_service);
+    let current = google_api_call(client, reqwest::Method::GET, &resource, access_token, None).await?;
+    if current.get("state").and_then(Value::as_str) == Some("ENABLED") { return Ok(()); }
+    let operation = google_api_call(
+        client,
+        reqwest::Method::POST,
+        &format!("{}:enable", resource),
+        access_token,
+        None,
+    ).await?;
+    if let Some(name) = operation.get("name").and_then(Value::as_str) {
+        let _ = google_wait_operation(client, "https://serviceusage.googleapis.com/v1", name, access_token).await?;
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_ai_connect(app: &AppHandle, args: &Value) -> Result<Value, String> {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let supplied_secret = args.get("clientSecret").and_then(Value::as_str).unwrap_or("").trim();
+    if supplied_secret.len() > 512 { return Err("The Google OAuth client secret is too long.".into()); }
+    let secret_entry = Entry::new("ClassWire Google OAuth", "client-secret")
+        .map_err(|e| format!("Could not open secure Google credential storage: {e}"))?;
+    if !supplied_secret.is_empty() {
+        secret_entry.set_password(supplied_secret)
+            .map_err(|e| format!("Could not securely save the Google OAuth client secret: {e}"))?;
+    }
+    let client_secret = secret_entry.get_password().unwrap_or_default();
+
+    // Use a loopback listener and PKCE. The desktop client secret is not treated as a
+    // confidential credential; it is only sent to Google's token endpoint when configured.
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await
+        .map_err(|e| format!("Could not start the local Google sign-in callback: {e}"))?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    let redirect_uri = format!("http://127.0.0.1:{port}/oauth2callback");
+    let mut verifier_bytes = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut verifier_bytes);
+    let verifier = URL_SAFE_NO_PAD.encode(verifier_bytes);
+    let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let oauth_state = random_nonce();
+    let auth_url = Url::parse_with_params(
+        "https://accounts.google.com/o/oauth2/v2/auth",
+        &[
+            ("client_id", GOOGLE_OAUTH_CLIENT_ID),
+            ("redirect_uri", redirect_uri.as_str()),
+            ("response_type", "code"),
+            ("scope", "openid email https://www.googleapis.com/auth/cloud-platform"),
+            ("access_type", "offline"),
+            ("prompt", "consent"),
+            ("state", oauth_state.as_str()),
+            ("code_challenge", challenge.as_str()),
+            ("code_challenge_method", "S256"),
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    app.opener().open_url(auth_url.as_str(), None::<&str>)
+        .map_err(|e| format!("Could not open your system browser for Google sign-in: {e}"))?;
+
+    let (mut stream, _) = tokio::time::timeout(
+        std::time::Duration::from_secs(300),
+        listener.accept(),
+    ).await.map_err(|_| "Google sign-in timed out. Open AI settings and try again.")?
+        .map_err(|e| format!("Google sign-in callback failed: {e}"))?;
+    let mut request_buffer = [0u8; 8192];
+    let read = tokio::time::timeout(std::time::Duration::from_secs(10), stream.read(&mut request_buffer))
+        .await.map_err(|_| "Google sign-in callback timed out.")?
+        .map_err(|e| format!("Could not read Google sign-in callback: {e}"))?;
+    let request_text = String::from_utf8_lossy(&request_buffer[..read]);
+    let request_line = request_text.lines().next().unwrap_or("");
+    let callback_path = request_line.split_whitespace().nth(1).unwrap_or("/");
+    let callback_url = Url::parse(&format!("http://127.0.0.1:{port}{callback_path}"))
+        .map_err(|_| "Google returned an invalid sign-in callback.")?;
+    let callback_state = callback_url.query_pairs().find(|(k, _)| k == "state").map(|(_, v)| v.into_owned()).unwrap_or_default();
+    let code = callback_url.query_pairs().find(|(k, _)| k == "code").map(|(_, v)| v.into_owned()).unwrap_or_default();
+    let oauth_error = callback_url.query_pairs().find(|(k, _)| k == "error").map(|(_, v)| v.into_owned());
+    let callback_html = if oauth_error.is_some() {
+        "<!doctype html><html><body><h2>Google sign-in was not completed</h2><p>You can close this tab and return to ClassWire.</p></body></html>"
+    } else {
+        "<!doctype html><html><body><h2>Google sign-in received</h2><p>Return to ClassWire. You can close this tab.</p></body></html>"
+    };
+    let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}", callback_html.len(), callback_html);
+    let _ = stream.write_all(response.as_bytes()).await;
+    if let Some(error) = oauth_error { return Err(format!("Google sign-in was cancelled or rejected: {error}")); }
+    if callback_state != oauth_state { return Err("Google sign-in state validation failed. Please try again.".into()); }
+    if code.is_empty() { return Err("Google did not return an authorization code.".into()); }
+
+    let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
+    let mut token_form = vec![
+        ("client_id", GOOGLE_OAUTH_CLIENT_ID.to_owned()),
+        ("code", code),
+        ("code_verifier", verifier),
+        ("grant_type", "authorization_code".to_owned()),
+        ("redirect_uri", redirect_uri),
+    ];
+    if !client_secret.is_empty() { token_form.push(("client_secret", client_secret)); }
+    let token_response = client.post("https://oauth2.googleapis.com/token").form(&token_form).send().await
+        .map_err(|e| format!("Could not exchange the Google authorization code: {e}"))?;
+    let token_status = token_response.status();
+    let token_text = token_response.text().await.map_err(|e| e.to_string())?;
+    if !token_status.is_success() {
+        return Err(format!("Google token exchange failed (HTTP {}): {}", token_status.as_u16(), token_text.chars().take(1000).collect::<String>()));
+    }
+    let token: Value = serde_json::from_str(&token_text).map_err(|_| "Google returned an invalid token response.")?;
+    let access_token = token.get("access_token").and_then(Value::as_str).unwrap_or("");
+    if access_token.is_empty() { return Err("Google did not return an access token.".into()); }
+    let refresh_token = token.get("refresh_token").and_then(Value::as_str).unwrap_or("");
+    let refresh_entry = Entry::new("ClassWire Google OAuth", "refresh-token")
+        .map_err(|e| format!("Could not open secure Google credential storage: {e}"))?;
+    if !refresh_token.is_empty() {
+        refresh_entry.set_password(refresh_token)
+            .map_err(|e| format!("Could not securely save the Google refresh token: {e}"))?;
+    } else if refresh_entry.get_password().is_err() {
+        return Err("Google did not issue a refresh token. Revoke ClassWire in your Google Account security settings, then try Connect with Google again.".into());
+    }
+
+    let user = google_api_call(
+        &client, reqwest::Method::GET, "https://www.googleapis.com/oauth2/v3/userinfo", access_token, None
+    ).await.unwrap_or_else(|_| json!({}));
+    let email = user.get("email").and_then(Value::as_str).unwrap_or("Google account").to_owned();
+
+    // Enable only the Cloud APIs needed for the Gemini authorization-key workflow.
+    for service in ["iam.googleapis.com", "apikeys.googleapis.com", "generativelanguage.googleapis.com"] {
+        google_enable_service(&client, service, access_token).await?;
+    }
+
+    let service_account_email = format!("classwire-gemini@{}.iam.gserviceaccount.com", GOOGLE_CLOUD_PROJECT_ID);
+    let service_account_url = format!("https://iam.googleapis.com/v1/projects/{}/serviceAccounts/{}", GOOGLE_CLOUD_PROJECT_ID, service_account_email);
+    let service_account = match google_api_call(&client, reqwest::Method::GET, &service_account_url, access_token, None).await {
+        Ok(existing) => existing,
+        Err(error) if error.contains("HTTP 404") => {
+            google_api_call(
+                &client,
+                reqwest::Method::POST,
+                &format!("https://iam.googleapis.com/v1/projects/{}/serviceAccounts", GOOGLE_CLOUD_PROJECT_ID),
+                access_token,
+                Some(json!({
+                    "accountId":"classwire-gemini",
+                    "serviceAccount":{
+                        "displayName":"ClassWire Gemini",
+                        "description":"Dedicated identity for ClassWire Gemini API authorization keys"
+                    }
+                })),
+            ).await?
+        },
+        Err(error) => return Err(error),
+    };
+    let service_account_email = service_account.get("email").and_then(Value::as_str)
+        .unwrap_or(&service_account_email).to_owned();
+
+    // Reuse the existing dedicated key if it is already present; never create a JSON
+    // service-account private key. The API key is restricted to the Gemini API.
+    let key_list = google_api_call(
+        &client,
+        reqwest::Method::GET,
+        &format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys?pageSize=100", GOOGLE_CLOUD_PROJECT_ID),
+        access_token,
+        None,
+    ).await?;
+    let existing_key = key_list.get("keys").and_then(Value::as_array).and_then(|keys| {
+        keys.iter().find(|key| key.get("serviceAccountEmail").and_then(Value::as_str) == Some(service_account_email.as_str()))
+            .and_then(|key| key.get("name").and_then(Value::as_str)).map(str::to_owned)
+    });
+    let key_name = if let Some(name) = existing_key {
+        name
+    } else {
+        let operation = google_api_call(
+            &client,
+            reqwest::Method::POST,
+            &format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", GOOGLE_CLOUD_PROJECT_ID),
+            access_token,
+            Some(json!({
+                "displayName":"ClassWire Gemini authorization key",
+                "serviceAccountEmail":service_account_email,
+                "restrictions":{"apiTargets":[{"service":"generativelanguage.googleapis.com"}]}
+            })),
+        ).await?;
+        let operation_name = operation.get("name").and_then(Value::as_str)
+            .ok_or("Google did not return the API-key creation operation.")?;
+        let created = google_wait_operation(&client, "https://apikeys.googleapis.com/v2", operation_name, access_token).await?;
+        created.get("name").and_then(Value::as_str).ok_or("Google created the key but did not return its resource name.")?.to_owned()
+    };
+    let key_value = google_api_call(
+        &client,
+        reqwest::Method::GET,
+        &format!("https://apikeys.googleapis.com/v2/{}/keyString", key_name),
+        access_token,
+        None,
+    ).await?;
+    let gemini_key = key_value.get("keyString").and_then(Value::as_str).unwrap_or("");
+    if gemini_key.len() < 8 { return Err("Google created the Gemini authorization key but did not return its key string.".into()); }
+    Entry::new("ClassWire AI", "gemini")
+        .map_err(|e| format!("Could not open operating-system credential storage: {e}"))?
+        .set_password(gemini_key)
+        .map_err(|e| format!("Could not save the Gemini authorization key securely: {e}"))?;
+    Ok(json!({
+        "connected":true,
+        "email":email,
+        "projectId":GOOGLE_CLOUD_PROJECT_ID,
+        "serviceAccount":service_account_email,
+        "keyCreated":true
+    }))
+}
+
+
 async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, String> {
     let provider = args.get("provider").and_then(Value::as_str).unwrap_or("");
     let model = args.get("model").and_then(Value::as_str).unwrap_or("").trim();
@@ -1852,6 +2114,13 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "ai-clear-provider-key" => {let provider=args.as_str().unwrap_or("");if let Ok(entry)=Entry::new("ClassWire AI",provider){let _=entry.delete_credential();}state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.remove(provider);Ok(json!(true))},
         "ai-has-provider-key" => {let provider=args.as_str().unwrap_or("");if !["openai","anthropic","gemini"].contains(&provider){return Ok(json!(false));}Ok(json!(Entry::new("ClassWire AI",provider).ok().and_then(|e|e.get_password().ok()).is_some()))},
         "ai-chat" => ai_provider_chat(&state,&args).await,
+        "ai-connect-google" => {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            { Err("Google Gemini account setup is available in the desktop app.".into()) }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            { google_ai_connect(&app, &args).await }
+        },
+
         "annotation-request" => annotation_request(&app, &state, &args).await,
         "test-desktop-notification" => { app.notification().builder().title("Schoology notification test").body("Desktop notifications are enabled for Schoology.").show().map_err(|e| format!("Could not show a desktop notification: {e}"))?; Ok(json!(true)) },
         "renderer-deep-link-ready" => {

@@ -181,6 +181,7 @@
     schoolLookup: domain => invoke('school-lookup', domain),
     api: value => invoke('api', value),
     setAIProviderKey: value => invoke('ai-set-provider-key', value),
+    connectGoogleGemini: clientSecret => invoke('ai-connect-google', { clientSecret: clientSecret || '' }),
     hasAIProviderKey: provider => invoke('ai-has-provider-key', provider),
     clearAIProviderKey: provider => invoke('ai-clear-provider-key', provider),
     aiChat: value => invoke('ai-chat', value),
