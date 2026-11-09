@@ -1,5 +1,15 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.60]
+
+### Improved
+- Match the rounded corners, inset spacing, borders, and subtle card shadows of the Schoology Mobile Web grades view for overall grades, grading periods, and categories.
+- Add selectable PDF text using the PDF.js text layer.
+- Add clickable PDF hyperlink overlays for safe external URLs, internal document destinations, and basic page navigation actions.
+
+### Fixed
+- Keep PDF text selection and hyperlink hit targets aligned with the rendered page at each zoom level.
+
 ## [2026.10.0-port.59]
 
 ### Fixed

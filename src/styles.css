@@ -4551,3 +4551,30 @@ html[data-reduced-motion="true"] .submissionAttachmentProgressBar{transition:non
 :root[data-theme="dark"] .richTextLinkDialog{background:var(--theme-card,#252a30)}
 :root[data-theme="dark"] .richTextLinkDialog input,:root[data-theme="dark"] .richTextLinkActions button{background:var(--theme-input,#292d32);color:var(--theme-text,#e6e8eb);border-color:var(--theme-border,#454a52)}
 @media(prefers-reduced-motion:no-preference){.richTextLinkDialogOverlay{animation:richTextLinkFade .14s ease-out}@keyframes richTextLinkFade{from{opacity:0}to{opacity:1}}}
+
+
+/* Match the rounded, inset grade cards used by the Schoology Mobile Web grades view. */
+.gradeOverallCard,.gradePeriod,.gradeCategory{
+ margin:10px 12px!important;border:1px solid var(--theme-border,#dfe3e7)!important;
+ border-radius:9px!important;overflow:hidden!important;background:var(--theme-surface,#fff)!important;
+ box-shadow:0 1px 3px rgba(0,0,0,.06)!important;
+}
+.gradePeriodHeader,.gradeCategoryHeader{border-radius:0!important}
+.gradePeriodBody,.gradeCategoryBody{min-width:0}
+:root[data-theme="dark"] .gradeOverallCard,:root[data-theme="dark"] .gradePeriod,:root[data-theme="dark"] .gradeCategory{
+ background:var(--theme-surface,#202328)!important;border-color:var(--theme-border,#393d43)!important;color:var(--theme-text,#e6e8eb)!important;
+}
+
+
+/* PDF.js text and hyperlink layers: selectable text over the rendered page. */
+.sharedPdfPage{position:relative!important;display:block!important}
+.sharedPdfPage canvas{position:relative;z-index:0}
+.sharedPdfPage .textLayer{position:absolute;inset:0;overflow:hidden;opacity:1;line-height:1;text-align:initial;text-size-adjust:none;-webkit-text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;caret-color:CanvasText;z-index:1;user-select:text;-webkit-user-select:text}
+.sharedPdfPage .textLayer :is(span,br){color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0 0}
+.sharedPdfPage .textLayer> :not(.markedContent),.sharedPdfPage .textLayer .markedContent span:not(.markedContent){z-index:1}
+.sharedPdfPage .textLayer span.markedContent{top:0;height:0}
+.sharedPdfPage .textLayer span[role="img"]{user-select:none;-webkit-user-select:none;cursor:default}
+.sharedPdfPage .textLayer ::selection{background:color-mix(in srgb,AccentColor,transparent 72%)}
+.sharedPdfPage .sharedPdfAnnotationLayer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.sharedPdfPage .sharedPdfLinkAnnotation{position:absolute;display:block;box-sizing:border-box;pointer-events:auto;background:transparent;color:transparent;text-decoration:none;cursor:pointer}
+.sharedPdfPage .sharedPdfLinkAnnotation:hover,.sharedPdfPage .sharedPdfLinkAnnotation:focus-visible{background:rgba(46,102,163,.08);outline:1px solid rgba(46,102,163,.35);outline-offset:-1px}
