@@ -1,3 +1,20 @@
+## 2026.10.0-port.67
+
+### Added
+- Add Google Cloud project selection so each user can create a Gemini authorization key in a project they own or are authorized to manage.
+- Add refreshable project discovery and create/reuse a dedicated service account plus a Gemini-API-restricted authorization key in the selected project.
+- Add account-owned Gemini key creation to both first-run setup and AI provider settings; retain manual API-key entry as a fallback.
+- Add the ClassWire Privacy Policy and Terms of Service, linked from the repository README.
+
+### Fixed
+- Remove the hardcoded developer-owned \`classwire-ai\` project from Gemini provisioning.
+- Correct service-account creation to use Google's IAM API request format and wait for IAM resource propagation before creating the authorization key.
+- Remove the unnecessary desktop OAuth client-secret prompt and stored secret; use the public desktop OAuth client with PKCE and per-user refresh tokens.
+
+### Changed
+- Request Cloud Platform access only when the user chooses Google-based Gemini setup, and explain project permissions, usage, and billing in the UI.
+- Bump the port version to 2026.10.0-port.67.
+
 ## 2026.10.0-port.66
 - Add Google desktop OAuth sign-in with PKCE using the system browser and a loopback callback.
 - Provision a dedicated ClassWire service account and Gemini authorization API key, restricted to the Gemini API.

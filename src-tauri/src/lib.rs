@@ -1737,68 +1737,46 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
 
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-const GOOGLE_CLOUD_PROJECT_ID: &str = "classwire-ai";
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 const GOOGLE_OAUTH_CLIENT_ID: &str = "813096753007-fb3mqttvtampk2j0klquf0cckeicc67r.apps.googleusercontent.com";
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-async fn google_api_call(
-    client: &reqwest::Client,
-    method: reqwest::Method,
-    url: &str,
-    access_token: &str,
-    body: Option<Value>,
-) -> Result<Value, String> {
+async fn google_api_call(client: &reqwest::Client, method: reqwest::Method, url: &str, access_token: &str, body: Option<Value>) -> Result<Value, String> {
     let mut request = client.request(method, url).bearer_auth(access_token);
     if let Some(payload) = body { request = request.json(&payload); }
     let response = request.send().await.map_err(|e| format!("Could not reach Google Cloud: {e}"))?;
     let status = response.status();
     let text = response.text().await.map_err(|e| format!("Google Cloud returned an unreadable response: {e}"))?;
     if !status.is_success() {
-        return Err(format!("Google Cloud request failed (HTTP {}): {}", status.as_u16(), text.chars().take(1200).collect::<String>()));
+        let detail = serde_json::from_str::<Value>(&text).ok()
+            .and_then(|value| value.pointer("/error/message").and_then(Value::as_str).map(str::to_owned))
+            .unwrap_or_else(|| text.chars().take(900).collect::<String>());
+        return Err(format!("Google Cloud request failed (HTTP {}): {}", status.as_u16(), detail));
     }
     if text.trim().is_empty() { return Ok(json!({})); }
     serde_json::from_str(&text).map_err(|_| "Google Cloud returned invalid JSON.".into())
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-async fn google_wait_operation(
-    client: &reqwest::Client,
-    base: &str,
-    operation: &str,
-    access_token: &str,
-) -> Result<Value, String> {
+async fn google_wait_operation(client: &reqwest::Client, base: &str, operation: &str, access_token: &str) -> Result<Value, String> {
     let url = format!("{}/{}", base.trim_end_matches('/'), operation.trim_start_matches('/'));
-    for _ in 0..60 {
+    for _ in 0..90 {
         let result = google_api_call(client, reqwest::Method::GET, &url, access_token, None).await?;
         if result.get("done").and_then(Value::as_bool) == Some(true) {
-            if let Some(error) = result.get("error") {
-                return Err(format!("Google Cloud operation failed: {}", error));
-            }
+            if let Some(error) = result.get("error") { return Err(format!("Google Cloud operation failed: {}", error)); }
             return Ok(result.get("response").cloned().unwrap_or(result));
         }
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
-    Err("Google Cloud is still processing the request. Wait a moment and try connecting again.".into())
+    Err("Google Cloud is still processing the request. Wait a moment and try again.".into())
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-async fn google_enable_service(
-    client: &reqwest::Client,
-    service: &str,
-    access_token: &str,
-) -> Result<(), String> {
+async fn google_enable_service(client: &reqwest::Client, project_id: &str, service: &str, access_token: &str) -> Result<(), String> {
     let encoded_service = url::form_urlencoded::byte_serialize(service.as_bytes()).collect::<String>();
-    let resource = format!("https://serviceusage.googleapis.com/v1/projects/{}/services/{}", GOOGLE_CLOUD_PROJECT_ID, encoded_service);
+    let resource = format!("https://serviceusage.googleapis.com/v1/projects/{}/services/{}", project_id, encoded_service);
     let current = google_api_call(client, reqwest::Method::GET, &resource, access_token, None).await?;
     if current.get("state").and_then(Value::as_str) == Some("ENABLED") { return Ok(()); }
-    let operation = google_api_call(
-        client,
-        reqwest::Method::POST,
-        &format!("{}:enable", resource),
-        access_token,
-        None,
-    ).await?;
+    let operation = google_api_call(client, reqwest::Method::POST, &format!("{}:enable", resource), access_token, None).await?;
     if let Some(name) = operation.get("name").and_then(Value::as_str) {
         let _ = google_wait_operation(client, "https://serviceusage.googleapis.com/v1", name, access_token).await?;
     }
@@ -1806,22 +1784,82 @@ async fn google_enable_service(
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-async fn google_ai_connect(app: &AppHandle, args: &Value) -> Result<Value, String> {
+async fn google_refresh_access_token(client: &reqwest::Client) -> Result<String, String> {
+    let refresh_entry = Entry::new("ClassWire Google OAuth", "refresh-token")
+        .map_err(|e| format!("Could not open secure Google credential storage: {e}"))?;
+    let refresh_token = refresh_entry.get_password().map_err(|_| {
+        "Google is not connected yet. Choose Connect with Google and authorize ClassWire first.".to_owned()
+    })?;
+    let response = client.post("https://oauth2.googleapis.com/token")
+        .form(&[
+            ("client_id", GOOGLE_OAUTH_CLIENT_ID),
+            ("refresh_token", refresh_token.as_str()),
+            ("grant_type", "refresh_token"),
+        ])
+        .send().await.map_err(|e| format!("Could not refresh Google authorization: {e}"))?;
+    let status = response.status();
+    let text = response.text().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("Google authorization expired or was revoked (HTTP {}). Reconnect your Google account and try again.", status.as_u16()));
+    }
+    let token: Value = serde_json::from_str(&text).map_err(|_| "Google returned an invalid refresh-token response.")?;
+    let access_token = token.get("access_token").and_then(Value::as_str).unwrap_or("");
+    if access_token.is_empty() { return Err("Google did not return an access token. Reconnect your account.".into()); }
+    if let Some(rotated) = token.get("refresh_token").and_then(Value::as_str).filter(|value| !value.is_empty()) {
+        refresh_entry.set_password(rotated)
+            .map_err(|e| format!("Could not securely update the Google refresh token: {e}"))?;
+    }
+    Ok(access_token.to_owned())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_list_projects_with_token(client: &reqwest::Client, access_token: &str) -> Result<Vec<Value>, String> {
+    let mut projects = Vec::new();
+    let mut page_token: Option<String> = None;
+    for _ in 0..20 {
+        let mut url = Url::parse("https://cloudresourcemanager.googleapis.com/v3/projects").map_err(|e| e.to_string())?;
+        {
+            let mut query = url.query_pairs_mut();
+            query.append_pair("pageSize", "100");
+            if let Some(token) = page_token.as_deref() { query.append_pair("pageToken", token); }
+        }
+        let page = google_api_call(client, reqwest::Method::GET, url.as_str(), access_token, None).await?;
+        if let Some(items) = page.get("projects").and_then(Value::as_array) {
+            for project in items {
+                if project.get("state").and_then(Value::as_str) != Some("ACTIVE") { continue; }
+                let project_id = project.get("projectId").and_then(Value::as_str).unwrap_or("");
+                if project_id.is_empty() { continue; }
+                projects.push(json!({
+                    "projectId": project_id,
+                    "displayName": project.get("displayName").and_then(Value::as_str).unwrap_or(project_id),
+                    "projectNumber": project.get("projectNumber").cloned().unwrap_or(Value::Null)
+                }));
+            }
+        }
+        page_token = page.get("nextPageToken").and_then(Value::as_str).filter(|value| !value.is_empty()).map(str::to_owned);
+        if page_token.is_none() { break; }
+    }
+    projects.sort_by(|a,b| {
+        a.get("displayName").and_then(Value::as_str).unwrap_or("").to_lowercase()
+            .cmp(&b.get("displayName").and_then(Value::as_str).unwrap_or("").to_lowercase())
+    });
+    Ok(projects)
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_list_cloud_projects() -> Result<Value, String> {
+    let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
+    let access_token = google_refresh_access_token(&client).await?;
+    let projects = google_list_projects_with_token(&client, &access_token).await?;
+    Ok(json!({"projects":projects}))
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_ai_connect(app: &AppHandle) -> Result<Value, String> {
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    let supplied_secret = args.get("clientSecret").and_then(Value::as_str).unwrap_or("").trim();
-    if supplied_secret.len() > 512 { return Err("The Google OAuth client secret is too long.".into()); }
-    let secret_entry = Entry::new("ClassWire Google OAuth", "client-secret")
-        .map_err(|e| format!("Could not open secure Google credential storage: {e}"))?;
-    if !supplied_secret.is_empty() {
-        secret_entry.set_password(supplied_secret)
-            .map_err(|e| format!("Could not securely save the Google OAuth client secret: {e}"))?;
-    }
-    let client_secret = secret_entry.get_password().unwrap_or_default();
-
-    // Use a loopback listener and PKCE. The desktop client secret is not treated as a
-    // confidential credential; it is only sent to Google's token endpoint when configured.
+    if let Ok(entry) = Entry::new("ClassWire Google OAuth", "client-secret") { let _ = entry.delete_credential(); }
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await
         .map_err(|e| format!("Could not start the local Google sign-in callback: {e}"))?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -1845,14 +1883,11 @@ async fn google_ai_connect(app: &AppHandle, args: &Value) -> Result<Value, Strin
             ("code_challenge_method", "S256"),
         ],
     ).map_err(|e| e.to_string())?;
-
     app.opener().open_url(auth_url.as_str(), None::<&str>)
         .map_err(|e| format!("Could not open your system browser for Google sign-in: {e}"))?;
 
-    let (mut stream, _) = tokio::time::timeout(
-        std::time::Duration::from_secs(300),
-        listener.accept(),
-    ).await.map_err(|_| "Google sign-in timed out. Open AI settings and try again.")?
+    let (mut stream, _) = tokio::time::timeout(std::time::Duration::from_secs(300), listener.accept())
+        .await.map_err(|_| "Google sign-in timed out. Open AI settings and try again.")?
         .map_err(|e| format!("Google sign-in callback failed: {e}"))?;
     let mut request_buffer = [0u8; 8192];
     let read = tokio::time::timeout(std::time::Duration::from_secs(10), stream.read(&mut request_buffer))
@@ -1879,20 +1914,18 @@ async fn google_ai_connect(app: &AppHandle, args: &Value) -> Result<Value, Strin
 
     let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
         .timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
-    let mut token_form = vec![
-        ("client_id", GOOGLE_OAUTH_CLIENT_ID.to_owned()),
-        ("code", code),
-        ("code_verifier", verifier),
-        ("grant_type", "authorization_code".to_owned()),
-        ("redirect_uri", redirect_uri),
-    ];
-    if !client_secret.is_empty() { token_form.push(("client_secret", client_secret)); }
-    let token_response = client.post("https://oauth2.googleapis.com/token").form(&token_form).send().await
-        .map_err(|e| format!("Could not exchange the Google authorization code: {e}"))?;
+    let token_response = client.post("https://oauth2.googleapis.com/token")
+        .form(&[
+            ("client_id", GOOGLE_OAUTH_CLIENT_ID),
+            ("code", code.as_str()),
+            ("code_verifier", verifier.as_str()),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", redirect_uri.as_str()),
+        ]).send().await.map_err(|e| format!("Could not exchange the Google authorization code: {e}"))?;
     let token_status = token_response.status();
     let token_text = token_response.text().await.map_err(|e| e.to_string())?;
     if !token_status.is_success() {
-        return Err(format!("Google token exchange failed (HTTP {}): {}", token_status.as_u16(), token_text.chars().take(1000).collect::<String>()));
+        return Err(format!("Google token exchange failed (HTTP {}): {}", token_status.as_u16(), token_text.chars().take(900).collect::<String>()));
     }
     let token: Value = serde_json::from_str(&token_text).map_err(|_| "Google returned an invalid token response.")?;
     let access_token = token.get("access_token").and_then(Value::as_str).unwrap_or("");
@@ -1906,62 +1939,97 @@ async fn google_ai_connect(app: &AppHandle, args: &Value) -> Result<Value, Strin
     } else if refresh_entry.get_password().is_err() {
         return Err("Google did not issue a refresh token. Revoke ClassWire in your Google Account security settings, then try Connect with Google again.".into());
     }
-
-    let user = google_api_call(
-        &client, reqwest::Method::GET, "https://www.googleapis.com/oauth2/v3/userinfo", access_token, None
-    ).await.unwrap_or_else(|_| json!({}));
+    let user = google_api_call(&client, reqwest::Method::GET, "https://www.googleapis.com/oauth2/v3/userinfo", access_token, None)
+        .await.unwrap_or_else(|_| json!({}));
     let email = user.get("email").and_then(Value::as_str).unwrap_or("Google account").to_owned();
+    let (projects, project_list_error) = match google_list_projects_with_token(&client, access_token).await {
+        Ok(projects) => (projects, Value::Null),
+        Err(error) => (Vec::new(), json!(error)),
+    };
+    Ok(json!({"connected":true,"email":email,"projects":projects,"projectListError":project_list_error}))
+}
 
-    // Enable only the Cloud APIs needed for the Gemini authorization-key workflow.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
+    let project_id = args.get("projectId").and_then(Value::as_str).unwrap_or("").trim();
+    let bytes = project_id.as_bytes();
+    if !(6..=30).contains(&bytes.len())
+        || !bytes.first().is_some_and(|byte| byte.is_ascii_lowercase())
+        || !bytes.last().is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+        || !bytes.iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-') {
+        return Err("Enter a valid Google Cloud project ID.".into());
+    }
+    let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(60)).build().map_err(|e| e.to_string())?;
+    let access_token = google_refresh_access_token(&client).await?;
     for service in ["iam.googleapis.com", "apikeys.googleapis.com", "generativelanguage.googleapis.com"] {
-        google_enable_service(&client, service, access_token).await?;
+        google_enable_service(&client, project_id, service, &access_token).await?;
     }
 
-    let service_account_email = format!("classwire-gemini@{}.iam.gserviceaccount.com", GOOGLE_CLOUD_PROJECT_ID);
-    let service_account_url = format!("https://iam.googleapis.com/v1/projects/{}/serviceAccounts/{}", GOOGLE_CLOUD_PROJECT_ID, service_account_email);
-    let service_account = match google_api_call(&client, reqwest::Method::GET, &service_account_url, access_token, None).await {
+    let service_account_email = format!("classwire-gemini@{}.iam.gserviceaccount.com", project_id);
+    let service_account_url = format!("https://iam.googleapis.com/v1/projects/{}/serviceAccounts/{}", project_id, service_account_email);
+    let service_account = match google_api_call(&client, reqwest::Method::GET, &service_account_url, &access_token, None).await {
         Ok(existing) => existing,
         Err(error) if error.contains("HTTP 404") => {
-            google_api_call(
-                &client,
-                reqwest::Method::POST,
-                &format!("https://iam.googleapis.com/v1/projects/{}/serviceAccounts", GOOGLE_CLOUD_PROJECT_ID),
-                access_token,
-                Some(json!({
-                    "accountId":"classwire-gemini",
-                    "serviceAccount":{
-                        "displayName":"ClassWire Gemini",
-                        "description":"Dedicated identity for ClassWire Gemini API authorization keys"
-                    }
-                })),
-            ).await?
-        },
+            let create_url = Url::parse_with_params(
+                &format!("https://iam.googleapis.com/v1/projects/{}/serviceAccounts", project_id),
+                &[("accountId", "classwire-gemini")],
+            ).map_err(|e| e.to_string())?;
+            match google_api_call(&client, reqwest::Method::POST, create_url.as_str(), &access_token, Some(json!({
+                "displayName":"ClassWire Gemini",
+                "description":"Dedicated service-account identity for this user's ClassWire Gemini authorization key. No service-account private key is created."
+            }))).await {
+                Ok(created) => created,
+                Err(create_error) if create_error.contains("HTTP 409") => {
+                    google_api_call(&client, reqwest::Method::GET, &service_account_url, &access_token, None).await?
+                }
+                Err(create_error) => return Err(create_error),
+            }
+        }
         Err(error) => return Err(error),
     };
     let service_account_email = service_account.get("email").and_then(Value::as_str)
         .unwrap_or(&service_account_email).to_owned();
 
-    // Reuse the existing dedicated key if it is already present; never create a JSON
-    // service-account private key. The API key is restricted to the Gemini API.
-    let key_list = google_api_call(
-        &client,
-        reqwest::Method::GET,
-        &format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys?pageSize=100", GOOGLE_CLOUD_PROJECT_ID),
-        access_token,
-        None,
-    ).await?;
-    let existing_key = key_list.get("keys").and_then(Value::as_array).and_then(|keys| {
-        keys.iter().find(|key| key.get("serviceAccountEmail").and_then(Value::as_str) == Some(service_account_email.as_str()))
-            .and_then(|key| key.get("name").and_then(Value::as_str)).map(str::to_owned)
-    });
-    let key_name = if let Some(name) = existing_key {
-        name
-    } else {
+    let mut account_ready = false;
+    for attempt in 0..15 {
+        match google_api_call(&client, reqwest::Method::GET, &service_account_url, &access_token, None).await {
+            Ok(_) => { account_ready = true; break; }
+            Err(error) if error.contains("HTTP 404") && attempt < 14 => tokio::time::sleep(std::time::Duration::from_secs(2)).await,
+            Err(error) => return Err(error),
+        }
+    }
+    if !account_ready { return Err("Google is still preparing the new service account. Wait a minute and try again.".into()); }
+
+    let mut existing_key: Option<String> = None;
+    let mut page_token: Option<String> = None;
+    for _ in 0..10 {
+        let mut url = Url::parse(&format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_id))
+            .map_err(|e| e.to_string())?;
+        {
+            let mut query = url.query_pairs_mut();
+            query.append_pair("pageSize", "100");
+            if let Some(token) = page_token.as_deref() { query.append_pair("pageToken", token); }
+        }
+        let key_list = google_api_call(&client, reqwest::Method::GET, url.as_str(), &access_token, None).await?;
+        existing_key = key_list.get("keys").and_then(Value::as_array).and_then(|keys| {
+            keys.iter().find(|key| {
+                let bound_to_classwire = key.get("serviceAccountEmail").and_then(Value::as_str) == Some(service_account_email.as_str());
+                let gemini_only = key.get("restrictions").and_then(|value| value.get("apiTargets")).and_then(Value::as_array)
+                    .is_some_and(|targets| targets.len() == 1 && targets[0].get("service").and_then(Value::as_str) == Some("generativelanguage.googleapis.com"));
+                bound_to_classwire && gemini_only
+            }).and_then(|key| key.get("name").and_then(Value::as_str)).map(str::to_owned)
+        });
+        if existing_key.is_some() { break; }
+        page_token = key_list.get("nextPageToken").and_then(Value::as_str).filter(|value| !value.is_empty()).map(str::to_owned);
+        if page_token.is_none() { break; }
+    }
+
+    let key_name = if let Some(name) = existing_key { name } else {
         let operation = google_api_call(
-            &client,
-            reqwest::Method::POST,
-            &format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", GOOGLE_CLOUD_PROJECT_ID),
-            access_token,
+            &client, reqwest::Method::POST,
+            &format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_id),
+            &access_token,
             Some(json!({
                 "displayName":"ClassWire Gemini authorization key",
                 "serviceAccountEmail":service_account_email,
@@ -1969,32 +2037,21 @@ async fn google_ai_connect(app: &AppHandle, args: &Value) -> Result<Value, Strin
             })),
         ).await?;
         let operation_name = operation.get("name").and_then(Value::as_str)
-            .ok_or("Google did not return the API-key creation operation.")?;
-        let created = google_wait_operation(&client, "https://apikeys.googleapis.com/v2", operation_name, access_token).await?;
-        created.get("name").and_then(Value::as_str).ok_or("Google created the key but did not return its resource name.")?.to_owned()
+            .ok_or("Google did not return the Gemini key-creation operation.")?;
+        let created = google_wait_operation(&client, "https://apikeys.googleapis.com/v2", operation_name, &access_token).await?;
+        created.get("name").and_then(Value::as_str)
+            .ok_or("Google created the key but did not return its resource name.")?.to_owned()
     };
-    let key_value = google_api_call(
-        &client,
-        reqwest::Method::GET,
-        &format!("https://apikeys.googleapis.com/v2/{}/keyString", key_name),
-        access_token,
-        None,
-    ).await?;
+    let key_value = google_api_call(&client, reqwest::Method::GET,
+        &format!("https://apikeys.googleapis.com/v2/{}/keyString", key_name), &access_token, None).await?;
     let gemini_key = key_value.get("keyString").and_then(Value::as_str).unwrap_or("");
-    if gemini_key.len() < 8 { return Err("Google created the Gemini authorization key but did not return its key string.".into()); }
+    if gemini_key.len() < 8 { return Err("Google did not return the Gemini authorization key string.".into()); }
     Entry::new("ClassWire AI", "gemini")
         .map_err(|e| format!("Could not open operating-system credential storage: {e}"))?
         .set_password(gemini_key)
         .map_err(|e| format!("Could not save the Gemini authorization key securely: {e}"))?;
-    Ok(json!({
-        "connected":true,
-        "email":email,
-        "projectId":GOOGLE_CLOUD_PROJECT_ID,
-        "serviceAccount":service_account_email,
-        "keyCreated":true
-    }))
+    Ok(json!({"connected":true,"projectId":project_id,"serviceAccount":service_account_email,"keyCreated":true}))
 }
-
 
 async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, String> {
     let provider = args.get("provider").and_then(Value::as_str).unwrap_or("");
@@ -2118,7 +2175,19 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             #[cfg(any(target_os = "android", target_os = "ios"))]
             { Err("Google Gemini account setup is available in the desktop app.".into()) }
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            { google_ai_connect(&app, &args).await }
+            { google_ai_connect(&app).await }
+        },
+        "ai-google-projects" => {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            { Err("Google Gemini account setup is available in the desktop app.".into()) }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            { google_list_cloud_projects().await }
+        },
+        "ai-create-gemini-key" => {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            { Err("Google Gemini account setup is available in the desktop app.".into()) }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            { google_create_gemini_key(&args).await }
         },
 
         "annotation-request" => annotation_request(&app, &state, &args).await,

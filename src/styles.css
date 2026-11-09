@@ -4694,3 +4694,24 @@ body.aiDocked .shell>.toolbar{margin-right:410px!important;width:calc(100% - 410
 :root[data-theme="dark"] .aiPrompts button:hover{border-color:#548db7}
 @media(max-width:700px){.aiWelcome{max-width:440px}.aiComposerMeta span:last-child{display:none}.aiSetupDialog{max-height:calc(100vh - 28px);overflow:auto}}
 @media(prefers-reduced-motion:reduce){.aiPrompts button{transition:none!important;transform:none!important}}
+
+.aiSetupGoogle{display:flex;flex-direction:column;gap:8px;padding:11px;border:1px solid var(--theme-border,#d5dce2);border-radius:10px;background:var(--theme-subtle,#f7f9fb)}
+.aiSetupGoogle>button{min-height:38px;padding:8px 12px;border:1px solid #176da9;border-radius:8px;background:#176da9;color:#fff;font-weight:650;cursor:pointer}
+.aiSetupGoogle>button:disabled,.aiGoogleProjectActions button:disabled{opacity:.6;cursor:wait}
+.aiSetupGoogle small,.aiGoogleProjectPanel small{font-size:10px;line-height:1.5;color:var(--theme-muted,#78848e)}
+.aiGoogleProjectPanel{display:flex;flex-direction:column;gap:8px}
+.aiGoogleProjectPanel[hidden],.aiSetupGoogle[hidden]{display:none!important}
+.aiGoogleProjectPanel label{font-size:11px;font-weight:650}
+.aiGoogleProjectPanel select{width:100%;min-width:0}
+.aiGoogleProjectActions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.aiGoogleProjectActions button{min-height:34px;padding:7px 10px;border:1px solid var(--theme-border,#d5dce2);border-radius:8px;background:var(--theme-surface,#fff);color:var(--theme-text,#26313b);font-size:11px;font-weight:600;cursor:pointer}
+.aiGoogleProjectActions .aiGoogleCreate,.aiGoogleProjectActions .aiGoogleManualCreate{background:#176da9;border-color:#176da9;color:#fff}
+.aiGoogleManual{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--theme-border,#d5dce2)}
+.aiGoogleManual summary{font-size:11px;font-weight:650;cursor:pointer}
+.aiGoogleManual input{width:100%;min-width:0;height:36px;padding:0 9px;border:1px solid var(--theme-border,#d5dce2);border-radius:8px;background:var(--theme-input,#fff);color:var(--theme-text,#26313b)}
+.aiGoogleProjectActions .aiGoogleNewProject{margin-right:auto}
+:root[data-theme="dark"] .aiSetupGoogle{background:var(--theme-subtle,#29323b);border-color:var(--theme-border,#3a4651)}
+:root[data-theme="dark"] .aiGoogleProjectActions button{background:var(--theme-input,#171c21);color:var(--theme-text,#e8edf2);border-color:var(--theme-border,#3a4651)}
+:root[data-theme="dark"] .aiGoogleProjectActions .aiGoogleCreate,:root[data-theme="dark"] .aiGoogleProjectActions .aiGoogleManualCreate{background:#176da9;border-color:#176da9;color:#fff}
+:root[data-theme="dark"] .aiGoogleManual input{background:var(--theme-input,#171c21);color:var(--theme-text,#e8edf2);border-color:var(--theme-border,#3a4651)}
+:root[data-theme="dark"] .aiGoogleManual{border-color:var(--theme-border,#3a4651)}

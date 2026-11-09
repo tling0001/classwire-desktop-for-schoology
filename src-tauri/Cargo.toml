@@ -1,6 +1,6 @@
 [package]
 name = "schoology-desktop-port"
-version = "2026.10.0-port.66"
+version = "2026.10.0-port.67"
 description = "Schoology Desktop Port native host"
 authors = ["Schoology Desktop Port"]
 edition = "2021"

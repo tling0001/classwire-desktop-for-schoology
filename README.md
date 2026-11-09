@@ -2,6 +2,12 @@
 
 ClassWire is a cross-platform desktop/mobile app aligned with the supplied official Schoology Android 2026.10.0 source. The active GitHub Actions workflow builds and publishes versioned Tauri releases for Windows, macOS, Linux, and Android, with an optional Ad Hoc iPhone IPA and QR installation package when the required Apple signing and provisioning configuration is available.
 
+
+## Privacy and terms
+
+- [Privacy Policy](PRIVACY_POLICY.md)
+- [Terms of Service](TERMS_OF_SERVICE.md)
+
 ## Releases and builds
 
 - Pushes to `main` start the versioned Tauri build-and-release workflow. The release tag and title are sourced from `package.json`.
