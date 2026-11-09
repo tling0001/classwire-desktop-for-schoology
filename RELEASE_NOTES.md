@@ -1,5 +1,17 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.65]
+
+### Improved
+- Redesign the ClassWire AI sidebar with a clearer Schoology context indicator, a more approachable welcome screen, suggested task cards, a simplified composer, and more accessible control labels.
+- Add a first-open AI setup wizard that explains Schoology context and confirmation safeguards, guides provider/model selection, and saves provider credentials through the existing operating-system credential vault.
+- Make Google Gemini with `gemini-3.8-flash` the default provider for new and previously default-configured installations; retain explicit provider choices and model preferences.
+- Add a direct Google AI Studio API-key setup link and clearer guidance for local Ollama, without storing keys in browser storage or chat history.
+
+### Changed
+- Bump the port version to 2026.10.0-port.65.
+
+
 ## [2026.10.0-port.64]
 
 ### Fixed
