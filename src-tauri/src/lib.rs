@@ -1771,8 +1771,17 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
         "gemini" => {
             let contents: Vec<Value> = clean_messages.iter().map(|m| json!({"role":if m["role"]=="assistant"{"model"}else{"user"},"parts":[{"text":m["content"]}]})).collect();
             let url = Url::parse_with_params(&format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"), &[("key",key.as_str())]).map_err(|e| e.to_string())?;
-            let response = client.post(url).json(&json!({"systemInstruction":{"parts":[{"text":system}]},"contents":contents,"generationConfig":{"temperature":0.3,"maxOutputTokens":1800}}))
-                .send().await.map_err(|e| format!("Could not reach Gemini: {e}"))?;
+            let payload=json!({"systemInstruction":{"parts":[{"text":system}]},"contents":contents,"generationConfig":{"temperature":0.2,"maxOutputTokens":2200}});
+            let mut attempt=0u32;
+            let response=loop {
+                let result=client.post(url.clone()).json(&payload).send().await.map_err(|e|format!("Could not reach Gemini: {e}"))?;
+                if result.status().as_u16()==503 && attempt<2 {
+                    attempt+=1;
+                    std::thread::sleep(std::time::Duration::from_millis(700u64*attempt as u64));
+                    continue;
+                }
+                break result;
+            };
             (response, "Gemini")
         },
         "ollama" => {
@@ -1785,7 +1794,11 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
     };
     let status=response.status();
     let body=response.text().await.map_err(|e|format!("{label} returned an unreadable response: {e}"))?;
-    if !status.is_success(){return Err(format!("{label} request failed (HTTP {}): {}",status.as_u16(),body.chars().take(900).collect::<String>()));}
+    if !status.is_success(){
+        if provider=="gemini" && status.as_u16()==503 { return Err("Gemini is temporarily at capacity (HTTP 503). ClassWire retried automatically; please try again shortly.".into()); }
+        if provider=="gemini" && status.as_u16()==404 && body.contains("no longer available") { return Err("This Gemini model is no longer available. Open AI settings and select gemini-3.8-flash.".into()); }
+        return Err(format!("{label} request failed (HTTP {}): {}",status.as_u16(),body.chars().take(900).collect::<String>()));
+    }
     let value:Value=serde_json::from_str(&body).map_err(|_|format!("{label} returned invalid JSON."))?;
     let answer=match provider{
         "openai"=>value.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").to_owned(),

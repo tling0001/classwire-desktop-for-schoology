@@ -1,5 +1,19 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.62]
+
+### Added
+- Added explicit confirmation previews for AI-proposed assignment text submissions, messages, course/group updates, and teacher grade changes. Each write requires the user's confirmation; message recipients must resolve to one exact Schoology name match, and grade edits require an open teacher submission.
+- Added the requested next-stage roadmap: model-driven tool calling, searchable conversation history, richer references and clickable navigation, improved embedded Schoology page extraction, and expanded course/group/message understanding.
+
+### Fixed
+- Updated the default Gemini model to `gemini-3.8-flash`, migrated the obsolete `gemini-2.5-flash` preference, and added automatic retries for temporary Gemini HTTP 503 capacity errors.
+- UTF-8-bounded AI prompt/context payloads to avoid the native 24 KB per-message limit.
+
+### Changed
+- Bumped the port version to 2026.10.0-port.62.
+
+
 ## [2026.10.0-port.61]
 
 ### Added
