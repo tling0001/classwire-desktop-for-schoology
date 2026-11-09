@@ -1,5 +1,23 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.63]
+
+### Added
+- Added provider-native model tool calling for OpenAI, Anthropic, Gemini, and Ollama. Models can request authenticated Schoology API data through the native Tauri bridge: courses, groups, upcoming events, assignments, grades, materials, updates, inbox messages, message threads, current assignment details, and current-page context.
+- Added AI-proposed write tools for text assignment submissions, messages, course/group updates, and teacher grade changes. Write tools only prepare proposals and never execute without a separate explicit confirmation.
+- Added searchable device-local conversation history and clickable course, group, and assignment citations with in-app navigation.
+- Improved embedded-page context metadata with the current embedded URL/title and host-rendered page text.
+- Added persistent provider API-key storage through Windows Credential Manager, macOS Keychain, and Linux Secret Service.
+
+### Fixed
+- Changed action confirmation to a native modal dialog in the top layer so it appears above the assistant and parent UI.
+- Removed the docked sidebar shadow while retaining the floating overlay shadow.
+- Leaving the API-key field blank now keeps an existing secure credential.
+
+### Changed
+- Bumped the port version to 2026.10.0-port.63.
+
+
 ## [2026.10.0-port.62]
 
 ### Added

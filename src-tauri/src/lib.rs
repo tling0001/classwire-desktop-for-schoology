@@ -19,6 +19,7 @@ use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_notification::NotificationExt;
 use url::Url;
+use keyring::Entry;
 use tokio::sync::oneshot;
 
 type HmacSha1 = Hmac<Sha1>;
@@ -832,6 +833,10 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     let mime = mime_for_path(&file_path, info.get("mime").and_then(Value::as_str));
     let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
     let authorization = plaintext_header(auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp);
+    let tools=args.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
+    let openai_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"type":"function","function":{"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"parameters":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}}))}).collect();
+    let anthropic_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"input_schema":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}))}).collect();
+    let gemini_tools:Vec<Value>=tools.iter().filter_map(|t|{let name=t.get("name")?.as_str()?;Some(json!({"name":name,"description":t.get("description").and_then(Value::as_str).unwrap_or(""),"parameters":t.get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}))}).collect();
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
 
     // First use the established FileService endpoint.
@@ -1750,28 +1755,28 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
     if clean_messages.is_empty() { return Err("There are no valid AI messages to send.".into()); }
     let system = args.get("system").and_then(Value::as_str).unwrap_or("You are ClassWire AI, a read-only learning assistant.");
     if system.len() > 12000 { return Err("AI instructions exceed the allowed size.".into()); }
-    let key = state.ai_provider_keys.lock().map_err(|_| "AI provider settings are unavailable.")?.get(provider).cloned().unwrap_or_default();
+    let key = Entry::new("ClassWire AI", provider).ok().and_then(|entry|entry.get_password().ok()).or_else(||state.ai_provider_keys.lock().ok().and_then(|keys|keys.get(provider).cloned())).unwrap_or_default();
     if provider != "ollama" && key.is_empty() { return Err(format!("Add an API key for {} in ClassWire AI settings.", provider)); }
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
     let (response, label) = match provider {
         "openai" => {
             let mut all = vec![json!({"role":"system","content":system})]; all.extend(clean_messages);
-            let response = client.post("https://api.openai.com/v1/chat/completions").bearer_auth(key)
-                .json(&json!({"model":model,"messages":all,"temperature":0.3}))
+            let mut payload=json!({"model":model,"messages":all,"temperature":0.2});if !openai_tools.is_empty(){payload["tools"]=json!(openai_tools);payload["tool_choice"]=json!("auto");}
+            let response = client.post("https://api.openai.com/v1/chat/completions").bearer_auth(key).json(&payload)
                 .send().await.map_err(|e| format!("Could not reach OpenAI: {e}"))?;
             (response, "OpenAI")
         },
         "anthropic" => {
+            let mut payload=json!({"model":model,"max_tokens":2200,"system":system,"messages":clean_messages});if !anthropic_tools.is_empty(){payload["tools"]=json!(anthropic_tools);}
             let response = client.post("https://api.anthropic.com/v1/messages")
                 .header("x-api-key", key).header("anthropic-version", "2023-06-01").header("content-type", "application/json")
-                .json(&json!({"model":model,"max_tokens":1800,"system":system,"messages":clean_messages}))
-                .send().await.map_err(|e| format!("Could not reach Anthropic: {e}"))?;
+                .json(&payload).send().await.map_err(|e| format!("Could not reach Anthropic: {e}"))?;
             (response, "Anthropic")
         },
         "gemini" => {
             let contents: Vec<Value> = clean_messages.iter().map(|m| json!({"role":if m["role"]=="assistant"{"model"}else{"user"},"parts":[{"text":m["content"]}]})).collect();
             let url = Url::parse_with_params(&format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"), &[("key",key.as_str())]).map_err(|e| e.to_string())?;
-            let payload=json!({"systemInstruction":{"parts":[{"text":system}]},"contents":contents,"generationConfig":{"temperature":0.2,"maxOutputTokens":2200}});
+            let mut payload=json!({"systemInstruction":{"parts":[{"text":system}]},"contents":contents,"generationConfig":{"temperature":0.2,"maxOutputTokens":2200}});if !gemini_tools.is_empty(){payload["tools"]=json!([{"functionDeclarations":gemini_tools}]);}
             let mut attempt=0u32;
             let response=loop {
                 let result=client.post(url.clone()).json(&payload).send().await.map_err(|e|format!("Could not reach Gemini: {e}"))?;
@@ -1786,7 +1791,8 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
         },
         "ollama" => {
             let mut all = vec![json!({"role":"system","content":system})]; all.extend(clean_messages);
-            let response = client.post("http://127.0.0.1:11434/api/chat").json(&json!({"model":model,"messages":all,"stream":false}))
+            let mut payload=json!({"model":model,"messages":all,"stream":false});if !openai_tools.is_empty(){payload["tools"]=json!(openai_tools);}
+            let response = client.post("http://127.0.0.1:11434/api/chat").json(&payload)
                 .send().await.map_err(|e| format!("Could not reach local Ollama at 127.0.0.1:11434: {e}"))?;
             (response, "Ollama")
         },
@@ -1800,15 +1806,16 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
         return Err(format!("{label} request failed (HTTP {}): {}",status.as_u16(),body.chars().take(900).collect::<String>()));
     }
     let value:Value=serde_json::from_str(&body).map_err(|_|format!("{label} returned invalid JSON."))?;
+    let mut tool_calls:Vec<Value>=Vec::new();
     let answer=match provider{
-        "openai"=>value.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").to_owned(),
-        "anthropic"=>value.get("content").and_then(Value::as_array).map(|p|p.iter().filter_map(|v|v.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
-        "gemini"=>value.pointer("/candidates/0/content/parts").and_then(Value::as_array).map(|p|p.iter().filter_map(|v|v.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
-        "ollama"=>value.pointer("/message/content").and_then(Value::as_str).unwrap_or("").to_owned(),
+        "openai"=>{let m=&value["choices"][0]["message"];if let Some(calls)=m.get("tool_calls").and_then(Value::as_array){for c in calls{let f=&c["function"];let a=f.get("arguments").and_then(Value::as_str).and_then(|s|serde_json::from_str::<Value>(s).ok()).unwrap_or_else(||f.get("arguments").cloned().unwrap_or(json!({})));if let Some(n)=f.get("name").and_then(Value::as_str){tool_calls.push(json!({"name":n,"arguments":a}));}}}m.get("content").and_then(Value::as_str).unwrap_or("").to_owned()},
+        "anthropic"=>{let mut out=Vec::new();if let Some(parts)=value.get("content").and_then(Value::as_array){for p in parts{if p.get("type").and_then(Value::as_str)==Some("tool_use"){tool_calls.push(json!({"name":p["name"],"arguments":p.get("input").cloned().unwrap_or(json!({}))}));}else if let Some(t)=p.get("text").and_then(Value::as_str){out.push(t.to_owned())}}}out.join("\n")},
+        "gemini"=>{let mut out=Vec::new();if let Some(parts)=value.pointer("/candidates/0/content/parts").and_then(Value::as_array){for p in parts{if let Some(c)=p.get("functionCall"){tool_calls.push(json!({"name":c["name"],"arguments":c.get("args").cloned().unwrap_or(json!({}))}));}else if let Some(t)=p.get("text").and_then(Value::as_str){out.push(t.to_owned())}}}out.join("\n")},
+        "ollama"=>{let m=&value["message"];if let Some(calls)=m.get("tool_calls").and_then(Value::as_array){for c in calls{let f=&c["function"];tool_calls.push(json!({"name":f["name"],"arguments":f.get("arguments").cloned().unwrap_or(json!({}))}));}}m.get("content").and_then(Value::as_str).unwrap_or("").to_owned()},
         _=>String::new()
     };
-    if answer.trim().is_empty(){return Err(format!("{label} did not return a text answer."));}
-    Ok(json!({"text":answer,"provider":provider,"model":model}))
+    if answer.trim().is_empty()&&tool_calls.is_empty(){return Err(format!("{label} did not return text or a tool call."));}
+    Ok(json!({"text":answer,"toolCalls":tool_calls,"provider":provider,"model":model}))
 }
 
 #[tauri::command]
@@ -1838,14 +1845,12 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let key=args.get("key").and_then(Value::as_str).unwrap_or("").trim();
             if !["openai","anthropic","gemini"].contains(&provider){return Err("Unsupported API-key provider.".into());}
             if key.len()<8||key.len()>8192{return Err("The API key is empty or too long.".into());}
+            Entry::new("ClassWire AI",provider).map_err(|e|format!("Could not open operating-system credential storage: {e}"))?.set_password(key).map_err(|e|format!("Could not save API key securely: {e}"))?;
             state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.insert(provider.to_owned(),key.to_owned());
             Ok(json!(true))
         },
-        "ai-clear-provider-key" => {
-            let provider=args.as_str().unwrap_or("");
-            state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.remove(provider);
-            Ok(json!(true))
-        },
+        "ai-clear-provider-key" => {let provider=args.as_str().unwrap_or("");if let Ok(entry)=Entry::new("ClassWire AI",provider){let _=entry.delete_credential();}state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.remove(provider);Ok(json!(true))},
+        "ai-has-provider-key" => {let provider=args.as_str().unwrap_or("");if !["openai","anthropic","gemini"].contains(&provider){return Ok(json!(false));}Ok(json!(Entry::new("ClassWire AI",provider).ok().and_then(|e|e.get_password().ok()).is_some()))},
         "ai-chat" => ai_provider_chat(&state,&args).await,
         "annotation-request" => annotation_request(&app, &state, &args).await,
         "test-desktop-notification" => { app.notification().builder().title("Schoology notification test").body("Desktop notifications are enabled for Schoology.").show().map_err(|e| format!("Could not show a desktop notification: {e}"))?; Ok(json!(true)) },

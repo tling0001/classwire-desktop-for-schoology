@@ -181,6 +181,7 @@
     schoolLookup: domain => invoke('school-lookup', domain),
     api: value => invoke('api', value),
     setAIProviderKey: value => invoke('ai-set-provider-key', value),
+    hasAIProviderKey: provider => invoke('ai-has-provider-key', provider),
     clearAIProviderKey: provider => invoke('ai-clear-provider-key', provider),
     aiChat: value => invoke('ai-chat', value),
     prepareWebSession,

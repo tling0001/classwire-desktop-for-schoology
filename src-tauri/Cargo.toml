@@ -1,6 +1,6 @@
 [package]
 name = "schoology-desktop-port"
-version = "2026.10.0-port.62"
+version = "2026.10.0-port.63"
 description = "Schoology Desktop Port native host"
 authors = ["Schoology Desktop Port"]
 edition = "2021"
@@ -34,3 +34,4 @@ md-5 = "0.10"
 base64 = "0.22"
 rand = "0.8"
 url = "2"
+keyring = { version = "3.6.3", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
