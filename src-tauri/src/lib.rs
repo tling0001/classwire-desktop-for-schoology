@@ -5,7 +5,7 @@ use rand::RngCore;
 use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
-use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
+use std::{fs, io::Write, path::{Path, PathBuf}, process::{Command, Stdio}, sync::{Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}, collections::HashMap, time::{SystemTime, UNIX_EPOCH}};
 use futures_util::StreamExt;
 use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -46,6 +46,7 @@ struct HostState {
     pending_login: Mutex<Option<PendingLogin>>,
     renderer_ready: Mutex<bool>,
     pending_deep_link: Mutex<Option<String>>,
+    ai_provider_keys: Mutex<HashMap<String, String>>,
     #[cfg(target_os = "android")]
     android_installer: Mutex<Option<tauri::plugin::PluginHandle<tauri::Wry>>>,
 }
@@ -1731,6 +1732,72 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
     Ok(json!({"text": text, "contentType": response_type, "status": status.as_u16()}))
 }
 
+
+async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, String> {
+    let provider = args.get("provider").and_then(Value::as_str).unwrap_or("");
+    let model = args.get("model").and_then(Value::as_str).unwrap_or("").trim();
+    if model.is_empty() || model.len() > 160 || !model.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':')) { return Err("Choose a valid AI model name.".into()); }
+    let messages = args.get("messages").and_then(Value::as_array).ok_or("AI conversation messages are missing.")?;
+    if messages.is_empty() || messages.len() > 24 { return Err("AI conversations must contain between 1 and 24 recent messages.".into()); }
+    let mut clean_messages = Vec::new();
+    for item in messages {
+        let role = item.get("role").and_then(Value::as_str).unwrap_or("");
+        let content = item.get("content").and_then(Value::as_str).unwrap_or("");
+        if !["user", "assistant"].contains(&role) { continue; }
+        if content.is_empty() || content.len() > 24000 { return Err("An AI message is empty or exceeds the 24 KB limit.".into()); }
+        clean_messages.push(json!({"role":role,"content":content}));
+    }
+    if clean_messages.is_empty() { return Err("There are no valid AI messages to send.".into()); }
+    let system = args.get("system").and_then(Value::as_str).unwrap_or("You are ClassWire AI, a read-only learning assistant.");
+    if system.len() > 12000 { return Err("AI instructions exceed the allowed size.".into()); }
+    let key = state.ai_provider_keys.lock().map_err(|_| "AI provider settings are unavailable.")?.get(provider).cloned().unwrap_or_default();
+    if provider != "ollama" && key.is_empty() { return Err(format!("Add an API key for {} in ClassWire AI settings.", provider)); }
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
+    let (response, label) = match provider {
+        "openai" => {
+            let mut all = vec![json!({"role":"system","content":system})]; all.extend(clean_messages);
+            let response = client.post("https://api.openai.com/v1/chat/completions").bearer_auth(key)
+                .json(&json!({"model":model,"messages":all,"temperature":0.3}))
+                .send().await.map_err(|e| format!("Could not reach OpenAI: {e}"))?;
+            (response, "OpenAI")
+        },
+        "anthropic" => {
+            let response = client.post("https://api.anthropic.com/v1/messages")
+                .header("x-api-key", key).header("anthropic-version", "2023-06-01").header("content-type", "application/json")
+                .json(&json!({"model":model,"max_tokens":1800,"system":system,"messages":clean_messages}))
+                .send().await.map_err(|e| format!("Could not reach Anthropic: {e}"))?;
+            (response, "Anthropic")
+        },
+        "gemini" => {
+            let contents: Vec<Value> = clean_messages.iter().map(|m| json!({"role":if m["role"]=="assistant"{"model"}else{"user"},"parts":[{"text":m["content"]}]})).collect();
+            let url = Url::parse_with_params(&format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"), &[("key",key.as_str())]).map_err(|e| e.to_string())?;
+            let response = client.post(url).json(&json!({"systemInstruction":{"parts":[{"text":system}]},"contents":contents,"generationConfig":{"temperature":0.3,"maxOutputTokens":1800}}))
+                .send().await.map_err(|e| format!("Could not reach Gemini: {e}"))?;
+            (response, "Gemini")
+        },
+        "ollama" => {
+            let mut all = vec![json!({"role":"system","content":system})]; all.extend(clean_messages);
+            let response = client.post("http://127.0.0.1:11434/api/chat").json(&json!({"model":model,"messages":all,"stream":false}))
+                .send().await.map_err(|e| format!("Could not reach local Ollama at 127.0.0.1:11434: {e}"))?;
+            (response, "Ollama")
+        },
+        _ => return Err("Unsupported AI provider. Choose OpenAI, Anthropic, Gemini, or Ollama.".into())
+    };
+    let status=response.status();
+    let body=response.text().await.map_err(|e|format!("{label} returned an unreadable response: {e}"))?;
+    if !status.is_success(){return Err(format!("{label} request failed (HTTP {}): {}",status.as_u16(),body.chars().take(900).collect::<String>()));}
+    let value:Value=serde_json::from_str(&body).map_err(|_|format!("{label} returned invalid JSON."))?;
+    let answer=match provider{
+        "openai"=>value.pointer("/choices/0/message/content").and_then(Value::as_str).unwrap_or("").to_owned(),
+        "anthropic"=>value.get("content").and_then(Value::as_array).map(|p|p.iter().filter_map(|v|v.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
+        "gemini"=>value.pointer("/candidates/0/content/parts").and_then(Value::as_array).map(|p|p.iter().filter_map(|v|v.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("\n")).unwrap_or_default(),
+        "ollama"=>value.pointer("/message/content").and_then(Value::as_str).unwrap_or("").to_owned(),
+        _=>String::new()
+    };
+    if answer.trim().is_empty(){return Err(format!("{label} did not return a text answer."));}
+    Ok(json!({"text":answer,"provider":provider,"model":model}))
+}
+
 #[tauri::command]
 async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: String, args: Option<Value>) -> Result<Value, String> {
     if name == "set-server-instance" {
@@ -1753,6 +1820,20 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
     let args = args.unwrap_or(Value::Null);
     match name.as_str() {
         "auth-state" => Ok(auth_state(&app).unwrap_or(Value::Null)),
+        "ai-set-provider-key" => {
+            let provider=args.get("provider").and_then(Value::as_str).unwrap_or("");
+            let key=args.get("key").and_then(Value::as_str).unwrap_or("").trim();
+            if !["openai","anthropic","gemini"].contains(&provider){return Err("Unsupported API-key provider.".into());}
+            if key.len()<8||key.len()>8192{return Err("The API key is empty or too long.".into());}
+            state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.insert(provider.to_owned(),key.to_owned());
+            Ok(json!(true))
+        },
+        "ai-clear-provider-key" => {
+            let provider=args.as_str().unwrap_or("");
+            state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.remove(provider);
+            Ok(json!(true))
+        },
+        "ai-chat" => ai_provider_chat(&state,&args).await,
         "annotation-request" => annotation_request(&app, &state, &args).await,
         "test-desktop-notification" => { app.notification().builder().title("Schoology notification test").body("Desktop notifications are enabled for Schoology.").show().map_err(|e| format!("Could not show a desktop notification: {e}"))?; Ok(json!(true)) },
         "renderer-deep-link-ready" => {

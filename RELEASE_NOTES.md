@@ -1,5 +1,17 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.61]
+
+### Added
+- Add the first ClassWire AI foundation with docked and floating assistant modes, a separate pop-out window, and locally stored conversation history.
+- Add provider adapters for OpenAI, Anthropic, Google Gemini, and local Ollama, with model selection and native in-memory API-key handling.
+- Add read-only Schoology context retrieval for courses, groups, assignments, upcoming events, grades, course materials, course updates, and the currently viewed page.
+
+### Security
+- Keep this milestone read-only: the assistant cannot submit assignments, send messages, publish posts, or modify grades.
+- Route provider requests through the native Tauri bridge; provider API keys remain in process memory and are not persisted to disk or conversation history.
+
+
 ## [2026.10.0-port.60]
 
 ### Improved
