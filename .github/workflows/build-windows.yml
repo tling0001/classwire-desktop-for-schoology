@@ -328,6 +328,30 @@ jobs:
           set -euo pipefail
           npm run prepare:tauri
           npx tauri ios init
+          # Tauri's iOS Xcode template sets LSRequiresIPhoneOS=true by default.
+          # Remove that iOS-only launch restriction for this Ad Hoc test IPA only.
+          # Re-run XcodeGen so the change is applied before Xcode signs the app.
+          IOS_PROJECT_SPEC="src-tauri/gen/apple/project.yml"
+          python3 - <<'PY'
+          from pathlib import Path
+          spec = Path("src-tauri/gen/apple/project.yml")
+          if not spec.is_file():
+              raise SystemExit(f"Generated iOS Xcode project spec is missing: {spec}")
+          text = spec.read_text()
+          setting = "        LSRequiresIPhoneOS: true" + chr(10)
+          if text.count(setting) != 1:
+              raise SystemExit("Expected exactly one Tauri LSRequiresIPhoneOS=true setting in the generated iOS project spec.")
+          spec.write_text(text.replace(setting, "", 1))
+          print("Removed the iOS-only LSRequiresIPhoneOS declaration from the Ad Hoc IPA project.")
+          PY
+          xcodegen generate --spec "$IOS_PROJECT_SPEC"
+          IOS_INFO_PLIST="$(find src-tauri/gen/apple -type f -path '*_iOS/Info.plist' -print -quit)"
+          test -n "$IOS_INFO_PLIST" && test -s "$IOS_INFO_PLIST" || { echo "Generated iOS app Info.plist was not found after XcodeGen." >&2; exit 1; }
+          if /usr/libexec/PlistBuddy -c 'Print :LSRequiresIPhoneOS' "$IOS_INFO_PLIST" >/dev/null 2>&1; then
+            echo "Generated iOS app Info.plist still requires the iPhone environment." >&2
+            exit 1
+          fi
+          echo "Verified generated iOS app Info.plist has no LSRequiresIPhoneOS restriction."
           APP_ICON_SET="src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset"
           test -s "$APP_ICON_SET/Contents.json" || {
             echo "Generated Xcode project is missing the Schoology AppIcon catalog." >&2
@@ -381,6 +405,11 @@ jobs:
           APP_INFO="$(find "$VALIDATE_DIR/Payload" -maxdepth 2 -type f -name Info.plist -print -quit)"
           APP_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")"
           test "$APP_BUNDLE_ID" = "com.schoologytauri.app" || { echo "Unexpected iOS bundle ID: $APP_BUNDLE_ID" >&2; exit 1; }
+          if /usr/libexec/PlistBuddy -c 'Print :LSRequiresIPhoneOS' "$APP_INFO" >/dev/null 2>&1; then
+            echo "Exported IPA still contains LSRequiresIPhoneOS; refusing to publish a Mac-restricted test IPA." >&2
+            exit 1
+          fi
+          echo "Verified exported IPA is not marked as requiring an iPhone environment."
           mkdir -p "$RUNNER_TEMP/ClassWire-AdHoc-Export"
           cp "$IPA" "$RUNNER_TEMP/ClassWire-AdHoc-Export/ClassWire.ipa"
       - name: Create QR installation manifest

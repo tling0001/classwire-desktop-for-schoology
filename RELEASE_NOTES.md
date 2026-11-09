@@ -1,5 +1,14 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.69]
+
+### Fixed
+- Remove Tauri's default `LSRequiresIPhoneOS` declaration from the generated Ad Hoc IPA project so the signed iOS app can be tested on Apple silicon Macs.
+- Regenerate the iOS Xcode project before signing and verify the exported IPA no longer carries the iPhone-only launch restriction.
+
+### Changed
+- Bump the port version to 2026.10.0-port.69.
+
 ## [2026.10.0-port.68]
 
 ### Fixed
