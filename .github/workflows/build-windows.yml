@@ -58,6 +58,9 @@ jobs:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri -> target
       - name: Install Linux Tauri dependencies
         if: matrix.platform == 'linux'
         run: |
@@ -488,7 +491,7 @@ jobs:
 
           version, source, destination = sys.argv[1:]
           text = Path(source).read_text(encoding="utf-8")
-          sections = re.split(r"(?m)(?=^## \[)", text)
+          sections = re.split(r"(?m)(?=^## )", text)
           selected = []
           found_current = False
           def is_immediately_previous_port(candidate, current_version):
@@ -500,15 +503,14 @@ jobs:
                   and int(candidate_match.group(2)) == int(current_match.group(2)) - 1
               )
           for section in sections:
-              if not section.startswith("## ["):
-                  continue
-              match = re.match(r"## \[([^\]]+)\]", section)
+              match = re.match(r"## (?:\[([^\]]+)\]|(\S+))", section)
               if not match:
                   continue
-              current = match.group(1) == version
+              section_version = match.group(1) or match.group(2)
+              current = section_version == version
               failed = (
                   bool(re.search(r"(?m)^### Failed build/release attempt\s*$", section))
-                  and is_immediately_previous_port(match.group(1), version)
+                  and is_immediately_previous_port(section_version, version)
               )
               if current or failed:
                   selected.append(section.strip())

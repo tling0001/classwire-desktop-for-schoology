@@ -53,10 +53,11 @@ let rendererSource = fs.readFileSync(renderer, 'utf8');
 const packageJsonForNotes = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const releaseNotesPath = path.join(root, 'RELEASE_NOTES.md');
 const releaseNotesSource = fs.readFileSync(releaseNotesPath, 'utf8');
-const releaseSections = releaseNotesSource.split(/(?=^## \[)/m);
+// Accept both the current bracketed format and legacy unbracketed headings.
+const releaseSections = releaseNotesSource.split(/(?=^## )/m);
 const currentReleaseSection = releaseSections.find(section => {
-  const match = section.match(/^## \[([^\]]+)\]/m);
-  return match && match[1] === packageJsonForNotes.version;
+  const match = section.match(/^## (?:\[([^\]]+)\]|([^\s]+))/m);
+  return match && (match[1] || match[2]) === packageJsonForNotes.version;
 });
 if (!currentReleaseSection) throw new Error(`No release notes found for ${packageJsonForNotes.version}`);
 const releaseLines = currentReleaseSection.split(/\r?\n/).slice(1);

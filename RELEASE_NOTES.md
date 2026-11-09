@@ -1,4 +1,18 @@
-## 2026.10.0-port.67
+# ClassWire Desktop Port
+
+## [2026.10.0-port.68]
+
+### Fixed
+- Fix renderer preparation to recognize both bracketed and unbracketed release-note version headings.
+- Fix GitHub release publishing to recognize the same supported heading formats and include notes from the immediately previous failed port attempt.
+- Point the Rust cache at the actual `src-tauri` Cargo workspace instead of the repository root.
+
+### Changed
+- Bump the port version to 2026.10.0-port.68.
+
+## [2026.10.0-port.67]
+
+### Failed build/release attempt
 
 ### Added
 - Add Google Cloud project selection so each user can create a Gemini authorization key in a project they own or are authorized to manage.
@@ -15,13 +29,11 @@
 - Request Cloud Platform access only when the user chooses Google-based Gemini setup, and explain project permissions, usage, and billing in the UI.
 - Bump the port version to 2026.10.0-port.67.
 
-## 2026.10.0-port.66
+## [2026.10.0-port.66]
 - Add Google desktop OAuth sign-in with PKCE using the system browser and a loopback callback.
 - Provision a dedicated ClassWire service account and Gemini authorization API key, restricted to the Gemini API.
 - Store the Google OAuth client secret, refresh token, and Gemini key in the operating-system credential vault; do not create or store service-account JSON private keys.
 - Keep OpenAI, Anthropic, and Ollama available alongside Gemini in AI provider settings.
-
-# ClassWire Desktop Port
 
 ## [2026.10.0-port.65]
 
