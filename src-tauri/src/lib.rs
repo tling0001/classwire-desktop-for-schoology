@@ -2075,7 +2075,72 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
     Ok(json!({"connected":true,"projectId":project_id,"serviceAccount":service_account_email,"keyCreated":true}))
 }
 
+async fn ai_provider_models(provider: &str) -> Result<Value, String> {
+    if !["openai", "anthropic", "gemini", "ollama"].contains(&provider) {
+        return Err("Choose Gemini, OpenAI, Anthropic, or Ollama.".into());
+    }
+    let key = if provider == "ollama" {
+        String::new()
+    } else {
+        Entry::new("ClassWire AI", provider)
+            .map_err(|e| format!("Could not open operating-system credential storage: {e}"))?
+            .get_password()
+            .map_err(|_| format!("Add an API key for {} in ClassWire AI settings before loading models.", provider))?
+    };
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(12))
+        .build().map_err(|e| e.to_string())?;
+    let response = match provider {
+        "openai" => client.get("https://api.openai.com/v1/models").bearer_auth(&key).send().await
+            .map_err(|e| format!("Could not reach OpenAI model discovery: {e}"))?,
+        "anthropic" => client.get("https://api.anthropic.com/v1/models?limit=100")
+            .header("x-api-key", &key).header("anthropic-version", "2023-06-01").send().await
+            .map_err(|e| format!("Could not reach Anthropic model discovery: {e}"))?,
+        "gemini" => client.get("https://generativelanguage.googleapis.com/v1beta/models")
+            .header("x-goog-api-key", &key).send().await
+            .map_err(|e| format!("Could not reach Gemini model discovery: {e}"))?,
+        "ollama" => client.get("http://127.0.0.1:11434/api/tags").send().await
+            .map_err(|e| format!("Could not reach local Ollama at 127.0.0.1:11434: {e}"))?,
+        _ => unreachable!()
+    };
+    let status = response.status();
+    let body = response.text().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("{} model discovery failed (HTTP {}): {}", provider, status.as_u16(), body.chars().take(700).collect::<String>()));
+    }
+    let root: Value = serde_json::from_str(&body).map_err(|e| format!("{} returned invalid model-list JSON: {e}", provider))?;
+    let mut models: Vec<String> = match provider {
+        "openai" => root.get("data").and_then(Value::as_array).into_iter().flatten().filter_map(|item| {
+            let id = item.get("id")?.as_str()?.to_owned();
+            let lower = id.to_ascii_lowercase();
+            let chat_family = lower.starts_with("gpt-") || lower.starts_with("o1") || lower.starts_with("o3") || lower.starts_with("o4");
+            let excluded = ["audio", "realtime", "transcribe", "tts", "embedding", "moderation"].iter().any(|part| lower.contains(part));
+            (chat_family && !excluded).then_some(id)
+        }).collect(),
+        "anthropic" => root.get("data").and_then(Value::as_array).into_iter().flatten().filter_map(|item| {
+            let id = item.get("id")?.as_str()?;
+            id.starts_with("claude-").then(|| id.to_owned())
+        }).collect(),
+        "gemini" => root.get("models").and_then(Value::as_array).into_iter().flatten().filter_map(|item| {
+            let supported = item.get("supportedGenerationMethods").and_then(Value::as_array).is_some_and(|methods| methods.iter().any(|method| method.as_str() == Some("generateContent")));
+            if !supported { return None; }
+            item.get("name").and_then(Value::as_str).map(|name| name.strip_prefix("models/").unwrap_or(name).to_owned())
+        }).collect(),
+        "ollama" => root.get("models").and_then(Value::as_array).into_iter().flatten().filter_map(|item| {
+            item.get("name").or_else(|| item.get("model")).and_then(Value::as_str).map(str::to_owned)
+        }).collect(),
+        _ => Vec::new()
+    };
+    models.sort();
+    models.dedup();
+    Ok(json!({"models": models}))
+}
+
 async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, String> {
+    if args.get("listModels").and_then(Value::as_bool).unwrap_or(false) {
+        return ai_provider_models(args.get("provider").and_then(Value::as_str).unwrap_or("")).await;
+    }
     let provider = args.get("provider").and_then(Value::as_str).unwrap_or("");
     let model = args.get("model").and_then(Value::as_str).unwrap_or("").trim();
     if model.is_empty() || model.len() > 160 || !model.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':')) { return Err("Choose a valid AI model name.".into()); }
