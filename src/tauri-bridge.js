@@ -196,6 +196,7 @@
     checkAssignmentUploadPermission: value => invoke('check-assignment-upload-permission', value),
     uploadSchoologyFile: value => invoke('upload-schoology-file', value),
     updateAssignmentGrade: value => invoke('update-assignment-grade', value),
+    updateAssignmentRubricGrade: value => invoke('update-assignment-rubric-grade', value),
     checkForUpdates: () => invoke('check-for-updates'),
     checkForSwiftUIUpdates: () => invoke('check-for-swiftui-updates'),
     downloadExpressive: () => invoke('download-expressive'),
