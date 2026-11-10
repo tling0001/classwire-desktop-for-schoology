@@ -1,5 +1,15 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.73]
+
+### AI model selection
+- Add a model picker beneath the chat composer. Gemini, OpenAI, and Anthropic model IDs are discovered through authenticated official model-list APIs; Ollama models are detected from the local Ollama server.
+- Keep the saved model available if model discovery is temporarily unavailable and persist the selected model independently for each provider.
+
+### Changed
+- Bump the desktop version to 2026.10.0-port.73.
+
+
 ## [2026.10.0-port.72]
 
 ### AI assignments
