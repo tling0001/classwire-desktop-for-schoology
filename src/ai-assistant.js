@@ -8,6 +8,7 @@ const SYSTEM="You are ClassWire AI, an expert Schoology learning assistant. Use 
 function read(k,d){try{return JSON.parse(localStorage.getItem(k)||'null')??d}catch{return d}}
 A.getThemeMode?.().then(mode=>{document.documentElement.dataset.theme=mode==='dark'?'dark':mode==='light'?'light':(window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light')}).catch(()=>{});
 let prefs=read(PREF,{provider:'gemini',models:{},mode:'docked'}),chats=read(STORE,[]),activeId=chats[0]?.id||null,panel=null,busy=false,drag=null,pendingAction=null,lastContext=null,lastPrompt='',setupShown=false;
+let teacherMode=false,teacherModePromise=null,teacherModeResolved=false;
 if(!prefs.provider)prefs.provider='gemini';
 if(prefs.provider==='openai'&&!prefs.providerDefaultMigrated){prefs.provider='gemini';prefs.providerDefaultMigrated=true;localStorage.setItem(PREF,JSON.stringify(prefs));}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,6 +24,27 @@ function rows(x,...keys){for(const k of keys){if(Array.isArray(x?.[k]))return x[
 function context(){let c=null;try{c=window.__classWireAIContext?.()||null}catch{}if(c){try{localStorage.setItem(CTX,JSON.stringify({...c,capturedAt:Date.now()}))}catch{}return c}return read(CTX,{page:'unknown',title:'ClassWire',pageText:''})}
 async function api(path,params){return A.api({path,params:params||{}})}
 async function courses(uid){const x=await api('users/'+uid+'/sections',{start:0,limit:200});return rows(x,'section','sections').map(c=>({id:c.id||c.section_id,title:c.course_title||c.courseTitle||c.title||c.section_title,section:c.section_title||c.sectionTitle,admin:c.admin===true||String(c.admin)==='1'}))}
+
+async function refreshTeacherMode(){
+ if(teacherModeResolved)return teacherMode;
+ if(teacherModePromise)return teacherModePromise;
+ teacherModePromise=(async()=>{
+  try{
+   const auth=await A.authState(),uid=uidOf(auth);
+   if(!uid)return false;
+   const enrolled=await courses(uid);
+   teacherMode=enrolled.some(course=>course.admin===true);
+   teacherModeResolved=true;
+  }catch(error){console.warn('Could not determine ClassWire AI account role:',error)}
+  if(panel?.isConnected&&chat().messages.length===0){
+   const welcome=panel.querySelector('#aiMessages');
+   if(welcome)welcome.innerHTML=welcomeHtml();
+  }
+  return teacherMode;
+ })().finally(()=>{teacherModePromise=null});
+ return teacherModePromise;
+}
+
 async function groups(uid){const x=await api('users/'+uid+'/groups',{start:0,limit:100});return rows(x,'group','groups').map(g=>({id:g.id||g.group_id,name:g.name||g.title,description:g.description||''}))}
 async function events(uid){const x=await api('users/'+uid+'/events',{start_date:today(),start:0,limit:100});return rows(x,'event','events').map(e=>({id:e.id,title:e.title,type:e.type,due:e.start||e.due||e.end,sectionId:e.section_id||e.sectionId,assignmentId:e.assignment_id||e.assignmentId,description:e.description||''}))}
 async function assignments(uid,ctx){const cs=ctx.course?.id?[{id:ctx.course.id,title:ctx.course.title}]:await courses(uid),out=[];for(let i=0;i<Math.min(cs.length,30);i+=5){const result=await Promise.all(cs.slice(i,i+5).map(async c=>{try{const x=await api('sections/'+c.id+'/assignments',{start:0,limit:200});return rows(x,'assignment','assignments').map(a=>({id:a.id||a.assignment_id,title:a.title,due:a.due||a.due_date||a.dueDate,description:a.description||'',points:a.max_points||a.maxPoints,sectionId:c.id,course:c.title}))}catch(e){return[{course:c.title,error:String(e.message||e)}]}}));out.push(...result.flat())}return out}
@@ -178,9 +200,43 @@ async function runAITool(name,a,ctx){
 
 function append(role,content){const c=chat();c.messages.push({role,content:String(content),at:Date.now()});c.updated=Date.now();if(role==='user'&&c.messages.filter(m=>m.role==='user').length===1)c.title=String(content).slice(0,50);save()}
 function renderText(s){const p=/\[\[(course|group|assignment):(\d+)(?::(\d+))?\|([^\]]+)\]\]/g;return esc(s).replace(p,(_,kind,id,section,title)=>'<a href="#" class="aiCitation" data-ai-nav="'+kind+'" data-ai-id="'+id+'" data-ai-section="'+(section||'')+'">'+title+'</a>').replace(/\n/g,'<br>')}
-function messagesHtml(){const c=chat();return c.messages.map(m=>'<article class="aiMessage '+m.role+'"><div class="aiMessageRole">'+(m.role==='user'?'You':'ClassWire AI')+'</div><div class="aiMessageBody">'+renderText(m.content)+'</div></article>').join('')||'<div class="aiWelcome"><div class="aiWelcomeHero"><span class="aiWelcomeMark">✦</span><span class="aiWelcomeEyebrow">YOUR SCHOOLWORK, IN CONTEXT</span></div><h2>What can I help you with?</h2><p>Ask naturally. I can look across your Schoology courses and help make sense of the work in front of you.</p><div class="aiCapabilityRow"><span>Courses</span><span>Assignments</span><span>Grades</span><span>Messages</span></div><div class="aiPrompts"><button data-ai-prompt="What assignments are due soon?"><span class="aiPromptIcon">◷</span><span><b>Plan my week</b><small>What is due soon?</small></span><span class="aiPromptArrow">↗</span></button><button data-ai-prompt="Summarize my courses"><span class="aiPromptIcon">▦</span><span><b>Explore my courses</b><small>Give me a quick overview</small></span><span class="aiPromptArrow">↗</span></button><button data-ai-prompt="Explain the assignment I am viewing"><span class="aiPromptIcon">✎</span><span><b>Understand this assignment</b><small>Explain the instructions</small></span><span class="aiPromptArrow">↗</span></button><button data-ai-prompt="Show my grades for this course"><span class="aiPromptIcon">◫</span><span><b>Review my progress</b><small>Show my grades</small></span><span class="aiPromptArrow">↗</span></button></div><p class="aiTrustNote"><span>✓</span> You stay in control. Changes always need your confirmation.</p></div>'}
+function welcomeHtml(){
+ const prompts=teacherMode?[
+  ['◫','Review class activity','Summarize recent course updates','Summarize recent updates and upcoming work across my courses.'],
+  ['▤','Plan a lesson','Build a lesson from course materials','Help me create a lesson outline using the materials in my current course. Include learning objectives, activities, and a short assessment.'],
+  ['✎','Draft an announcement','Write an update for students','Draft a concise course announcement about upcoming work. Do not publish it.'],
+  ['▦','Find key materials','Locate resources for the next lesson','Find and summarize the most relevant materials in my current course for the next lesson.'],
+  ['✓','Prepare a study guide','Create review topics for students','Create a student-friendly study guide using the learning materials in my current course.']
+ ]:[
+  ['◷','Plan my week','What is due soon?','What assignments are due soon?'],
+  ['✎','Understand an assignment','Explain the instructions','Explain the assignment I am viewing.'],
+  ['◫','Review my grades','Check my course progress','Show my grades for my courses.'],
+  ['▦','Find course materials','Locate a resource I need','Find the materials in my current course that are relevant to my upcoming assignments.'],
+  ['✦','Make a study guide','Prepare for an upcoming test','Help me make a study guide using my course materials and upcoming assignments.']
+ ];
+ return '<div class="aiWelcome"><div class="aiWelcomeHero"><span class="aiWelcomeMark">✦</span><span class="aiWelcomeEyebrow">YOUR SCHOOLWORK, IN CONTEXT</span></div><h2>'+(teacherMode?'How can I support your teaching?':'What can I help you with?')+'</h2><p>'+(teacherMode?'Plan lessons, review course activity, and prepare clear updates for your students.':'Ask naturally. I can look across your Schoology courses and help make sense of the work in front of you.')+'</p><div class="aiCapabilityRow"><span>Courses</span><span>Assignments</span><span>Materials</span><span>Messages</span></div><div class="aiPrompts">'+prompts.map(item=>'<button data-ai-prompt="'+esc(item[3])+'"><span class="aiPromptIcon">'+item[0]+'</span><span><b>'+esc(item[1])+'</b><small>'+esc(item[2])+'</small></span><span class="aiPromptArrow">↗</span></button>').join('')+'</div><p class="aiTrustNote"><span>✓</span> You stay in control. Changes always need your confirmation.</p></div>';
+}
+function messagesHtml(){const c=chat();return c.messages.map(m=>'<article class="aiMessage '+m.role+'"><div class="aiMessageRole">'+(m.role==='user'?'You':'ClassWire AI')+'</div><div class="aiMessageBody">'+renderText(m.content)+'</div></article>').join('')||welcomeHtml()}
 function panelHtml(){return '<section id="classWireAIPanel" class="aiPanel '+(prefs.mode==='floating'?'floating':'docked')+'" aria-label="ClassWire AI"><header class="aiHeader"><div class="aiHeaderIdentity"><span class="aiMark">✦</span><span><b>ClassWire AI</b><small><i class="aiProviderDot"></i>'+esc(provider()[1])+'</small></span></div><div class="aiHeaderActions"><button data-ai-action="new" title="New conversation" aria-label="New conversation">＋</button><button data-ai-action="mode" title="Toggle docked/floating" aria-label="Toggle layout">◫</button><button data-ai-action="popout" title="Pop out assistant" aria-label="Pop out assistant">↗</button><button data-ai-action="settings" title="AI settings" aria-label="AI settings">⚙</button><button data-ai-action="close" title="Close assistant" aria-label="Close assistant">×</button></div></header><div class="aiContextBar"><span class="aiContextDot"></span><span id="aiContextLabel">Current Schoology page</span><button data-ai-action="context" title="Refresh page context">↻</button></div><div class="aiUtilityRow"><div class="aiHistorySearch"><span>⌕</span><input id="aiHistoryQuery" type="search" placeholder="Search chats…" aria-label="Search conversation history"><div id="aiHistoryResults" hidden></div></div></div><div id="aiMessages" class="aiMessages">'+messagesHtml()+'</div><div id="aiStatus" class="aiStatus" role="status"></div><form id="aiComposer" class="aiComposer"><div class="aiComposerShell"><textarea id="aiPrompt" rows="2" placeholder="Ask anything about your Schoology work…" aria-label="Ask ClassWire AI"></textarea><div class="aiComposerFooter"><select id="aiModelPicker" class="aiModelPicker" aria-label="Choose AI model" title="Choose AI model"><option value="'+esc(model())+'">'+esc(model())+'</option></select><button type="submit" aria-label="Send message">↑</button></div></div><div class="aiComposerMeta"><span>AI can make mistakes. Check important details.</span><span>Schoology data stays in your session</span></div></form></section>'}
-function ensure(){if(POP){const root=document.getElementById('ai-popout-root');if(!root.querySelector('#classWireAIPanel'))root.innerHTML=panelHtml();panel=root.querySelector('#classWireAIPanel');panel.classList.add('popout');bind();return panel}if(!panel||!panel.isConnected){document.getElementById('classWireAIPanel')?.remove();document.body.insertAdjacentHTML('beforeend',panelHtml());panel=document.getElementById('classWireAIPanel');bind()}return panel}
+function ensure(){
+ if(POP){
+  const root=document.getElementById('ai-popout-root');
+  if(!root.querySelector('#classWireAIPanel'))root.innerHTML=panelHtml();
+  panel=root.querySelector('#classWireAIPanel');
+  panel.classList.add('popout');
+  bind();
+  refreshTeacherMode();
+  return panel;
+ }
+ if(!panel||!panel.isConnected){
+  document.getElementById('classWireAIPanel')?.remove();
+  document.body.insertAdjacentHTML('beforeend',panelHtml());
+  panel=document.getElementById('classWireAIPanel');
+  bind();
+ }
+ refreshTeacherMode();
+ return panel;
+}
 function setOpen(open){if(POP)return;const p=ensure();p.classList.toggle('open',!!open);document.body.classList.toggle('aiDocked',!!open&&prefs.mode==='docked');document.body.classList.toggle('aiFloating',!!open&&prefs.mode==='floating');if(open){refreshLabel();void maybeSetup();setTimeout(()=>document.getElementById('aiPrompt')?.focus(),50)}}
 function refreshLabel(){const c=context(),el=document.getElementById('aiContextLabel');if(el)el.textContent=(c.course?.title?c.course.title+' · ':'')+(c.assignment?'Assignment · ':'')+(c.title||'Current page')}
 function status(s){const el=document.getElementById('aiStatus');if(el)el.textContent=s||''}

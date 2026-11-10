@@ -1,5 +1,15 @@
 # Release notes
 
+## [2026.10.0-port.116]
+
+### Added
+- Add teacher-specific ClassWire AI quick starts for lesson planning, course activity review, announcement drafting, and course materials; retain student-focused assignment, grade, and study prompts for student accounts.
+- Determine the teacher experience from the authenticated user's Schoology course admin flags.
+
+### Changed
+- Bump the Tauri, npm, and Rust package versions to `2026.10.0-port.116`.
+
+
 ## [2026.10.0-port.115]
 
 ### Added
