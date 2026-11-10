@@ -1,3 +1,15 @@
+# Release notes
+
+## [2026.10.0-port.112]
+
+### Fixed
+- Use Puter's documented in-page authentication dialog when available, avoiding the popup-blocked sign-in path in the Tauri webview; retain the standard sign-in call as a compatibility fallback.
+- Time out stalled Puter model-catalogue requests after 25 seconds and show an actionable error instead of leaving the composer model picker disabled indefinitely.
+- Remove the duplicate Settings action from the AI utility row while retaining the header Settings control.
+
+### Build
+- Synchronize the Tauri, npm, and Rust package versions at `2026.10.0-port.112`.
+
 # ClassWire Desktop Port
 
 ## [2026.10.0-port.111]
