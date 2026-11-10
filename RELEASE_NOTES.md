@@ -1,5 +1,15 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.110]
+
+### Added
+- Add Puter as an AI provider using the official Puter.js browser SDK. Users connect with Puter's own sign-in popup; authentication remains in the WebView's website session and is not copied into ClassWire's API-key vault.
+- Discover available Puter models dynamically through Puter's model catalogue and use the selected model for chat.
+- Support Puter function calling through the existing Schoology AI tool loop, retaining the app's confirmation step for write actions.
+
+### Changed
+- Bump the desktop version to 2026.10.0-port.110.
+
 ## [2026.10.0-port.73]
 
 ### AI model selection
