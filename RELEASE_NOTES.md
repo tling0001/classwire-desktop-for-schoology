@@ -1,5 +1,17 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.72]
+
+### AI assignments
+- Allow ClassWire AI to prepare rich-text assignment submissions from Markdown, preserving paragraphs, headings, bold, italic, inline code, links, and ordered or unordered lists as safe Schoology HTML.
+- Show the Markdown proposal for review and retain the separate explicit confirmation before submitting.
+
+### AI chat
+- Explicitly pin user messages to the trailing edge and AI replies to the leading edge in the chat timeline.
+
+### Changed
+- Bump the desktop version to 2026.10.0-port.72.
+
 ## [2026.10.0-port.71]
 
 ### Fixed
