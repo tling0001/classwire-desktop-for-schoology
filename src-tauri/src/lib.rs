@@ -11,7 +11,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::menu::{ContextMenu, Menu, MenuItem};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder};
+use tauri::webview::{DownloadEvent, NewWindowResponse, PermissionKind, PermissionResponse, WebviewBuilder, WebviewWindowBuilder};
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
 use tauri_plugin_dialog::DialogExt;
@@ -2563,6 +2563,63 @@ pub fn run() {
     );
     let builder = builder
         .setup(|app| {
+            // Tauri's config-created main webview has no per-window new-window
+            // callback. Recreate it from the same WindowConfig with a native
+            // popup handler so OAuth flows can use a real child webview and keep
+            // window.opener/postMessage intact.
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let mut main_config = app.config().app.windows.iter()
+                    .find(|window| window.label == "main-template")
+                    .cloned()
+                    .ok_or_else(|| std::io::Error::other("The main window template is missing."))?;
+                main_config.label = "main".to_owned();
+
+                if let Some(template) = app.get_webview_window("main-template") {
+                    template.hide().map_err(|e| std::io::Error::other(format!("Could not hide the startup window template: {e}")))?;
+                }
+
+                let popup_app = app.handle().clone();
+                let main_window = WebviewWindowBuilder::from_config(app, &main_config)
+                    .map_err(|e| std::io::Error::other(format!("Could not configure the main window: {e}")))?
+                    .on_new_window(move |url, features| {
+                        if !matches!(url.scheme(), "https" | "http" | "about") {
+                            return NewWindowResponse::Deny;
+                        }
+                        let popup_label = format!("auth-popup-{}", random_nonce());
+                        let popup_url = match Url::parse("about:blank") {
+                            Ok(value) => WebviewUrl::External(value),
+                            Err(_) => return NewWindowResponse::Deny,
+                        };
+                        let popup_app = popup_app.clone();
+                        let builder = WebviewWindowBuilder::new(&popup_app, popup_label, popup_url)
+                            .window_features(features)
+                            .title(url.as_str())
+                            .on_navigation(|next| {
+                                if next.scheme() == "https" || next.scheme() == "about" {
+                                    return true;
+                                }
+                                let host = next.host_str().unwrap_or_default();
+                                (next.scheme() == "http" && matches!(host, "localhost" | "127.0.0.1" | "tauri.localhost"))
+                                    || (next.scheme() == "tauri" && host == "localhost")
+                            });
+                        match builder.build() {
+                            Ok(window) => NewWindowResponse::Create { window },
+                            Err(error) => {
+                                eprintln!("Could not create authentication popup: {error}");
+                                NewWindowResponse::Deny
+                            }
+                        }
+                    })
+                    .visible(true)
+                    .build()
+                    .map_err(|e| std::io::Error::other(format!("Could not create the popup-enabled main window: {e}")))?;
+
+                if let Some(template) = app.get_webview_window("main-template") {
+                    template.close().map_err(|e| std::io::Error::other(format!("Could not close the startup window template: {e}")))?;
+                }
+                let _ = main_window;
+            }
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 #[cfg(not(target_os = "macos"))]
