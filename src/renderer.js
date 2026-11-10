@@ -1409,22 +1409,47 @@ function showAssignmentActionMenu(){
   const dismiss=e=>{if(!menu.contains(e.target)&&e.target!==plus){menu.remove();document.removeEventListener('mousedown',dismiss)}};setTimeout(()=>document.addEventListener('mousedown',dismiss),0);
 }
 
+async function loadAllSchoologyPages(path,baseParams={},keys=[]){
+ const rows=[];
+ for(let page=0;page<100;page++){
+  const start=page*200;
+  const response=await A.api({path,params:{...baseParams,start,limit:200}});
+  let items=[];
+  const candidates=[response,response?.data,response?.result,response?.data?.data];
+  for(const candidate of candidates){
+   if(!candidate||typeof candidate!=='object')continue;
+   for(const key of keys){
+    const value=candidate[key];
+    if(Array.isArray(value)){items=value;break}
+    if(value&&typeof value==='object'){
+     const nested=Object.values(value).find(Array.isArray);
+     if(nested){items=nested;break}
+    }
+   }
+   if(items.length||keys.some(key=>Array.isArray(candidate[key])))break;
+  }
+  rows.push(...items);
+  if(items.length<200)break;
+ }
+ return rows;
+}
+
 async function openAssignmentSubmissions(sectionId,assignmentId,assignment,isTeacher){
   const c=(state.assignmentLandscape&&document.getElementById('assignmentSubmissionsPane'))||(document.getElementById('assignmentTabContent')||document.getElementById('content'));if(!c)return;
   const gradeItemId=assignment.__gradeItemId||assignment.grade_item_id||assignment.gradeItemId||assignment.gradeitem_id||assignment.gradeItemID||assignmentId;
   c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div>';
   try{
     if(isTeacher){
-      const [enr,grades,subs]=await Promise.all([
-        A.api({path:`sections/${sectionId}/enrollments`,params:{enrollment_status:1,limit:200}}),
-        A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,limit:200}}),
-        A.api({path:`sections/${sectionId}/submissions/${gradeItemId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',limit:200}}).catch(()=>({}))
+      const [allEnrollments,gradesArr,revisions]=await Promise.all([
+        loadAllSchoologyPages(`sections/${sectionId}/enrollments`,{enrollment_status:1},['enrollment','enrollments','items']),
+        loadAllSchoologyPages(`sections/${sectionId}/grades`,{assignment_id:gradeItemId},['grade','grades','items']),
+        loadAllSchoologyPages(`sections/${sectionId}/submissions/${gradeItemId}`,{with_attachments:'TRUE',all_revisions:'TRUE'},['revision','revisions','items']).catch(()=>[])
       ]);
-      const enrollments=(enr.enrollment||enr.enrollments||[]).filter(e=>String(e.admin)!=='1'&&String(e.status||1)==='1');
+      const enrollments=allEnrollments.filter(e=>String(e.admin)!=='1'&&String(e.status||1)==='1');
       const profileMap={},needsAvatar=enrollments.filter(e=>(e.uid||e.user_id)&&!dialogPersonAvatar(e,{}));
       for(let i=0;i<needsAvatar.length;i+=12)await Promise.all(needsAvatar.slice(i,i+12).map(async e=>{const uid=e.uid||e.user_id;try{const q=await A.api({path:'users/'+uid,params:{picture_size:'sm'}});const options=[q?.user,q?.data?.user,q?.profile,q?.data?.profile,q?.data?.data?.user,q?.data,q];profileMap[String(uid)]=options.find(v=>v&&typeof v==='object'&&(v.picture_url||v.pictureUrl||v.picture||v.avatar_url||v.avatarUrl||v.photo_url||v.photoUrl||v.profile_info||v.user||v.name_display||v.display_name))||{}}catch{}}));
-      const gradesArr=grades.grades?.grade||grades.grade||[];const gmap={};gradesArr.forEach(g=>gmap[String(g.enrollment_id)]=g);
-      const revisions=subs.revision||subs.revisions||[];const smap={};revisions.forEach(r=>{const uid=String(r.uid||r.user_id||'');if(uid&&!smap[uid])smap[uid]=r});
+      const gmap={};gradesArr.forEach(g=>gmap[String(g.enrollment_id)]=g);
+      const smap={};revisions.forEach(r=>{const uid=String(r.uid||r.user_id||'');if(uid&&!smap[uid])smap[uid]=r});
       enrollments.sort((a,b)=>String(a.name_last||'').localeCompare(String(b.name_last||''))||String(a.name_first||'').localeCompare(String(b.name_first||'')));
       c.innerHTML=`<section class="gradeDropboxAndroid"><div class="gradeDropboxHeader"><b>${esc(assignment.title||'Assignment')}</b><span>${esc(assignment.max_points!=null?'/ '+assignment.max_points:'')}</span></div><div class="gradeStudentList">${enrollments.map(e=>{const g=gmap[String(e.id)]||{};const r=smap[String(e.uid||e.user_id)];const score=g.grade??g.calculated_grade??'';const status=r?(String(r.draft)==='1'?'Draft':(String(r.late)==='1'?'Late':'Submitted')):'Not submitted';const profile=profileMap[String(e.uid||e.user_id)]||{};const avatar=dialogPersonAvatar(e,profile);const display=dialogPersonName(e,profile);const name=display!=='Schoology user'?display:[e.name_first,e.name_last].filter(Boolean).join(' ')||e.name||'Student';const avatarHtml=avatar?`<img src="${esc(avatar)}" alt="">`:esc(String(name).trim().charAt(0)||'?');return `<button class="gradeStudentRow" data-grade-student="${esc(e.uid||e.user_id)}" data-grade-enrollment="${esc(e.id)}"><span class="gradeStudentAvatar">${avatarHtml}</span><span class="gradeStudentName"><b>${esc(name)}</b><small>${esc(status)}</small></span><span class="gradeStudentScore">${esc(score===''?'—':score)}</span></button>`}).join('')||'<div class="androidEmptyState">No students found.</div>'}</div></section>`;
       document.querySelectorAll('[data-grade-student]').forEach(b=>b.onclick=()=>openTeacherSubmission(sectionId,assignmentId,assignment,b.dataset.gradeStudent,b.dataset.gradeEnrollment));
@@ -1449,13 +1474,60 @@ async function openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enr
   const c=document.getElementById('assignmentTabContent');if(!c)return;
   c.innerHTML='<div class="gradeDropboxAndroid"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading submission…</span></div></div>';
   try{
-    const [u,grades,subs]=await Promise.all([A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),A.api({path:`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,params:{with_attachments:'TRUE',all_revisions:'TRUE',start:0,limit:200}}).catch(()=>({}))]);
-    const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revsRaw=subs.revision||subs.revisions||[];const revs=Array.isArray(revsRaw)?revsRaw.slice():[];revs.sort((a,b)=>Number(b.revision_id??b.revisionId??b.id??0)-Number(a.revision_id??a.revisionId??a.id??0));
+    const [u,grades,revsRaw]=await Promise.all([
+      A.api({path:`users/${userId}`,params:{picture_size:'sm'}}).catch(()=>({})),
+      A.api({path:`sections/${sectionId}/grades`,params:{assignment_id:gradeItemId,enrollment_id:enrollmentId}}).catch(()=>({})),
+      loadAllSchoologyPages(`sections/${sectionId}/submissions/${gradeItemId}/${userId}`,{with_attachments:'TRUE',all_revisions:'TRUE'},['revision','revisions','items']).catch(()=>[])
+    ]);
+    const user=u.user||u,g=(grades.grades?.grade||grades.grade||[])[0]||{},revs=Array.isArray(revsRaw)?revsRaw.slice():[];revs.sort((a,b)=>Number(b.revision_id??b.revisionId??b.id??0)-Number(a.revision_id??a.revisionId??a.id??0));
+    let rubricInfo=null,rubricLoadError='';
+    const gradeItemResponse=await A.api({path:`sections/${sectionId}/grade_items/${gradeItemId}`,params:{}}).catch(()=>null);
+    if(gradeItemResponse){
+      const gradeItem=gradeItemResponse.assignment||gradeItemResponse.grade_item||gradeItemResponse.gradeItem||gradeItemResponse;
+      const scaleType=String(gradeItem.grading_scale_type??gradeItem.gradingScaleType??gradeItem.grading_scale_type_id??'');
+      const rubricId=String(gradeItem.grading_scale??gradeItem.gradingScale??gradeItem.rubric_id??gradeItem.rubricId??'');
+      if(scaleType==='2'||scaleType.toLowerCase().includes('rubric')||rubricId){
+        try{
+          if(!rubricId)throw new Error('Schoology did not return the rubric ID for this assignment.');
+          const [rubricResponse,rubricGradeResponse]=await Promise.all([
+            A.api({path:`sections/${sectionId}/grading_rubrics/${rubricId}`,params:{}}),
+            A.api({path:`rubric_grade/${rubricId}/grade_item/${gradeItemId}/enrollment/${enrollmentId}`,params:{}}).catch(()=>({}))
+          ]);
+          const rubric=rubricResponse.rubric||rubricResponse;
+          const existing=rubricGradeResponse.rubric_grade||rubricGradeResponse.grade||rubricGradeResponse;
+          rubricInfo={id:rubricId,rubric,existing};
+        }catch(error){rubricLoadError=String(error?.message||error);}
+      }
+    }
     const revisionHtml=revs.length?revs.map(r=>{const rid=r.revision_id??r.revisionId??r.id??'';const comment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');return `<article class="submissionRevisionAndroid"><div><b>Revision ${esc(rid)}</b><small>${esc(formatSchoologyDate(r.created||''))}</small></div><span class="revisionStatus ${String(r.late)==='1'?'late':''}">${String(r.draft)==='1'?'Draft':String(r.late)==='1'?'Late':'On time'}</span>${renderAttachments(r.attachments||{}, {sectionId,gradeItemId,userId,revisionId:rid,submissionId:r.submission_id||r.submissionId||r.sub_id||''})}</article>`}).join(''):'<div class="androidEmptyState">No submissions.</div>';
     const gradeComment=typeof g.comment==='string'?g.comment:(g.comment?.comment||g.comment?.body||'');
-    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div><div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div></div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revisionHtml}</div><section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(gradeComment)}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary">✓</button></section></section>`;
+    const rubric= rubricInfo?.rubric;
+    const rubricCriteria=Array.isArray(rubric?.criteria)?rubric.criteria:(rubric?.criteria?.criterion||rubric?.criterion||[]);
+    const existingCriteria=Array.isArray(rubricInfo?.existing?.criteria_grades)?rubricInfo.existing.criteria_grades:[];
+    const rubricEditor=rubricInfo?'<section class="teacherOverallComment rubricGradeEditor"><h3>'+esc(rubric.title||'Rubric')+'</h3>'+rubricCriteria.map((criterion,index)=>{
+      const cid=String(criterion.id??criterion.criteria_id??criterion.criteriaId??index);
+      const existing=existingCriteria.find(row=>String(row.criteria_id??row.criteriaId??row.id)===cid)||{};
+      const ratings=Array.isArray(criterion.ratings)?criterion.ratings:[];
+      return '<div class="rubricCriterion"><b>'+esc(criterion.title||criterion.name||'Criterion')+'</b>'+(criterion.description?'<p>'+esc(criterion.description)+'</p>':'')+'<label>Points (max '+esc(criterion.max_points??criterion.maxPoints??'')+')</label><input inputmode="decimal" data-rubric-grade="'+esc(cid)+'" value="'+esc(existing.grade??existing.points??'')+'"><textarea data-rubric-comment="'+esc(cid)+'" placeholder="Criterion comment">'+esc(existing.comment||'')+'</textarea>'+(ratings.length?'<label>Suggested rating</label><select data-rubric-rating="'+esc(cid)+'"><option value="">Choose a rating</option>'+ratings.map(r=>'<option value="'+esc(r.points??r.score??'')+'">'+esc((r.points??r.score??'')+' · '+(r.description||r.title||''))+'</option>').join('')+'</select>':'')+'</div>';
+    }).join('')+'<label>Override total grade (optional)</label><input id="rubricOverrideGrade" inputmode="decimal" value="'+esc(rubricInfo.existing.total_grade_override??'')+'"></section>':'';
+    c.innerHTML=`<section class="gradeDropboxAndroid teacherSubmissionAndroid"><div class="teacherGradeHeader"><div class="teacherUser"><div class="gradeStudentAvatar">${esc(String(user.name_first||user.name_display||'?').charAt(0))}</div><b>${esc(user.name_display||`${user.name_first||''} ${user.name_last||''}`)}</b></div>${rubricInfo?'':`<div class="teacherScore"><input id="teacherGradeInput" value="${esc(g.grade??'')}" inputmode="decimal"><span>/ ${esc(assignment.max_points??'')}</span></div>`}</div><div class="submissionSectionTitle">Submissions</div><div class="submissionRevisionList">${revisionHtml}</div>${rubricLoadError?'<div class="error apiError">Rubric could not be loaded: '+esc(rubricLoadError)+'</div>':''}${rubricEditor}<section class="teacherOverallComment"><label>Overall Comment</label><textarea id="teacherGradeComment">${esc(rubricInfo?.existing?.comment??gradeComment)}</textarea><label class="displayComment"><input id="teacherDisplayComment" type="checkbox" ${String(rubricInfo?.existing?.comment_status??g.comment_status)==='1'?'checked':''}> Display comment to student</label><button id="saveTeacherGrade" class="androidPrimary" ${rubricLoadError?'disabled':''}>✓</button></section></section>`;
+    c.querySelectorAll('[data-rubric-rating]').forEach(select=>select.addEventListener('change',()=>{const input=c.querySelector('[data-rubric-grade="'+CSS.escape(select.dataset.rubricRating)+'"]');if(input&&select.value!=='')input.value=select.value}));
     await hydrateMediaImages(c);
-    document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{try{await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment:document.getElementById('teacherGradeComment')?.value||'',commentStatus:document.getElementById('teacherDisplayComment')?.checked});await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId)}catch(e){alert(e.message)}});
+    document.getElementById('saveTeacherGrade')?.addEventListener('click',async()=>{
+      try{
+        const comment=document.getElementById('teacherGradeComment')?.value||'';
+        const commentStatus=!!document.getElementById('teacherDisplayComment')?.checked;
+        if(rubricInfo){
+          const criteriaGrades=rubricCriteria.map((criterion,index)=>{const cid=String(criterion.id??criterion.criteria_id??criterion.criteriaId??index);const raw=c.querySelector('[data-rubric-grade="'+CSS.escape(cid)+'"]')?.value||'';const score=raw.trim()===''?null:Number(raw);if(score!==null&&!Number.isFinite(score))throw new Error('Rubric criterion scores must be numbers.');return {criteria_id:Number(cid),grade:score,comment:c.querySelector('[data-rubric-comment="'+CSS.escape(cid)+'"]')?.value||''}});
+          const override=document.getElementById('rubricOverrideGrade')?.value||'';
+          if(override.trim()!==''&&!Number.isFinite(Number(override)))throw new Error('The override grade must be a number.');
+          await A.updateAssignmentRubricGrade({sectionId,gradeItemId,enrollmentId,rubricId:rubricInfo.id,payload:{criteria_grades:criteriaGrades,comment,comment_status:commentStatus?1:0,...(override.trim()===''?{clear_total_grade_override:1}:{total_grade_override:Number(override)})}});
+        }else{
+          await A.updateAssignmentGrade({sectionId,assignmentId:gradeItemId,enrollmentId,grade:document.getElementById('teacherGradeInput')?.value||'',comment,commentStatus});
+        }
+        await openTeacherSubmission(sectionId,gradeItemId,assignment,userId,enrollmentId);
+      }catch(e){alert(e.message)}
+    });
   }catch(e){c.innerHTML=`<div class="error apiError"><b>Schoology could not load this submission.</b><br>${esc(e.message)}</div>`}
 }
 

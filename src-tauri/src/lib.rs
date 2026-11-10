@@ -1004,6 +1004,33 @@ async fn update_assignment_grade(app: &AppHandle, state: &HostState, info: &Valu
     Ok(json!(true))
 }
 
+async fn update_assignment_rubric_grade(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
+    let section_id = info.get("sectionId").and_then(Value::as_i64).filter(|id| *id > 0)
+        .ok_or("Rubric update information is incomplete: section ID is missing.")?;
+    let grade_item_id = info.get("gradeItemId").and_then(Value::as_i64).filter(|id| *id > 0)
+        .ok_or("Rubric update information is incomplete: grade item ID is missing.")?;
+    let enrollment_id = info.get("enrollmentId").and_then(Value::as_i64).filter(|id| *id > 0)
+        .ok_or("Rubric update information is incomplete: enrollment ID is missing.")?;
+    let rubric_id = info.get("rubricId").and_then(Value::as_i64).filter(|id| *id > 0)
+        .ok_or("Rubric update information is incomplete: rubric ID is missing.")?;
+    let payload = info.get("payload").cloned().filter(Value::is_object)
+        .ok_or("Rubric update payload is missing.")?;
+    let criteria = payload.get("criteria_grades").and_then(Value::as_array)
+        .ok_or("Rubric criteria grades are missing.")?;
+    for row in criteria {
+        let score = row.get("grade").unwrap_or(&Value::Null);
+        if !score.is_null() && !score.is_number() {
+            return Err("Rubric criterion scores must be numeric or empty.".into());
+        }
+    }
+    let url = Url::parse(&format!(
+        "https://{}/v1/rubric_grade/{rubric_id}/grade_item/{grade_item_id}/enrollment/{enrollment_id}",
+        api_host()
+    )).map_err(|e| e.to_string())?;
+    api_json(app, state, "PUT", url, Some(payload), true).await?;
+    Ok(json!(true))
+}
+
 async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value, String> {
     let auth = auth_state(app).ok_or("Not signed in")?;
     let mut url = Url::parse(&format!("https://{}/v1/sessionstart", api_host())).map_err(|e| e.to_string())?;
@@ -2540,6 +2567,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             Ok(json!(true))
         },
         "update-assignment-grade" => update_assignment_grade(&app, &state, &args).await,
+        "update-assignment-rubric-grade" => update_assignment_rubric_grade(&app, &state, &args).await,
         _ => Err(format!("Unsupported native operation: {name}")),
     }
 }

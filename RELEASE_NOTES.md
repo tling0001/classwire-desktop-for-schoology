@@ -1,5 +1,16 @@
 # Release notes
 
+## [2026.10.0-port.117]
+
+### Teacher grading
+- Add Android-aligned rubric grading to the Tauri teacher submission editor, including criterion scores, criterion comments, preset rating choices, overall comments, comment visibility, and optional total-grade overrides.
+- Save rubric criteria and override state through the authenticated Schoology rubric-grade endpoint while retaining the existing numeric grade workflow.
+- Paginate active student enrollments, assignment grade rows, and submission revisions in teacher assignment rosters instead of silently truncating each request at 200 records.
+
+### Build
+- Increment the Tauri, npm, and Rust package versions to `2026.10.0-port.117`.
+
+
 ## [2026.10.0-port.116]
 
 ### Added
