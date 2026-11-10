@@ -2028,16 +2028,36 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
     }
 
     let key_name = if let Some(name) = existing_key { name } else {
-        let operation = google_api_call(
-            &client, reqwest::Method::POST,
-            &format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_id),
-            &access_token,
-            Some(json!({
-                "displayName":"ClassWire Gemini authorization key",
-                "serviceAccountEmail":service_account_email,
-                "restrictions":{"apiTargets":[{"service":"generativelanguage.googleapis.com"}]}
-            })),
-        ).await?;
+        let create_url = format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_id);
+        let mut operation: Option<Value> = None;
+        let mut last_binding_error: Option<String> = None;
+
+        // IAM can return the service account before the API Keys service has
+        // propagated it to the service-account binding backend. Retry only that
+        // transient condition; do not retry unrelated permission or validation errors.
+        for attempt in 0..5 {
+            if attempt > 0 {
+                tokio::time::sleep(std::time::Duration::from_secs(5 * (1u64 << (attempt - 1)))).await;
+                google_api_call(&client, reqwest::Method::GET, &service_account_url, &access_token, None).await?;
+            }
+            match google_api_call(
+                &client, reqwest::Method::POST, &create_url, &access_token,
+                Some(json!({
+                    "displayName":"ClassWire Gemini authorization key",
+                    "serviceAccountEmail":service_account_email,
+                    "restrictions":{"apiTargets":[{"service":"generativelanguage.googleapis.com"}]}
+                })),
+            ).await {
+                Ok(result) => { operation = Some(result); break; }
+                Err(error) if error.to_ascii_lowercase().contains("service account")
+                    && error.to_ascii_lowercase().contains("not found") => {
+                    last_binding_error = Some(error.clone());
+                    if attempt == 2 { return Err(error); }
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        let operation = operation.ok_or_else(|| last_binding_error.unwrap_or_else(|| "Google did not return the Gemini key-creation operation.".into()))?;
         let operation_name = operation.get("name").and_then(Value::as_str)
             .ok_or("Google did not return the Gemini key-creation operation.")?;
         let created = google_wait_operation(&client, "https://apikeys.googleapis.com/v2", operation_name, &access_token).await?;

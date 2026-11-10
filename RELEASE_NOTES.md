@@ -1,5 +1,14 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.71]
+
+### Fixed
+- Add bounded retry handling for transient Google API Keys service-account binding propagation failures during Gemini key creation.
+- Retry only service-account-not-found binding responses, with 5-second and 10-second backoffs and a fresh IAM service-account check before each retry.
+
+### Changed
+- Bump the port version to 2026.10.0-port.71.
+
 ## [2026.10.0-port.70]
 
 ### Fixed
