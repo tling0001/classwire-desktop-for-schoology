@@ -50,7 +50,14 @@ async function connectPuterFromClick(button,hint,onConnected){
  if(button){button.disabled=true;button.textContent='Opening Puter sign-in…'}
  try{if(typeof p.ui?.authenticateWithPuter==='function')await p.ui.authenticateWithPuter();else await p.auth.signIn({request_auth:true});const user=await p.auth.getUser().catch(()=>null);const label=user?.username||user?.email||user?.name||'Puter account';if(hint)hint.textContent='Connected to '+label+'.';onConnected?.(label)}
  catch(error){if(hint)hint.textContent='Puter sign-in did not finish: '+(error?.msg||error?.message||String(error))}
- finally{if(button){button.disabled=false;button.textContent='Connect Puter account'}}
+ finally{
+  // Puter resolves its auth promise when sign-in completes, but Tauri's native
+  // child webview is independent and must be explicitly closed by the host.
+  if(typeof A.closePuterAuthPopups==='function'){
+   try{await A.closePuterAuthPopups()}catch(error){console.warn('Could not close Puter sign-in popup:',error)}
+  }
+  if(button){button.disabled=false;button.textContent='Connect Puter account'}
+ }
 }
 async function puterRequest(args){
  const p=await ensurePuterSDK();

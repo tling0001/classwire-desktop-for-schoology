@@ -1737,7 +1737,12 @@ async fn annotation_request(app: &AppHandle, state: &HostState, args: &Value) ->
 
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-const GOOGLE_OAUTH_CLIENT_ID: &str = "813096753007-fb3mqttvtampk2j0klquf0cckeicc67r.apps.googleusercontent.com";
+const GOOGLE_OAUTH_CLIENT_ID: &str = match option_env!("GOOGLE_OAUTH_CLIENT_ID") {
+    Some(value) if !value.is_empty() => value,
+    _ => "813096753007-fb3mqttvtampk2j0klquf0cckeicc67r.apps.googleusercontent.com",
+};
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const GOOGLE_OAUTH_CLIENT_SECRET: Option<&str> = option_env!("GOOGLE_OAUTH_CLIENT_SECRET");
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 async fn google_api_call(client: &reqwest::Client, method: reqwest::Method, url: &str, access_token: &str, body: Option<Value>) -> Result<Value, String> {
@@ -1790,12 +1795,16 @@ async fn google_refresh_access_token(client: &reqwest::Client) -> Result<String,
     let refresh_token = refresh_entry.get_password().map_err(|_| {
         "Google is not connected yet. Choose Connect with Google and authorize ClassWire first.".to_owned()
     })?;
+    let mut token_parameters = vec![
+        ("client_id", GOOGLE_OAUTH_CLIENT_ID),
+        ("refresh_token", refresh_token.as_str()),
+        ("grant_type", "refresh_token"),
+    ];
+    if let Some(secret) = GOOGLE_OAUTH_CLIENT_SECRET.filter(|value| !value.trim().is_empty()) {
+        token_parameters.push(("client_secret", secret));
+    }
     let response = client.post("https://oauth2.googleapis.com/token")
-        .form(&[
-            ("client_id", GOOGLE_OAUTH_CLIENT_ID),
-            ("refresh_token", refresh_token.as_str()),
-            ("grant_type", "refresh_token"),
-        ])
+        .form(&token_parameters)
         .send().await.map_err(|e| format!("Could not refresh Google authorization: {e}"))?;
     let status = response.status();
     let text = response.text().await.map_err(|e| e.to_string())?;
@@ -1859,7 +1868,6 @@ async fn google_list_cloud_projects() -> Result<Value, String> {
 async fn google_ai_connect(app: &AppHandle) -> Result<Value, String> {
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    if let Ok(entry) = Entry::new("ClassWire Google OAuth", "client-secret") { let _ = entry.delete_credential(); }
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await
         .map_err(|e| format!("Could not start the local Google sign-in callback: {e}"))?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -1914,14 +1922,19 @@ async fn google_ai_connect(app: &AppHandle) -> Result<Value, String> {
 
     let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
         .timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
+    let mut token_parameters = vec![
+        ("client_id", GOOGLE_OAUTH_CLIENT_ID),
+        ("code", code.as_str()),
+        ("code_verifier", verifier.as_str()),
+        ("grant_type", "authorization_code"),
+        ("redirect_uri", redirect_uri.as_str()),
+    ];
+    if let Some(secret) = GOOGLE_OAUTH_CLIENT_SECRET.filter(|value| !value.trim().is_empty()) {
+        token_parameters.push(("client_secret", secret));
+    }
     let token_response = client.post("https://oauth2.googleapis.com/token")
-        .form(&[
-            ("client_id", GOOGLE_OAUTH_CLIENT_ID),
-            ("code", code.as_str()),
-            ("code_verifier", verifier.as_str()),
-            ("grant_type", "authorization_code"),
-            ("redirect_uri", redirect_uri.as_str()),
-        ]).send().await.map_err(|e| format!("Could not exchange the Google authorization code: {e}"))?;
+        .form(&token_parameters)
+        .send().await.map_err(|e| format!("Could not exchange the Google authorization code: {e}"))?;
     let token_status = token_response.status();
     let token_text = token_response.text().await.map_err(|e| e.to_string())?;
     if !token_status.is_success() {
@@ -2246,6 +2259,16 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
     let args = args.unwrap_or(Value::Null);
     match name.as_str() {
         "auth-state" => Ok(auth_state(&app).unwrap_or(Value::Null)),
+        "ai-close-puter-popups" => {
+            let popups = app.webview_windows().into_iter()
+                .filter(|(label, _)| label.starts_with("auth-popup-"))
+                .map(|(_, window)| window)
+                .collect::<Vec<_>>();
+            for popup in popups {
+                popup.close().map_err(|e| format!("Could not close Puter authentication window: {e}"))?;
+            }
+            Ok(json!(true))
+        },
         "ai-set-provider-key" => {
             let provider=args.get("provider").and_then(Value::as_str).unwrap_or("");
             let key=args.get("key").and_then(Value::as_str).unwrap_or("").trim();

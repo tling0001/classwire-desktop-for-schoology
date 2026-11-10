@@ -1,5 +1,16 @@
 # Release notes
 
+## [2026.10.0-port.114]
+
+### Fixed
+- Close native Tauri Puter authentication child windows after the authentication promise settles, including when the user cancels.
+- Include the configured Google OAuth client secret in both authorization-code and refresh-token exchanges.
+- Allow the Google OAuth client ID to be configured with the `GOOGLE_OAUTH_CLIENT_ID` repository variable, retaining the current ID as a fallback.
+
+### Build
+- Pass the Google OAuth client ID and optional client secret into Windows, Linux, and macOS desktop builds.
+- Bump the Tauri, npm, and Rust package versions to `2026.10.0-port.114`.
+
 ## [2026.10.0-port.113]
 
 ### Fixed

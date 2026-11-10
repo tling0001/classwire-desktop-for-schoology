@@ -182,6 +182,7 @@
     api: value => invoke('api', value),
     setAIProviderKey: value => invoke('ai-set-provider-key', value),
     connectGoogleGemini: () => invoke('ai-connect-google'),
+    closePuterAuthPopups: () => invoke('ai-close-puter-popups'),
     listGoogleCloudProjects: () => invoke('ai-google-projects'),
     createGoogleGeminiKey: projectId => invoke('ai-create-gemini-key', { projectId }),
     hasAIProviderKey: provider => invoke('ai-has-provider-key', provider),
