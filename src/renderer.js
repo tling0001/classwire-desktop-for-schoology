@@ -26,7 +26,7 @@ let pendingDeepLinkAfterLogin=null;
 let schoologyStartupComplete=false;
 let queuedIncomingDeepLink=null;
 let queuedNotificationOpen=null;
-let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,pageView:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false,groupCanCreateAlbum:false,groupCanAddResources:false};
+let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,parentChildren:[],activeStudent:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,pageView:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false,groupCanCreateAlbum:false,groupCanAddResources:false};
 window.__classWireAINavigate=async(kind,id,sectionId)=>{if(kind==='course'){const r=await A.api({path:'sections/'+Number(id),params:{}});await showCourse(r?.section||r,'materials',true);return true}if(kind==='group'){const r=await A.api({path:'groups/'+Number(id),params:{}});await showGroup(r?.group||r,'updates');return true}if(kind==='assignment'){if(!sectionId)throw new Error('Course ID missing for assignment navigation.');await showAssignment(Number(sectionId),Number(id));return true}if(kind==='messages'){state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.assignmentView=null;state.tab='messages';state.toolbarTitle='Messages';render();await loadTab();return true}throw new Error('Unsupported navigation target.')};
 window.__classWireAIContext=()=>({page:state.assignmentView?'assignment':state.pageView?'page':state.embeddedTitle?'embedded':state.currentGroup?'group':state.selectedCourse?'course':state.message?'message':state.tab||'home',title:state.toolbarTitle||'ClassWire',course:state.selectedCourse?{id:state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId,title:courseTitleOf(state.selectedCourse),section:sectionTitleOf(state.selectedCourse)}:null,assignment:state.assignmentView?{sectionId:state.assignmentView.sectionId,assignmentId:state.assignmentView.assignmentId}:null,gradeContext:state.aiGradeContext||null,group:state.currentGroup?{id:state.currentGroup.id||state.currentGroup.group_id,name:state.currentGroup.name||state.currentGroup.title}:null,tab:state.courseTab||state.groupTab||state.homeTab||state.tab||'',embeddedUrl:state.embeddedUrl||'',embeddedTitle:state.embeddedTitle||'',pageText:String(document.querySelector('#content')?.innerText||'').slice(0,24000)});
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
@@ -317,19 +317,21 @@ function externalSelect(){
 
 function qr(){return `<div class="qr loginAnimated qrLoginScreen"><button id="back" class="back" ${state.loading?'disabled':''}>${officialBackIcon()}</button>${classWireLogoMarkup('logo small')}<h1>QR Code Login</h1>${state.loading?`<div class="qrAuthorizationLoading"><img src="../assets/android_loading_spinner_72.gif" alt=""><p>Signing in to Schoology…</p></div>`:`<p>Scan Your Code</p><video id="video" autoplay playsinline muted></video><canvas id="canvas"></canvas><p class="qrhint">Point your camera at the QR code shown in Schoology.</p>`}${state.error?`<div class="error">${esc(state.error)}</div>`:''}</div>`}
 function drawerItemMarkup(id,label,icon){
- return `<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon"><img src="../assets/icons/${icon}.svg" alt=""></span><span class="drawerLabel">${label}</span>${['messages','notifications','requests'].includes(id)?'<span class="drawerBadge"></span>':''}${id==='courses'||id==='groups'?'<span class="disclosure">›</span>':''}</button>`;
+ const artwork=id==='children'?'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.1"/><path d="M3.5 19v-1.2a5.5 5.5 0 0 1 11 0V19"/><circle cx="18" cy="9" r="2.2"/><path d="M17 14.5a4.5 4.5 0 0 1 3.5 4.4"/></svg>':`<img src="../assets/icons/${icon}.svg" alt="">`;
+ return `<button class="drawerItem" data-drawer="${id}"><span class="drawerIcon">${artwork}</span><span class="drawerLabel">${label}</span>${['messages','notifications','requests'].includes(id)?'<span class="drawerBadge"></span>':''}${['courses','groups','children'].includes(id)?'<span class="disclosure">›</span>':''}</button>`;
 }
 function shell(){
  const drawerItems=[
   ['messages','Messages','ic_menu_messages'],['notifications','Notifications','ic_menu_notifications'],['requests','Requests','ic_menu_requests'],
-  ['home','Home','ic_menu_home'],['courses','Courses','ic_menu_courses'],['groups','Groups','ic_menu_groups'],['resources','Resources','ic_menu_resources'],['grades','Grades','ic_menu_grades'],['calendar','Calendar','ic_menu_calender'],
+  ['home','Home','ic_menu_home'],...(state.parentChildren?.length?[['children','Switch Student','ic_menu_people']]:[]),['courses','Courses','ic_menu_courses'],['groups','Groups','ic_menu_groups'],['resources','Resources','ic_menu_resources'],['grades','Grades','ic_menu_grades'],['calendar','Calendar','ic_menu_calender'],
   ...(state.peopleEnabled?[['people','People','ic_menu_people']]:[]),['settings','Settings','ic_menu_account_settings'],['logout','Logout','ic_menu_logout']
  ];
- const drawerPage=state.drawerPage==='courses'||state.drawerPage==='groups'?`
+ const drawerPage=['courses','groups','children'].includes(state.drawerPage)?`
    <div class="drawerSub">
-    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">${officialBackIcon()}</button><span>${state.drawerPage==='groups'?'Groups':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction" style="display:none">+</button>':state.drawerPage==='groups'?'<button id="joinGroup" class="drawerHeaderAction" style="display:none">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
-    <div id="courseSubList" class="courseSubList"><div class="drawerLoading">Loading ${state.drawerPage==='groups'?'groups':'courses'}…</div></div>
+    <div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">${officialBackIcon()}</button><span>${state.drawerPage==='groups'?'Groups':state.drawerPage==='children'?'Switch Student':'Courses'}</span>${state.drawerPage==='courses'?'<button id="joinCourse" class="drawerHeaderAction" style="display:none">+</button>':state.drawerPage==='groups'?'<button id="joinGroup" class="drawerHeaderAction" style="display:none">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div>
+    <div id="${state.drawerPage==='children'?'childSubList':'courseSubList'}" class="courseSubList">${state.drawerPage==='children'?'<div class="drawerLoading">Loading linked students…</div>':`<div class="drawerLoading">Loading ${state.drawerPage==='groups'?'groups':'courses'}…</div>`}</div>
    </div>`:'';
+
  const drawerList=drawerItems.map(([id,label,icon],i)=>`${i===3?'<div class="drawerDivider"></div>':''}${id==='settings'?'<div class="drawerDivider"></div>':''}${drawerItemMarkup(id,label,icon)}`).join('');
  return `<div class="shell">
  <header class="toolbar">${state.assignmentView||state.embeddedTitle?`<button id="toolbarBack" class="iconButton" aria-label="Back">${officialBackIcon()}</button>`:`<button id="menuButton" class="iconButton" aria-label="Navigation menu">${menuImg}</button>`}<span class="toolbarTitle">${esc(state.toolbarTitle||'Home')}</span><button type="button" id="aiAssistantToggle" class="iconButton aiToolbarButton" aria-label="Open ClassWire AI" title="ClassWire AI">✦</button><span id="toolbarActionSlot" class="toolbarActionSlot"></span></header>
@@ -377,7 +379,7 @@ let homePostableUpdatePromise=Promise.resolve([]);
 async function getPostableUpdateDestinations(){
  const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)return [];
  try{
-  const pair=await Promise.all([A.api({path:'users/'+uid+'/sections',params:{limit:100}}),A.api({path:'users/'+uid+'/groups',params:{limit:100}})]);
+  const pair=await Promise.all([A.api({path:'users/'+currentLearningUserId()+'/sections',params:{limit:100}}),A.api({path:'users/'+currentLearningUserId()+'/groups',params:{limit:100}})]);
   const sections=pair[0]?.section||pair[0]?.sections||[],groups=pair[1]?.group||pair[1]?.groups||[];
   const destinations=[...sections.map(source=>({realm:'sections',id:source.id||source.section_id,label:source.section_title||source.course_title||source.title||'Course',source})),...groups.map(source=>({realm:'groups',id:source.id||source.group_id,label:source.name||source.title||'Group',source}))].filter(x=>x.id!=null);
   if(!destinations.length)return [];
@@ -452,7 +454,7 @@ function showCreatePostDialog(kind,realm,realmId){
   if(!selectedRealm){
     postToEl.innerHTML='<span class="androidPostToLoading">Loading destinations…</span>';
     (async()=>{try{
-      const uid=state.auth?.userId||state.auth?.user?.id;const [sx,gx]=await Promise.all([A.api({path:`users/${uid}/sections`,params:{limit:100}}).catch(()=>({})),A.api({path:`users/${uid}/groups`,params:{limit:100}}).catch(()=>({}))]);
+      const uid=accountUserId(),learningUid=currentLearningUserId();const [sx,gx]=await Promise.all([A.api({path:`users/${learningUid}/sections`,params:{limit:100}}).catch(()=>({})),A.api({path:`users/${learningUid}/groups`,params:{limit:100}}).catch(()=>({}))]);
       const sections=sx?.section||sx?.sections||[],groups=gx?.group||gx?.groups||[];const opts=[{realm:'users',id:uid,label:'My Account'},...sections.map(x=>({realm:'sections',id:x.id||x.section_id,label:x.section_title||x.course_title||x.title||'Course'})),...groups.map(x=>({realm:'groups',id:x.id||x.group_id,label:x.name||x.title||'Group'}))].filter(x=>x.id!=null);
       if(!opts.length)throw new Error('No posting destinations were found.');
       postToEl.innerHTML='<select id="createPostDestination">'+opts.map((x,i)=>`<option value="${i}">${esc(x.label)}</option>`).join('')+'</select>';
@@ -636,11 +638,14 @@ function bind(){
 
   document.querySelectorAll('[data-drawer]').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.drawer;
+    if(id==='children'){
+      state.drawerPage='children';const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">${officialBackIcon()}</button><span>Switch Student</span><span class="drawerHeaderSpacer"></span></div><div id="childSubList" class="courseSubList"><div class="drawerLoading">Loading linked students…</div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadChildrenSubmenu();return;
+    }
     if(id==='courses'||id==='groups'){
       state.drawerPage=id;const drawer=document.getElementById('drawer');if(drawer){drawer.innerHTML=`<div class="drawerSub"><div class="drawerSubHeader"><button id="drawerBack" class="drawerBack">${officialBackIcon()}</button><span>${id==='groups'?'Groups':'Courses'}</span>${id==='courses'?'<button id="joinCourse" class="drawerHeaderAction" style="display:none">+</button>':id==='groups'?'<button id="joinGroup" class="drawerHeaderAction" style="display:none">+</button>':'<span class="drawerHeaderSpacer"></span>'}</div><div id="courseSubList" class="courseSubList"><div class="drawerLoading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading ${id==='groups'?'groups':'courses'}…</span></div></div></div>`;drawer.classList.add('open');document.getElementById('drawerShade')?.classList.add('open')}bind();loadCourseSubmenu();return;
     }
     closeDrawerThen(async()=>{
-      if(id==='logout'){showAppDialog('Logout','Do you want to log out?',[{label:'No',action:null},{label:'Yes',action:async()=>{await A.logout();state.auth=null;state.user=null;state.school=null;state.tab='home';state.screen='login';state.error='';render()}}]);return}
+      if(id==='logout'){showAppDialog('Logout','Do you want to log out?',[{label:'No',action:null},{label:'Yes',action:async()=>{await A.logout();state.auth=null;state.user=null;state.school=null;state.parentChildren=[];state.activeStudent=null;state.tab='home';state.screen='login';state.error='';render()}}]);return}
       if(id==='settings'){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab='settings';state.toolbarTitle='Settings';state.screen='app';render();loadTab();return}
       if(['home','calendar','grades','messages','notifications','requests','resources','profile','groups','people'].includes(id)){state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.tab=id;state.toolbarTitle=id.charAt(0).toUpperCase()+id.slice(1);state.screen='app';render();loadTab()}
     });
@@ -677,6 +682,34 @@ async function resolvePeopleDrawerVisibility(){
  state.peopleEnabled=enterprise&&directoryIsPublic(user);
 }
 
+function accountUserId(){return state.auth?.userId||state.auth?.user?.id||null}
+function currentLearningUserId(){return state.activeStudent?.id||accountUserId()}
+function normalizeChildUserIds(user){
+ const raw=user?.child_uids??user?.childUids??user?.children_uids??user?.childrenUids??[];
+ const values=Array.isArray(raw)?raw:(typeof raw==='string'?raw.split(','):(raw&&typeof raw==='object'?[raw]:[]));
+ return [...new Set(values.map(value=>Number(typeof value==='object'?(value.id??value.uid??value.user_id??value.userId):value)).filter(id=>Number.isSafeInteger(id)&&id>0))];
+}
+async function loadParentChildren(){
+ const parentId=accountUserId();state.parentChildren=[];if(!parentId)return [];
+ let profile=state.auth?.user||{};
+ try{const response=await A.api({path:`users/${parentId}`,params:{}});profile={...profile,...(response?.user||response?.data?.user||response||{})};state.auth={...state.auth,user:profile}}catch(error){console.warn('Unable to load parent profile and linked students:',error?.message||error)}
+ const ids=normalizeChildUserIds(profile);
+ state.parentChildren=await Promise.all(ids.map(async id=>{try{const response=await A.api({path:`users/${id}`,params:{}});const user=response?.user||response?.data?.user||response||{};return {...user,id:user.id??id}}catch(error){console.warn('Unable to load linked student profile:',id,error?.message||error);return {id,name_display:'Student'}}}));
+ if(state.activeStudent&&!state.parentChildren.some(child=>String(child.id)===String(state.activeStudent.id)))state.activeStudent=null;
+ return state.parentChildren;
+}
+function selectLearningStudent(student){
+ state.activeStudent=student||null;state.homeAssignmentsCache=null;state.homeAssignmentsCacheAt=0;state.homeAssignmentsCacheUserId='';
+ state.calendarUpcomingEvents=null;state.calendarEvents=[];state.calendarEventsMonth='';state.calendarDate=null;state.calendarSelectedDate=null;
+ state.courseView=null;state.selectedCourse=null;state.assignmentView=null;state.currentGroup=null;state.profileUser=null;state.embeddedTitle=null;state.message=null;state.messageThread=null;
+ state.tab='home';state.homeTab='recent';state.homeUpcomingTab='upcoming';state.toolbarTitle='Home';state.screen='app';state.drawerPage=null;render();loadTab();
+}
+function loadChildrenSubmenu(){
+ const list=document.getElementById('childSubList');if(!list)return;const activeId=String(state.activeStudent?.id??''),parent=state.auth?.user||{};
+ const rows=[{id:'parent',name:parent.name_display||parent.display_name||parent.name||'Parent account',detail:'Use your own account',image:parent.picture_url||parent.pictureUrl||parent.picture||'',active:!activeId},...state.parentChildren.map(child=>({id:String(child.id),name:child.name_display||child.display_name||child.name||'Student',detail:child.school_name||child.school?.title||child.grad_year||child.gradYear||'Linked student',image:child.picture_url||child.pictureUrl||child.picture||'',active:String(child.id)===activeId}))];
+ list.innerHTML=rows.map(row=>{const image=normalizeImageUrl(row.image||'');return `<button type="button" class="courseSubItem childSwitchItem" data-child-sub="${esc(row.id)}" aria-pressed="${row.active?'true':'false'}"><span class="courseThumb">${image?`<img data-course-image-url="${esc(image)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(String(row.name||'S').charAt(0))}</span></span><span class="courseText"><b>${esc(row.name)}</b><small>${esc(row.detail)}</small></span>${row.active?'<span class="courseAdmin" aria-label="Currently selected">✓</span>':'<span class="disclosure">›</span>'}</button>`}).join('');
+ list.querySelectorAll('[data-child-sub]').forEach(button=>button.addEventListener('click',()=>{const key=button.dataset.childSub,student=key==='parent'?null:state.parentChildren.find(child=>String(child.id)===key);if(key!=='parent'&&!student)return;closeDrawerThen(()=>selectLearningStudent(student))}));hydrateCourseImages(list);
+}
 async function afterLogin(){
   stopQR();
   try{
@@ -697,6 +730,7 @@ async function afterLogin(){
     console.warn('Unable to load mobile homepage preferences:',e?.message||e);
     state.mobileMe={};state.courseDashboardEnabled=false;state.preferredHomepage='recent';state.homeTab='recent';
   }
+  await loadParentChildren();
   await resolvePeopleDrawerVisibility();
   state.loading=false;state.screen='app';render();await loadTab();
   if(pendingDeepLinkAfterLogin){const pending=pendingDeepLinkAfterLogin;pendingDeepLinkAfterLogin=null;setTimeout(async()=>{try{if(await routeSchoologyLink(pending))return;await showEmbeddedWeb(pending,'Schoology Link',{openInitialExternalInBrowser:false})}catch(e){showAppDialog('Unable to open Schoology link',e.message||String(e))}},0)}
@@ -722,7 +756,7 @@ async function loadCourseSubmenu(){
  const c=document.getElementById('courseSubList');if(!c)return;
  try{
    const page=state.drawerPage;
-   const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('No logged-in user ID.');
+   const uid=currentLearningUserId();if(!uid)throw new Error('No logged-in user ID.');
    if(page==='groups'){
      const x=await A.api({path:`users/${uid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];window.__schoologyGroups=arr;
      c.innerHTML=arr.length?arr.map((g,i)=>{const gi=normalizeImageUrl(g.picture_url||g.pictureUrl||g.picture||g.image||'');return `<button class="courseSubItem" data-group-sub="${i}"><span class="courseThumb groupThumb">${gi?`<img data-course-image-url="${esc(gi)}" alt="" style="display:none">`:''}<span class="courseImageFallback">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span class="courseText"><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span class="courseAdmin">'+groupAdminBadgeMarkup({admin:true})+'</span>':''}<span class="disclosure">›</span></button>`}).join(''):'<div class="drawerEmpty">No groups found.</div>';
@@ -992,7 +1026,7 @@ async function showCourse(course,activeTab='materials',forceRebuild=false){
  const [sectionResponse,schoolFromList,navPerms]=await Promise.all([
    A.api({path:`sections/${sid}`,params:{}}).catch(()=>course),
    resolveCourseSchoolName(course),
-   getCourseNavigationPermissions(sid,state.auth?.userId||state.auth?.user?.id).catch(()=>null)
+   getCourseNavigationPermissions(sid,currentLearningUserId()).catch(()=>null)
  ]);
  if(renderToken!==courseRenderToken||state.screen!=='app'||state.courseView!=='course'||state.selectedCourse!==course)return;
  const sectionDetail=sectionResponse?.section||sectionResponse||course;
@@ -1137,7 +1171,7 @@ async function showAssignment(sectionId,assignmentId){
   state.toolbarTitle='Assignment'; state.screen='app'; state.assignmentView={sectionId,assignmentId}; state.courseView='course'; state.assignmentTab='info'; state.assignmentCanSubmit=false; state.assignmentIsTeacher=false; state.assignmentSupportsAnnotations=false; state.assignmentSubpage=null; state.submissionMenu=false; state.assignmentAllowComments=false; state.assignmentLandscape=window.matchMedia('(min-width: 801px)').matches; syncToolbar();
   c.innerHTML=`<section class="assignmentPage"><div class="assignmentLoading loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading assignment…</span></div></section>`;
   try{
-    const uid=state.auth?.userId||state.auth?.user?.id;
+    const uid=currentLearningUserId();
     const [aResp,sectionResp,enrollResp]=await Promise.all([
       A.api({path:`sections/${sectionId}/assignments/${assignmentId}`,params:{richtext:1,with_attachments:'TRUE'}}),
       A.api({path:`sections/${sectionId}`,params:{}}).catch(()=>({})),
@@ -1987,7 +2021,7 @@ async function resolveAssignmentSection(assignmentId){
  const cached=window.__schoologyDashboardCourses||window.__schoologyCourses||[];
  const candidates=cached.length?cached.slice():[];
  if(!candidates.length){
-   const uid=state.auth?.userId||state.auth?.user?.id;
+   const uid=currentLearningUserId();
    if(uid){try{const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});candidates.push(...(x.section||x.sections||[]));}catch{}}
  }
  const ids=[...new Set(candidates.map(x=>Number(x.id||x.section_id||x.sectionId)).filter(Boolean))];
@@ -2657,7 +2691,7 @@ function formatApiDate(d){const p=n=>String(n).padStart(2,'0');return `${d.getFu
 async function loadSectionGrades(course,targetEl=null,idPrefix='',collapseSectionsInitially=false){
  const el=targetEl||document.getElementById('sectionProfileContent')||document.getElementById('gradesContent');if(!el)return;
  const sid=course.id||course.section_id||course.sectionId;
- const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+ const uid=currentLearningUserId();if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
  const [section,periods,categories,items,userGrades]=await Promise.all([
   A.api({path:`sections/${sid}`,params:{}}),
   A.api({path:`sections/${sid}/grading_periods`,params:{}}),
@@ -2758,7 +2792,7 @@ function resolveStandaloneGradeCourseNames(section,detail){
  return {courseTitle:courseTitle||sectionTitle||'Course',sectionTitle};
 }
 async function hydrateUserCourseGrades(sections){
- const uid=String(state.auth?.userId||state.auth?.user?.id||'');
+ const uid=String(currentLearningUserId()||'');
  await Promise.all((sections||[]).map(async sec=>{
   const sid=sec.section_id??sec.sectionId??sec.id;if(!sid)return;
   try{
@@ -3358,7 +3392,7 @@ async function loadTab(){
  if(!(state.courseView==='course'&&state.selectedCourse))state.toolbarTitle=tabTitles[tabAtStart]||state.toolbarTitle||'Home';
  syncToolbar();
  c.innerHTML='<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div>';
- const uid=state.auth?.userId||state.auth?.user?.id;
+ const uid=accountUserId();const learningUid=currentLearningUserId();
  try{
   if(state.tab==='home'){
     installHomeLayoutWatcher();
@@ -3380,8 +3414,8 @@ async function loadTab(){
       await loadHomeTab();
     }
   }else if(state.tab==='courses'){
-    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
+    if(!learningUid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${learningUid}/sections`,params:{limit:100}});const arr=x.section||x.sections||[];window.__schoologyCourses=arr;
     c.innerHTML=`<section class="androidSectionList"><div class="sectionListRows">${arr.map((s,i)=>{
       const courseTitle=s.course_title||s.courseTitle||s.title||s.section_title||'Course';
       const sectionTitle=s.section_title||s.sectionTitle||'';
@@ -3434,24 +3468,24 @@ async function loadTab(){
     else await loadProfileTab(state.profileTab);
     await hydrateMediaImages(c);
   }else if(state.tab==='groups'){
-    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];
+    if(!learningUid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${learningUid}/groups`,params:{limit:100}});const arr=x.group||x.groups||[];
     window.__schoologyGroups=arr;
     c.innerHTML=`<section class="groupsAndroidPage"><h1>Groups</h1><div class="groupList">${arr.map((g,i)=>{const gi=normalizeImageUrl(g.picture_url||g.pictureUrl||g.picture||g.image||'');return `<button class="groupListItem" data-group-index="${i}"><span class="groupImage">${gi?`<img data-course-image-url="${esc(gi)}" alt="" style="display:none">`:''}<span class="groupImageFallback" style="display:${gi?'none':'flex'}">${esc(String(g.name||g.title||'G').charAt(0))}</span></span><span><b>${esc(g.name||g.title||'Group')}</b><small>${esc(g.description||g.group_description||'')}</small></span>${g.admin?'<span>★</span>':''}</button>`}).join('')||'<div class="empty">No groups found.</div>'}</div></section>`; await hydrateCourseImages(c);
     document.querySelectorAll('[data-group-index]').forEach(b=>b.onclick=()=>showGroup(window.__schoologyGroups[+b.dataset.groupIndex]));
   }else if(state.tab==='calendar'){
-    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+    if(!learningUid)throw new Error('Schoology did not return the logged-in user ID.');
     state.calendarTab=state.calendarTab||'calendar';
-    const perm=await A.api({path:`users/${uid}/events/permissions`,params:{}}).catch(()=>({}));
+    const perm=await A.api({path:`users/${learningUid}/events/permissions`,params:{}}).catch(()=>({}));
     state.calendarCanCreate=!!(perm?.permission?.post??perm?.permissions?.post??perm?.permission_map?.post??perm?.canPOST??perm?.can_post);
     c.innerHTML=`<section class="calendarPagerPage"><div class="calendarPagerTabs"><button class="calendarPagerTab ${state.calendarTab==='calendar'?'active':''}" data-calendar-tab="calendar">Calendar</button><button class="calendarPagerTab ${state.calendarTab==='upcoming'?'active':''}" data-calendar-tab="upcoming">Upcoming</button></div><div id="calendarPagerContent" class="calendarPagerContent"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading…</span></div></div></section>`;
     const pager=document.getElementById('calendarPagerContent');
     const renderCalendarRows=events=>events.map(e=>{const type=String(e.type||'').toLowerCase();const icon=type==='assignment'?'ic_assignment.png':type==='assessment'?'ic_test_quiz.png':['assessment_v2','managed_assessment','quiz'].includes(type)?'ic_assessment_48dp.png':type==='discussion'?'ic_discussion.png':type==='external_tool'?'ic_external_tool.png':'home_dash_upcoming.png';const allDay=String(e.all_day??e.allDay??'')==='1'||e.allDay===1;const start=e.start||e.start_date||e.startDate||'';let time='';if(!allDay&&start){const dt=new Date(String(start).replace(' ','T'));if(!Number.isNaN(dt.getTime()))time=dt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});}return `<button class="calendarEventRow" data-calendar-event="${esc(e.id||'')}"><span class="calendarEventIcon">${officialOrAssetIcon(icon,'')}</span><span class="calendarEventText"><b>${esc(e.title||'Event')}</b>${time?`<small>${esc(time)}</small>`:''}</span></button>`}).join('');
-    const bindEventRows=(events)=>document.querySelectorAll('[data-calendar-event]').forEach(btn=>{if(btn.dataset.boundCalendar)return;btn.dataset.boundCalendar='1';btn.addEventListener('click',()=>{const e=events.find(v=>String(v.id||'')===String(btn.dataset.calendarEvent));if(!e)return;const type=String(e.type||'').toLowerCase();const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const sid=e.section_id??e.sectionId;if(type==='assignment'&&aid){showAssignment(sid,aid);return}if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){const id=aid??e.id;if(id){A.prepareWebSession().then(()=>showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true}));return}}if(type==='discussion'){const did=upcomingDiscussionId(e),gid=e.group_id??e.groupId;if(did&&sid){showDiscussionNative('sections',sid,did,e.title||'Discussion');return}if(did&&gid){showDiscussionNative('groups',gid,did,e.title||'Discussion');return}if(e.web_url||e.webUrl){showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Discussion');return}}if(type==='event'&&e.id){showEventNative(sid?'sections':'users',sid||state.auth?.userId,e.id,e.title||'Event');return}if(e.web_url||e.webUrl){showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming');return}})});
+    const bindEventRows=(events)=>document.querySelectorAll('[data-calendar-event]').forEach(btn=>{if(btn.dataset.boundCalendar)return;btn.dataset.boundCalendar='1';btn.addEventListener('click',()=>{const e=events.find(v=>String(v.id||'')===String(btn.dataset.calendarEvent));if(!e)return;const type=String(e.type||'').toLowerCase();const aid=e.assignment_id??e.assignmentId??e.assignment?.id;const sid=e.section_id??e.sectionId;if(type==='assignment'&&aid){showAssignment(sid,aid);return}if(['assessment','assessment_v2','managed_assessment','quiz'].includes(type)){const id=aid??e.id;if(id){A.prepareWebSession().then(()=>showEmbeddedWeb(`https://app.schoology.com/assignment/${id}`,e.title||'Quiz',{allowBrowser:false,quiz:true,assessment:true}));return}}if(type==='discussion'){const did=upcomingDiscussionId(e),gid=e.group_id??e.groupId;if(did&&sid){showDiscussionNative('sections',sid,did,e.title||'Discussion');return}if(did&&gid){showDiscussionNative('groups',gid,did,e.title||'Discussion');return}if(e.web_url||e.webUrl){showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Discussion');return}}if(type==='event'&&e.id){showEventNative(sid?'sections':'users',sid||learningUid,e.id,e.title||'Event');return}if(e.web_url||e.webUrl){showEmbeddedWeb(e.web_url||e.webUrl,e.title||'Upcoming');return}})});
     const normalizeCalendarEvents=value=>Array.isArray(value)?value:(value&&typeof value==='object'?[value]:[]);
     const loadCalendarUpcomingData=async()=>{
       if(!Array.isArray(state.calendarUpcomingEvents)){
-        const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),limit:100}});
+        const x=await A.api({path:`users/${learningUid}/events`,params:{start_date:formatApiDate(new Date()),limit:100}});
         state.calendarUpcomingEvents=normalizeCalendarEvents(x?.event??x?.events??x?.data?.event??x?.data?.events??[]);
       }
       return normalizeCalendarEvents(state.calendarUpcomingEvents);
@@ -3488,7 +3522,7 @@ async function loadTab(){
       const month=state.calendarDate?new Date(state.calendarDate):new Date(); state.calendarDate=new Date(month.getFullYear(),month.getMonth(),1);
       const selected=state.calendarSelectedDate?new Date(state.calendarSelectedDate):new Date();
       const monthStart=new Date(month.getFullYear(),month.getMonth(),1),monthEnd=new Date(month.getFullYear(),month.getMonth()+1,0),monthEndExclusive=new Date(month.getFullYear(),month.getMonth()+1,1); const monthKey=`${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}`;
-      if(state.calendarEventsMonth!==monthKey){const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(monthStart),end_date:formatApiDate(monthEndExclusive),limit:200}});state.calendarEvents=x.event||x.events||[];state.calendarEventsMonth=monthKey;}
+      if(state.calendarEventsMonth!==monthKey){const x=await A.api({path:`users/${learningUid}/events`,params:{start_date:formatApiDate(monthStart),end_date:formatApiDate(monthEndExclusive),limit:200}});state.calendarEvents=x.event||x.events||[];state.calendarEventsMonth=monthKey;}
       const arr=Array.isArray(state.calendarEvents)?state.calendarEvents:[];const dayEvents=new Map();for(const e of [...normalizeCalendarEvents(state.calendarUpcomingEvents),...arr]){const id=String(e?.id??e?.event_id??e?.eventId??''),raw=String(e?.start||e?.start_date||e?.startDate||e?.date||e?.due_date||e?.dueDate||''),key=id||[e?.title||e?.name||'',raw].join('|');if(!dayEvents.has(key))dayEvents.set(key,e)}const byDay={};for(const e of dayEvents.values()){const date=calendarEventDate(e);const key=date?formatApiDate(date):String(e.start||e.start_date||e.date||e.startDate||'').slice(0,10);if(key)(byDay[key]||(byDay[key]=[])).push(e)}
       const selectedKey=formatApiDate(selected),days=monthStart.getDay(),rows=Math.ceil((days+monthEnd.getDate())/7),cells=[];
       for(let i=0;i<rows*7;i++){const n=i-days+1,inMonth=n>=1&&n<=monthEnd.getDate(),d=inMonth?new Date(month.getFullYear(),month.getMonth(),n):null,key=d?formatApiDate(d):'',evs=key?(byDay[key]||[]):[];cells.push(`<button class="calendarDay ${key===selectedKey?'selected':''} ${inMonth?'':'outside'}" data-calendar-day="${key}"><b>${inMonth?n:''}</b>${evs.length?'<i class="calendarEventMarker" aria-hidden="true"></i>':''}</button>`)}
@@ -3510,8 +3544,8 @@ async function loadTab(){
     document.querySelectorAll('[data-calendar-tab]').forEach(b=>b.addEventListener('click',()=>selectCalendarTab(b.dataset.calendarTab)));
     try{if(state.calendarTab==='calendar')await loadCalendarMonth();else await loadCalendarUpcoming()}catch(e){pager.innerHTML=`<div class="error apiError">Unable to load Calendar.<br>${esc(e.message)}</div>`}
   }else if(state.tab==='grades'){
-    if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
-    const x=await A.api({path:`users/${uid}/grades`,params:{}});const ss=gradeObjectList(x,['section','sections'],['id','section_id','sectionId','course_title','courseTitle','section_title','sectionTitle']);
+    if(!learningUid)throw new Error('Schoology did not return the logged-in user ID.');
+    const x=await A.api({path:`users/${learningUid}/grades`,params:{}});const ss=gradeObjectList(x,['section','sections'],['id','section_id','sectionId','course_title','courseTitle','section_title','sectionTitle']);
     const normalized=ss.map(s=>({...s,section_id:s.section_id??s.sectionId??s.id,section_title:s.section_title||s.sectionTitle||s.section_name||s.sectionName||'',course_title:s.course_title||s.courseTitle||s.course_name||s.courseName||s.course?.title||s.course?.name||s.course_data?.title||s.courseData?.title||s.title||''})).filter(s=>s.section_id);
     const renderGradeRows=()=>{
       const list=c.querySelector('.userGradesCourseList');if(!list)return;
@@ -3662,9 +3696,9 @@ async function loadHomeSectionAssignments(sectionId){
  return all;
 }
 async function loadHomeAssignmentData(force=false){
- const uid=state.auth?.userId||state.auth?.user?.id;
+ const uid=currentLearningUserId();
  if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
- if(!force&&state.homeAssignmentsCache&&Date.now()-(state.homeAssignmentsCacheAt||0)<15000)return state.homeAssignmentsCache;
+ if(!force&&state.homeAssignmentsCache&&state.homeAssignmentsCacheUserId===String(uid)&&Date.now()-(state.homeAssignmentsCacheAt||0)<15000)return state.homeAssignmentsCache;
  const response=await A.api({path:`users/${uid}/sections`,params:{start:0,limit:2000}});
  const sections=response?.section??response?.sections??response?.data?.section??[];
  const all=[];
@@ -3693,6 +3727,7 @@ async function loadHomeAssignmentData(force=false){
   }
  }));
  state.homeAssignmentsCache=all;
+ state.homeAssignmentsCacheUserId=String(uid);
  state.homeAssignmentsCacheAt=Date.now();
  return all;
 }
@@ -3745,7 +3780,7 @@ async function loadHomeAssignmentTab(c,mode){
  });
 }
 async function renderUpcomingInto(c){
- const uid=state.auth?.userId||state.auth?.user?.id;if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
+ const uid=currentLearningUserId();if(!uid)throw new Error('Schoology did not return the logged-in user ID.');
  const x=await A.api({path:`users/${uid}/events`,params:{start_date:formatApiDate(new Date()),start:0,limit:50}});
  const arr=(x.event||x.events||[]).filter(e=>['assignment','assessment','assessment_v2','managed_assessment','discussion','external_tool','event'].includes(String(e.type||'')));
  const sorted=arr.slice().sort((a,b)=>String(a.start||'').localeCompare(String(b.start||'')));
@@ -3814,7 +3849,7 @@ async function loadHomeTab(){
   }else if(state.homeTab==='dashboard'){
     // Android 2026.06.0 uses a HybridView for this tab. The desktop port uses a
     // native equivalent so Chromium/WebView sizing cannot leave a blank bottom area.
-    const uid=state.auth?.userId||state.auth?.user?.id;
+    const uid=currentLearningUserId();
     c.classList.remove('embeddedContentActive');c.classList.add('dashboardContentActive');
     c.innerHTML=`<section class="nativeCourseDashboard"><div class="dashboardOfficialLoading" id="dashboardOfficialLoading"><img src="../assets/sgy_loading.gif" alt=""></div><div id="nativeDashboardCourses" class="nativeDashboardCourses"></div></section>`;
     const loader=document.getElementById('dashboardOfficialLoading'),list=document.getElementById('nativeDashboardCourses');

@@ -1,5 +1,17 @@
 # Release notes
 
+## [2026.10.0-port.115]
+
+### Added
+- Add parent-account linked-student discovery using the authenticated user's Schoology `child_uids` field, matching the supplied Android app's My Children visibility behavior.
+- Add a Switch Student submenu to the navigation drawer, including a Parent account option and a clear selected-student indicator.
+- Scope student-facing courses, groups, course dashboard, grades, calendar events, upcoming events, assignment status, and grade lookups to the selected linked student while keeping the parent session and account-level messaging/profile/settings intact.
+- Use Schoology's existing API permission responses and authenticated requests for available actions instead of hardcoding blanket parent-role restrictions.
+
+### Changed
+- Clear student-scoped caches and return to Home when switching between the parent account and a linked student.
+- Bump the Tauri, npm, and Rust package versions to `2026.10.0-port.115`.
+
 ## [2026.10.0-port.114]
 
 ### Fixed
