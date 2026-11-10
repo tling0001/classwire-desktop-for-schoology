@@ -1976,8 +1976,10 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
                 &[("accountId", "classwire-gemini")],
             ).map_err(|e| e.to_string())?;
             match google_api_call(&client, reqwest::Method::POST, create_url.as_str(), &access_token, Some(json!({
-                "displayName":"ClassWire Gemini",
-                "description":"Dedicated service-account identity for this user's ClassWire Gemini authorization key. No service-account private key is created."
+                "serviceAccount": {
+                    "displayName":"ClassWire Gemini",
+                    "description":"Dedicated service-account identity for this user's ClassWire Gemini authorization key. No service-account private key is created."
+                }
             }))).await {
                 Ok(created) => created,
                 Err(create_error) if create_error.contains("HTTP 409") => {

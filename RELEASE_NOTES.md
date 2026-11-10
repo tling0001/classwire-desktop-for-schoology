@@ -1,5 +1,13 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.70]
+
+### Fixed
+- Correct Google IAM service-account creation to nest displayName and description under serviceAccount, matching Google's REST request schema. This fixes automatic Gemini key creation and reuse setup.
+
+### Changed
+- Bump the port version to 2026.10.0-port.70.
+
 ## [2026.10.0-port.69]
 
 ### Fixed
