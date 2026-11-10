@@ -1,5 +1,12 @@
 # ClassWire Desktop Port
 
+## [2026.10.0-port.111]
+
+### Changed
+- Remove the editable model ID field from AI provider settings and first-run setup.
+- Direct users to choose and switch models from the message composer model picker.
+- Preserve saved per-provider model choices and existing provider defaults.
+
 ## [2026.10.0-port.110]
 
 ### Added
