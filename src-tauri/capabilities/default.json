@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Default capability for the Schoology main window",
   "windows": [
-    "main"
+    "main",
+    "main-template"
   ],
   "permissions": [
     "core:default",

@@ -1,5 +1,13 @@
 # Release notes
 
+## [2026.10.0-port.113]
+
+### Fixed
+- Recreate the main Tauri webview with a native `NewWindowResponse::Create` handler. OAuth popups now use related child webviews and retain `window.opener` messaging instead of being denied or sent to an unrelated browser.
+
+### Changed
+- Bump the Tauri app version to `2026.10.0-port.113`.
+
 ## [2026.10.0-port.112]
 
 ### Fixed
