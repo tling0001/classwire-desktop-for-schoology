@@ -171,7 +171,7 @@ async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Valu
 async fn request_with_redirect_cookies(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool, json_body: bool, mut redirect_set_cookie_headers: Option<&mut Vec<String>>) -> Result<reqwest::Response, String> {
     // Do not let reqwest replay the same OAuth Authorization header across redirects.
     // Schoology's Android interceptor signs each redirected request independently.
-    let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
+    let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(std::time::Duration::from_secs(90)).build().map_err(|e| e.to_string())?;
     let mut current_url = url;
     let mut current_method = method.to_uppercase();
     let mut current_body = body;
@@ -1089,7 +1089,7 @@ async fn prepare_web_session(app: &AppHandle, state: &HostState) -> Result<Value
     // Capture Set-Cookie from every redirect hop, not only the final JSON response.
     // SESS can be issued by an intermediate response and is HttpOnly, so JS cannot recover it.
     let mut set_cookie_headers = Vec::new();
-    let response = request_with_redirect_cookies("GET", url, None, Some(&auth), state, true, None, false, Some(&mut set_cookie_headers)).await?;
+    let response = request_with_redirect_cookies("GET", url, None, Some(&auth), state, true, None, false, false, Some(&mut set_cookie_headers)).await?;
     let header_cookies: Vec<Value> = set_cookie_headers.into_iter().filter_map(|header| {
         let mut parts = header.split(';');
         let pair = parts.next()?.trim();
