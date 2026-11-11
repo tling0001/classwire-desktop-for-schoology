@@ -1,5 +1,18 @@
 # Release notes
 
+## [2026.10.0-port.118]
+
+### ClassWire AI
+- Match the SwiftUI AI welcome/setup flow while making Gemini the automated path: connect Google, create or reuse the account's dedicated `ClassWire AI` Cloud project, enable required services, and create or reuse a Gemini-only authorization key in the OS credential vault.
+- Move manual Cloud project selection, manual project IDs, and existing Gemini API key entry into a dedicated Advanced Gemini settings page; add Google disconnect controls without deleting the saved Gemini key.
+- Add verified Schoology recipient search to AI message drafting and send only to the exact recipient ID returned by Schoology, with Markdown formatting preserved and explicit confirmation retained.
+- Translate Gemini HTTP 429 quota responses into readable retry guidance with working links to rate limits and usage monitoring.
+- Give the macOS/iPad chat popout a dedicated close, settings, new conversation, and history toolbar with a restrained translucent material treatment and reduced-motion support.
+
+### Build
+- Increment Tauri, npm, and Rust package versions to `2026.10.0-port.118`.
+
+
 ## [2026.10.0-port.117]
 
 ### Teacher grading

@@ -2115,6 +2115,57 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
     Ok(json!({"connected":true,"projectId":project_id,"serviceAccount":service_account_email,"keyCreated":true}))
 }
 
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+async fn google_auto_setup_gemini_key() -> Result<Value, String> {
+    let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(60)).build().map_err(|e| e.to_string())?;
+    let access_token = google_refresh_access_token(&client).await?;
+    let profile = google_api_call(&client, reqwest::Method::GET,
+        "https://openidconnect.googleapis.com/v1/userinfo", &access_token, None).await?;
+    let email = profile.get("email").and_then(Value::as_str)
+        .filter(|value| value.contains('@'))
+        .ok_or("Google did not return the connected account email. Reconnect Google and try again.")?.to_owned();
+    let projects = google_list_projects_with_token(&client, &access_token).await?;
+    let project_id = if let Some(existing) = projects.iter().find(|project| {
+        project.get("displayName").and_then(Value::as_str).unwrap_or("").trim().eq_ignore_ascii_case("ClassWire AI")
+    }) {
+        existing.get("projectId").and_then(Value::as_str)
+            .ok_or("Google returned a ClassWire AI project without a project ID.")?.to_owned()
+    } else {
+        let digest = Sha256::digest(email.to_lowercase().as_bytes());
+        let suffix = format!("{:02x}{:02x}{:02x}{:02x}{:02x}", digest[0], digest[1], digest[2], digest[3], digest[4]);
+        let project_id = format!("classwire-ai-{suffix}");
+        match google_api_call(&client, reqwest::Method::POST,
+            "https://cloudresourcemanager.googleapis.com/v3/projects", &access_token,
+            Some(json!({"projectId":project_id,"displayName":"ClassWire AI"}))).await {
+            Ok(_) => {},
+            Err(error) if error.contains("HTTP 409") => {},
+            Err(error) => return Err(error),
+        }
+        let mut active = false;
+        for attempt in 0..90 {
+            match google_api_call(&client, reqwest::Method::GET,
+                &format!("https://cloudresourcemanager.googleapis.com/v3/projects/{project_id}"),
+                &access_token, None).await {
+                Ok(project) => match project.get("state").and_then(Value::as_str).unwrap_or("") {
+                    "ACTIVE" => { active = true; break; },
+                    "DELETE_REQUESTED" => return Err("Your existing ClassWire AI Google Cloud project is being deleted. Restore it in Google Cloud or use Advanced Gemini settings to select another project.".into()),
+                    _ => {},
+                },
+                Err(error) if error.contains("HTTP 404") && attempt < 89 => {},
+                Err(error) => return Err(error),
+            }
+            if attempt < 89 { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }
+        }
+        if !active { return Err("Google did not make the ClassWire AI project active within 90 seconds. Check your Google Cloud permissions and try again.".into()); }
+        project_id
+    };
+    let key_result = google_create_gemini_key(&json!({"projectId":project_id})).await?;
+    Ok(json!({"connected":true,"email":email,"projectId":project_id,"displayName":"ClassWire AI",
+        "keyCreated":key_result.get("keyCreated").and_then(Value::as_bool).unwrap_or(true)}))
+}
+
 async fn ai_provider_models(provider: &str) -> Result<Value, String> {
     if !["openai", "anthropic", "gemini", "ollama"].contains(&provider) {
         return Err("Choose Gemini, OpenAI, Anthropic, or Ollama.".into());
@@ -2325,6 +2376,27 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             { Err("Google Gemini account setup is available in the desktop app.".into()) }
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             { google_create_gemini_key(&args).await }
+        },
+        "ai-auto-setup-gemini" => {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            { Err("Automatic Google Gemini setup is available in the desktop app.".into()) }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            { google_auto_setup_gemini_key().await }
+        },
+        "ai-disconnect-google" => {
+            if let Ok(entry) = Entry::new("ClassWire Google OAuth", "refresh-token") { let _ = entry.delete_credential(); }
+            Ok(json!(true))
+        },
+        "close-ai-popout" => {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            { Ok(json!(false)) }
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                if let Some(window) = app.get_webview_window("classwire-ai") {
+                    window.close().map_err(|error| format!("Could not close the AI assistant window: {error}"))?;
+                }
+                Ok(json!(true))
+            }
         },
 
         "annotation-request" => annotation_request(&app, &state, &args).await,

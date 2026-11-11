@@ -4715,3 +4715,18 @@ body.aiDocked .shell>.toolbar{margin-right:410px!important;width:calc(100% - 410
 :root[data-theme="dark"] .aiGoogleProjectActions .aiGoogleCreate,:root[data-theme="dark"] .aiGoogleProjectActions .aiGoogleManualCreate{background:#176da9;border-color:#176da9;color:#fff}
 :root[data-theme="dark"] .aiGoogleManual input{background:var(--theme-input,#171c21);color:var(--theme-text,#e8edf2);border-color:var(--theme-border,#3a4651)}
 :root[data-theme="dark"] .aiGoogleManual{border-color:var(--theme-border,#3a4651)}
+
+
+/* ClassWire AI popout: compact translucent controls, limited to the functional toolbar layer. */
+.aiPopoutWindow .aiHeader{position:sticky;top:0;z-index:24;background:color-mix(in srgb,var(--theme-surface,#fff) 78%,transparent);backdrop-filter:blur(24px) saturate(1.35);-webkit-backdrop-filter:blur(24px) saturate(1.35);border-bottom:1px solid color-mix(in srgb,var(--theme-border,#dce2e7) 72%,transparent)}
+.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar{display:flex;align-items:center;gap:5px}
+.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar button{display:grid;place-items:center;min-width:36px;width:36px;height:36px;padding:0;border:0;border-radius:12px;background:color-mix(in srgb,var(--theme-surface,#fff) 38%,transparent);color:var(--theme-text,#27313b);font-size:18px;line-height:1;cursor:pointer;transition:background-color .16s ease,transform .16s ease}
+.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar button:hover{background:color-mix(in srgb,var(--theme-hover,#e8eef3) 76%,transparent)}
+.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar button:active{transform:scale(.96)}
+.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar button:focus-visible{outline:2px solid var(--theme-link,#397fbd);outline-offset:2px}
+.aiPopoutWindow #aiUtilityRow[hidden]{display:none!important}
+.aiAdvancedGeminiDialog .aiAdvancedGoogleActions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.aiAdvancedGeminiDialog .aiAdvancedManualKey{display:grid;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--theme-border,#dce2e7)}
+.aiAdvancedGeminiDialog .aiAdvancedManualKey input{width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--theme-border,#d5dce2);border-radius:9px;background:var(--theme-input,#fff);color:var(--theme-text,#26313b)}
+:root[data-theme="dark"] .aiAdvancedGeminiDialog{--theme-surface:#20262d;--theme-subtle:#29323b;--theme-border:#3a4651;--theme-text:#e8edf2;--theme-muted:#a7b2bd;--theme-input:#171c21}
+@media(prefers-reduced-motion:reduce){.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar button{transition:none!important;transform:none!important}}
