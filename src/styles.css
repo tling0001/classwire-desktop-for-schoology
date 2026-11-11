@@ -4730,3 +4730,14 @@ body.aiDocked .shell>.toolbar{margin-right:410px!important;width:calc(100% - 410
 .aiAdvancedGeminiDialog .aiAdvancedManualKey input{width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--theme-border,#d5dce2);border-radius:9px;background:var(--theme-input,#fff);color:var(--theme-text,#26313b)}
 :root[data-theme="dark"] .aiAdvancedGeminiDialog{--theme-surface:#20262d;--theme-subtle:#29323b;--theme-border:#3a4651;--theme-text:#e8edf2;--theme-muted:#a7b2bd;--theme-input:#171c21}
 @media(prefers-reduced-motion:reduce){.aiPopoutWindow .aiHeaderActions.aiPopoutToolbar button{transition:none!important;transform:none!important}}
+
+
+/* ClassWire AI: accessible thinking state and file attachment presentation. */
+.aiStatus.isThinking{display:flex;align-items:center;gap:8px;min-height:30px;padding:4px 13px;color:var(--theme-text,#34414d)}
+.aiThinkingSpinner{width:15px;height:15px;flex:0 0 15px;border:2px solid var(--theme-border,#cbd5df);border-top-color:var(--theme-accent,#1769aa);border-radius:50%;animation:aiThinkingSpin .8s linear infinite}
+.aiThinkingLabel{font-size:12px;font-weight:650;white-space:nowrap}.aiStatus.isThinking small{font-size:11px;color:var(--theme-muted,#74818c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes aiThinkingSpin{to{transform:rotate(360deg)}}
+.aiPendingAttachments{display:flex;flex-wrap:wrap;gap:6px;padding:0 0 8px}.aiPendingAttachment,.aiMessageFile{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 8px;border:1px solid var(--theme-border,#d7e0e7);border-radius:9px;background:var(--theme-surface-2,var(--theme-surface,#fff));font-size:11px;color:var(--theme-text,#34414d)}
+.aiPendingAttachment button{width:22px!important;height:22px!important;min-height:22px!important;padding:0!important;background:transparent!important;color:var(--theme-muted,#74818c)!important;border:0!important}
+.aiMessageAttachments{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.aiMessageAttachment{margin:0;max-width:min(100%,280px)}.aiMessageAttachment img{display:block;max-width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid var(--theme-border,#d7e0e7)}.aiMessageAttachment figcaption{font-size:10px;color:var(--theme-muted,#74818c);margin-top:3px;overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){.aiThinkingSpinner{animation:none;border-top-color:var(--theme-accent,#1769aa);opacity:.8}}

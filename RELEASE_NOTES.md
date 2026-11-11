@@ -1,5 +1,18 @@
 # Release notes
 
+## [2026.10.0-port.119]
+
+### ClassWire AI
+- Add a native-style thinking indicator with live task status, accessible busy state, and a reduced-motion alternative.
+- Add an AI attachment picker for up to five files, image previews, text-file extraction, and multimodal image/PDF input for supported providers.
+- Add Puter image media forwarding through the SDK's media-array chat overload.
+- Add Gemini image generation using `gemini-3.1-flash-image`, including optional image references.
+- Add the `submit_assignment_files` AI workflow: upload selected files first, then submit them together in one Schoology request only after the user explicitly confirms.
+- Keep attachment bytes out of persisted chat history while retaining filenames and file metadata.
+
+### Build
+- Increment the Tauri, npm, and Rust package versions to `2026.10.0-port.119`.
+
 ## [2026.10.0-port.118]
 
 ### ClassWire AI
