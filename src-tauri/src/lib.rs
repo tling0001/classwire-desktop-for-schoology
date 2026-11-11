@@ -166,9 +166,9 @@ fn plaintext_header(token: &str, secret: &str, timestamp: i64) -> String {
     format!("OAuth oauth_consumer_key=\"{CONSUMER_KEY}\", oauth_nonce=\"{}\", oauth_signature_method=\"PLAINTEXT\", oauth_timestamp=\"{timestamp}\", oauth_token=\"{}\", oauth_signature=\"{CONSUMER_SECRET}%26{}\"", random_nonce(), token, secret)
 }
 async fn request(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool) -> Result<reqwest::Response, String> {
-    request_with_redirect_cookies(method, url, body, auth, state, client_identity, qr, plaintext, None).await
+    request_with_redirect_cookies(method, url, body, auth, state, client_identity, qr, plaintext, false, None).await
 }
-async fn request_with_redirect_cookies(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool, mut redirect_set_cookie_headers: Option<&mut Vec<String>>) -> Result<reqwest::Response, String> {
+async fn request_with_redirect_cookies(method: &str, url: Url, body: Option<Value>, auth: Option<&Value>, state: &HostState, client_identity: bool, qr: Option<&str>, plaintext: bool, json_body: bool, mut redirect_set_cookie_headers: Option<&mut Vec<String>>) -> Result<reqwest::Response, String> {
     // Do not let reqwest replay the same OAuth Authorization header across redirects.
     // Schoology's Android interceptor signs each redirected request independently.
     let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(std::time::Duration::from_secs(45)).build().map_err(|e| e.to_string())?;
@@ -189,7 +189,11 @@ async fn request_with_redirect_cookies(method: &str, url: Url, body: Option<Valu
         }
         if let Some(value) = current_body.clone() {
             if !current_method.eq_ignore_ascii_case("GET") && !current_method.eq_ignore_ascii_case("HEAD") {
-                builder = builder.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value));
+                if json_body {
+                    builder = builder.json(&value);
+                } else {
+                    builder = builder.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value));
+                }
             }
         }
         let response = builder.send().await.map_err(|e| format!("Schoology request failed: {e}"))?;
@@ -397,15 +401,34 @@ async fn fetch_image(app: &AppHandle, state: &HostState, raw: &str) -> Result<Va
 }
 async fn api_json(app: &AppHandle, state: &HostState, method: &str, url: Url, body: Option<Value>, json_body: bool) -> Result<Value, String> {
     let auth = auth_state(app).ok_or("Not signed in")?;
-    let timestamp = epoch() + *state.server_time_offset.lock().map_err(|e| e.to_string())?;
-    let header = signed_header(method, &url, auth["oauth_token"].as_str().unwrap_or(""), auth["oauth_token_secret"].as_str().unwrap_or(""), timestamp, &[])?;
-    let client = reqwest::Client::builder().redirect(reqwest::redirect::Policy::limited(6)).timeout(std::time::Duration::from_secs(90)).build().map_err(|e| e.to_string())?;
-    let mut request = client.request(method.parse::<reqwest::Method>().map_err(|e| e.to_string())?, url).header("User-Agent", ANDROID_UA).header("Accept", "application/json").header("X-Schoology-Client", "Android").header("X-Schoology-App-Version", "2026.10.0").header("Authorization", header).header("Cookie", MOBILE_COOKIE);
-    if let Some(value) = body {
-        if json_body { request = request.json(&value); }
-        else { request = request.header("Content-Type", "application/x-www-form-urlencoded").body(form_value(&value)); }
+
+    // Sign every redirect hop independently and retry explicit replay rejections
+    // with a fresh nonce/signature and a refreshed Schoology server timestamp.
+    for replay_attempt in 0..=4 {
+        let response = request_with_redirect_cookies(
+            method, url.clone(), body.clone(), Some(&auth), state, true, None, false, json_body, None
+        ).await?;
+
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            let status = response.status();
+            let response_text = response.text().await.map_err(|error| error.to_string())?;
+            let normalized = response_text.to_ascii_lowercase().chars()
+                .filter(|character| character.is_ascii_alphanumeric())
+                .collect::<String>();
+            let replay_rejected = normalized.contains("duplicatetimestampnoncecombination")
+                || normalized.contains("possiblereplayattack");
+            if replay_rejected && replay_attempt < 4 {
+                sync_server_time(state).await;
+                tokio::time::sleep(std::time::Duration::from_millis(350 * (replay_attempt + 1))).await;
+                continue;
+            }
+            return Err(format!("Schoology API {}: {}", status.as_u16(), response_text.chars().take(700).collect::<String>()));
+        }
+
+        return response_value(response).await;
     }
-    response_value(request.send().await.map_err(|e| e.to_string())?).await
+
+    Err("Schoology rejected repeated OAuth request credentials. Please retry the request.".into())
 }
 async fn submit_assignment_text(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
     let section = info.get("sectionId").and_then(Value::as_i64).ok_or("Text submission information is incomplete.")?;
