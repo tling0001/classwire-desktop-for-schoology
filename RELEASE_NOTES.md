@@ -1,5 +1,18 @@
 # Release notes
 
+## [2026.10.0-port.122]
+
+### Schoology OAuth reliability
+- Route authenticated API requests through the same manual redirect handler used by the Android-aligned sign-in flow, generating a fresh OAuth signature for every same-host redirect instead of replaying a stale Authorization header.
+- Detect duplicate timestamp/nonce replay responses and retry up to four times with a new nonce/signature and refreshed server time.
+- Preserve JSON and form-encoded request bodies across redirects and retries.
+
+### Build
+- Increment the Tauri, npm, and Rust package versions to `2026.10.0-port.122`.
+
+
+# Release notes
+
 ## [2026.10.0-port.121]
 
 ### ClassWire AI sign-out reset
