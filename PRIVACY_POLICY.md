@@ -53,7 +53,7 @@ Only use the App with accounts, records, and permissions you are authorized to a
 ## 4. Local storage, retention, and deletion
 
 - Schoology sign-in credentials are stored in the App's local app-data directory. Signing out removes the App's local Schoology authentication file.
-- AI provider API keys and the Google OAuth refresh token are stored in the operating system's credential facility. Signing out of Schoology does not automatically remove these AI credentials.
+- AI provider API keys and the Google OAuth refresh token are stored in the operating system's credential facility. Signing out of Schoology clears local AI preferences, conversation history, captured page context, provider API keys, and the Google refresh token; it also attempts to sign out of Puter and closes its authentication window.
 - AI preferences, recent conversations, and captured page context are stored in local WebView storage until that local app data is cleared or replaced.
 - Downloaded files remain wherever your operating system or you saved them.
 - Google Cloud API keys and service accounts created in your project remain resources in that project until you delete them in Google Cloud.

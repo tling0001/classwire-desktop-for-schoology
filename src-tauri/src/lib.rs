@@ -2552,6 +2552,26 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let seen = app_file(&app, "notification-seen.json")?;
             let _ = fs::remove_file(seen);
             if let Ok(mut pending) = state.pending_login.lock() { pending.take(); }
+
+            // A Schoology sign-out is also a complete local ClassWire AI reset.
+            for provider in ["openai", "anthropic", "gemini"] {
+                if let Ok(entry) = Entry::new("ClassWire AI", provider) {
+                    let _ = entry.delete_credential();
+                }
+            }
+            if let Ok(entry) = Entry::new("ClassWire Google OAuth", "refresh-token") {
+                let _ = entry.delete_credential();
+            }
+            if let Ok(mut keys) = state.ai_provider_keys.lock() {
+                keys.clear();
+            }
+
+            // Close the AI popout and any outstanding Puter authentication window.
+            for (label, window) in app.webview_windows() {
+                if label == "classwire-ai" || label.starts_with("auth-popup-") {
+                    let _ = window.close();
+                }
+            }
             let _ = app.emit("schoology-clear-web-session", json!({}));
             Ok(json!(true))
         },

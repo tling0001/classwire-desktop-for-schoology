@@ -176,7 +176,14 @@
     loginQR: value => invoke('login-qr', value),
     loginSchoolBrowser: value => invoke('login-school-browser', value),
     loginExternalSchool: value => loginExternalSchool(value),
-    logout: async () => { const result = await invoke('logout'); webSessionCache = null; webSessionPending = null; return result; },
+    logout: async () => {
+      const result = await invoke('logout');
+      webSessionCache = null;
+      webSessionPending = null;
+      try { window.__classWireAIResetForSignOut?.(); }
+      catch (error) { console.warn('Could not reset ClassWire AI after sign-out:', error); }
+      return result;
+    },
     schoolSearch: query => invoke('school-search', query),
     schoolLookup: domain => invoke('school-lookup', domain),
     api: value => invoke('api', value),

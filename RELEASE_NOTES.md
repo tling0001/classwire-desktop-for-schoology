@@ -1,5 +1,22 @@
 # Release notes
 
+## [2026.10.0-port.121]
+
+### ClassWire AI sign-out reset
+- Clear local AI provider preferences, model choices, setup completion, conversation history, and captured page context when signing out.
+- Delete OpenAI, Anthropic, and Gemini API keys plus the Google OAuth refresh token from the operating-system credential vault, and clear in-memory provider credentials.
+- Sign out of an active Puter session when available and close the AI popout and Puter authentication windows.
+- Restore the first-use provider setup flow and an empty conversation history on the next sign-in.
+- Invalidate in-flight AI requests on sign-out so late responses cannot repopulate chat history.
+
+### Privacy
+- Update the privacy policy to describe the new sign-out cleanup behavior.
+
+### Build
+- Increment the Tauri, npm, and Rust package versions to `2026.10.0-port.121`.
+
+
+
 ## [2026.10.0-port.120]
 
 ### Fixed
