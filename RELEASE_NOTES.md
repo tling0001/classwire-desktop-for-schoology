@@ -1,5 +1,15 @@
 # Release notes
 
+## [2026.10.0-port.120]
+
+### Fixed
+- Resolve the numeric Google Cloud project number before listing or creating Gemini authorization keys; the API Keys API requires its canonical `projects/<PROJECT_NUMBER>/locations/global` parent resource name.
+- Preserve the automatic `ClassWire AI` project lookup/create flow and use project IDs for Resource Manager, Service Usage, and IAM operations.
+- Add `app.classwire.com` as a deterministic test-school search result and route its browser OAuth handoff to `app.schoology.com`.
+
+### Build
+- Increment the Tauri, npm, and Rust package versions to `2026.10.0-port.120`.
+
 ## [2026.10.0-port.119]
 
 ### ClassWire AI

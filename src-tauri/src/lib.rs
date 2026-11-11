@@ -300,8 +300,13 @@ async fn login_qr(app: &AppHandle, state: &HostState, qr: &str) -> Result<Value,
 fn build_browser_login_url(domain: &str, request_token: &str) -> Result<String, String> {
     let raw = domain.trim();
     let with_scheme = if raw.contains("://") { raw.to_owned() } else { format!("https://{raw}") };
-    let parsed = Url::parse(&with_scheme).map_err(|_| "This school did not provide a valid login domain.")?;
+    let mut parsed = Url::parse(&with_scheme).map_err(|_| "This school did not provide a valid login domain.")?;
     if !["https", "http"].contains(&parsed.scheme()) || parsed.host_str().is_none() { return Err("This school did not provide a valid login domain.".into()); }
+    // app.classwire.com is a test-only search alias. Run the actual Schoology
+    // browser OAuth handoff against the production Schoology host.
+    if parsed.host_str().is_some_and(|host| host.eq_ignore_ascii_case("app.classwire.com")) {
+        parsed.set_host(Some("app.schoology.com")).map_err(|_| "Could not map the ClassWire test domain to Schoology.")?;
+    }
     let host = parsed.host_str().unwrap_or_default();
     let callback = format!("https://{host}/mobile_login_success?os=android&os_version=34&app_version=600000478");
     let oauth_path = format!("oauth/authorize?oauth_token={request_token}&oauth_callback={}", url::form_urlencoded::byte_serialize(callback.as_bytes()).collect::<String>());
@@ -2023,6 +2028,23 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
     let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(15))
         .timeout(std::time::Duration::from_secs(60)).build().map_err(|e| e.to_string())?;
     let access_token = google_refresh_access_token(&client).await?;
+    // API Keys API resource names are canonicalized with the numeric project
+    // number (projects/<PROJECT_NUMBER>/locations/global), not the project ID.
+    // Resolve it once through Resource Manager while retaining project_id for
+    // Service Usage and IAM operations, which accept the project ID.
+    let project = google_api_call(
+        &client,
+        reqwest::Method::GET,
+        &format!("https://cloudresourcemanager.googleapis.com/v3/projects/{project_id}"),
+        &access_token,
+        None,
+    ).await?;
+    let project_number = project.get("projectNumber")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .or_else(|| project.get("projectNumber").and_then(Value::as_u64).map(|number| number.to_string()))
+        .filter(|number| !number.is_empty() && number.chars().all(|ch| ch.is_ascii_digit()))
+        .ok_or("Google did not return a valid numeric project number for the selected project.")?;
     for service in ["iam.googleapis.com", "apikeys.googleapis.com", "generativelanguage.googleapis.com"] {
         google_enable_service(&client, project_id, service, &access_token).await?;
     }
@@ -2067,7 +2089,7 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
     let mut existing_key: Option<String> = None;
     let mut page_token: Option<String> = None;
     for _ in 0..10 {
-        let mut url = Url::parse(&format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_id))
+        let mut url = Url::parse(&format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_number))
             .map_err(|e| e.to_string())?;
         {
             let mut query = url.query_pairs_mut();
@@ -2089,7 +2111,7 @@ async fn google_create_gemini_key(args: &Value) -> Result<Value, String> {
     }
 
     let key_name = if let Some(name) = existing_key { name } else {
-        let create_url = format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_id);
+        let create_url = format!("https://apikeys.googleapis.com/v2/projects/{}/locations/global/keys", project_number);
         let mut operation: Option<Value> = None;
         let mut last_binding_error: Option<String> = None;
 
@@ -2539,9 +2561,24 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
             let url = Url::parse_with_params(&format!("https://{}/v1/login/school_search", api_host()), &[("query", query)]).map_err(|e| e.to_string())?;
             let response = request("GET", url, None, None, &state, true, None, false).await?;
             let value = response_value(response).await?;
-            let schools = value.get("school").and_then(Value::as_array).ok_or_else(|| {
+            let mut schools = value.get("school").and_then(Value::as_array).ok_or_else(|| {
                 format!("Schoology returned an unexpected school-search response: {}", value.to_string().chars().take(300).collect::<String>())
-            })?;
+            })?.clone();
+            // A deterministic local test school exercises the real Schoology
+            // OAuth browser flow without requiring Schoology's directory to
+            // contain a ClassWire-owned test domain.
+            if query.eq_ignore_ascii_case("app.classwire.com")
+                && !schools.iter().any(|school| {
+                    school.get("domain").and_then(Value::as_str)
+                        .is_some_and(|domain| domain.eq_ignore_ascii_case("app.classwire.com"))
+                }) {
+                schools.push(json!({
+                    "title":"ClassWire Test School",
+                    "id":"classwire-test",
+                    "login_type":"oauth",
+                    "domain":"app.classwire.com"
+                }));
+            }
             Ok(json!(schools))
         },
         "school-lookup" => {
