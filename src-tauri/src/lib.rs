@@ -903,6 +903,27 @@ async fn upload_schoology_file(app: &AppHandle, state: &HostState, info: &Value,
     }
 }
 
+async fn submit_schoology_files(app: &AppHandle, state: &HostState, info: &Value) -> Result<Value, String> {
+    let section = info.get("sectionId").and_then(Value::as_i64).filter(|v| *v > 0).ok_or("Submission information is incomplete.")?;
+    let grade_item = info.get("gradeItemId").and_then(Value::as_i64).filter(|v| *v > 0).ok_or("The assignment grade item ID is missing.")?;
+    let files = info.get("files").and_then(Value::as_array).ok_or("Select at least one file to submit.")?;
+    if files.is_empty() || files.len() > 5 { return Err("Submit between one and five files at a time.".into()); }
+    let mut uploaded_ids = Vec::new();
+    for (index, file) in files.iter().enumerate() {
+        let result = upload_schoology_file(app, state, file, false).await?;
+        let id = result.as_str().map(str::to_owned).or_else(|| result.as_i64().map(|value| value.to_string())).ok_or("Schoology did not return a valid uploaded file ID.")?;
+        uploaded_ids.push(json!(id));
+        let percent = (((index + 1) * 85) / files.len()) as u8;
+        let _ = app.emit("file-upload-progress", json!({"percent":percent,"phase":format!("Uploaded {} of {} attachments",index + 1,files.len())}));
+    }
+    // Official Schoology Submissions API: POST /sections/{section_id}/submissions/{grade_item_id}/file
+    // File IDs are sent in the first-level file-attachment object documented by Schoology.
+    let url = Url::parse(&format!("https://{}/v1/sections/{section}/submissions/{grade_item}/file", api_host())).map_err(|e| e.to_string())?;
+    api_json(app, state, "POST", url, Some(json!({"file-attachment":{"id":uploaded_ids}})), true).await?;
+    let _ = app.emit("file-upload-progress", json!({"percent":100,"phase":"Assignment files submitted"}));
+    Ok(json!({"submitted":true,"fileCount":files.len(),"gradeItemId":grade_item}))
+}
+
 fn notification_key(item: &Value) -> String {
     item.get("id").or_else(|| item.get("notification_id")).or_else(|| item.get("notificationId"))
         .map(|v| if v.is_string() { v.as_str().unwrap_or_default().to_owned() } else { v.to_string() })
@@ -2228,6 +2249,47 @@ async fn ai_provider_models(provider: &str) -> Result<Value, String> {
     Ok(json!({"models": models}))
 }
 
+async fn ai_generate_image(state: &HostState, args: &Value) -> Result<Value, String> {
+    let prompt = args.get("prompt").and_then(Value::as_str).unwrap_or("").trim();
+    if prompt.is_empty() || prompt.len() > 6000 { return Err("Describe the image in 1–6,000 characters.".into()); }
+    let key = Entry::new("ClassWire AI", "gemini").ok().and_then(|entry| entry.get_password().ok())
+        .or_else(|| state.ai_provider_keys.lock().ok().and_then(|keys| keys.get("gemini").cloned())).unwrap_or_default();
+    if key.is_empty() { return Err("Add or automatically create a Gemini API key in ClassWire AI settings before generating images.".into()); }
+    let mut parts = vec![json!({"text":prompt})];
+    if let Some(attachments) = args.get("attachments").and_then(Value::as_array) {
+        if attachments.len() > 5 { return Err("Use no more than five visual references.".into()); }
+        let mut total = 0usize;
+        for attachment in attachments {
+            let mime = attachment.get("mimeType").and_then(Value::as_str).unwrap_or("");
+            let data = attachment.get("dataBase64").and_then(Value::as_str).unwrap_or("");
+            if !["image/png","image/jpeg","image/webp","image/gif"].contains(&mime) || data.is_empty() { continue; }
+            let decoded = BASE64.decode(data).map_err(|_| "An attached image could not be decoded.")?;
+            if decoded.len() > 5 * 1024 * 1024 { return Err("Each image reference must be 5 MB or smaller.".into()); }
+            total += decoded.len(); if total > 20 * 1024 * 1024 { return Err("Image references exceed the 20 MB total limit.".into()); }
+            parts.push(json!({"inline_data":{"mime_type":mime,"data":data}}));
+        }
+    }
+    let url = Url::parse_with_params("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent", &[("key", key.as_str())]).map_err(|e| e.to_string())?;
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(180)).build().map_err(|e| e.to_string())?;
+    let payload = json!({"contents":[{"role":"user","parts":parts}],"generationConfig":{"responseModalities":["TEXT","IMAGE"]}});
+    let response = client.post(url).json(&payload).send().await.map_err(|e| format!("Could not reach Gemini image generation: {e}"))?;
+    let status = response.status();
+    let body = response.text().await.map_err(|e| format!("Gemini image generation returned an unreadable response: {e}"))?;
+    if !status.is_success() { return Err(format!("Gemini image generation failed (HTTP {}): {}", status.as_u16(), body.chars().take(1200).collect::<String>())); }
+    let value: Value = serde_json::from_str(&body).map_err(|_| "Gemini returned invalid image-generation JSON.")?;
+    let parts = value.pointer("/candidates/0/content/parts").and_then(Value::as_array).ok_or("Gemini did not return image content.")?;
+    let mut generated_text = Vec::new();
+    for part in parts {
+        if let Some(text) = part.get("text").and_then(Value::as_str) { generated_text.push(text.to_owned()); }
+        let image = part.get("inlineData").or_else(|| part.get("inline_data"));
+        if let Some(image) = image {
+            let data = image.get("data").and_then(Value::as_str).unwrap_or("");
+            if !data.is_empty() { return Ok(json!({"filename":"Gemini generated image","mimeType":image.get("mimeType").or_else(||image.get("mime_type")).and_then(Value::as_str).unwrap_or("image/png"),"dataBase64":data,"text":generated_text.join("\n")})); }
+        }
+    }
+    Err(if generated_text.is_empty() { "Gemini completed the request but did not return an image.".into() } else { format!("Gemini did not return an image: {}", generated_text.join(" ")) })
+}
+
 async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, String> {
     if args.get("listModels").and_then(Value::as_bool).unwrap_or(false) {
         return ai_provider_models(args.get("provider").and_then(Value::as_str).unwrap_or("")).await;
@@ -2238,12 +2300,27 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
     let messages = args.get("messages").and_then(Value::as_array).ok_or("AI conversation messages are missing.")?;
     if messages.is_empty() || messages.len() > 24 { return Err("AI conversations must contain between 1 and 24 recent messages.".into()); }
     let mut clean_messages = Vec::new();
+    let mut total_attachment_bytes = 0usize; let mut attachment_count = 0usize;
     for item in messages {
         let role = item.get("role").and_then(Value::as_str).unwrap_or("");
         let content = item.get("content").and_then(Value::as_str).unwrap_or("");
         if !["user", "assistant"].contains(&role) { continue; }
-        if content.is_empty() || content.len() > 24000 { return Err("An AI message is empty or exceeds the 24 KB limit.".into()); }
-        clean_messages.push(json!({"role":role,"content":content}));
+        let mut attachments_clean = Vec::new();
+        if let Some(attachments) = item.get("attachments").and_then(Value::as_array) {
+            for attachment in attachments {
+                attachment_count += 1; if attachment_count > 5 { return Err("Attach no more than five files per AI request.".into()); }
+                let mime = attachment.get("mimeType").and_then(Value::as_str).unwrap_or("");
+                let data = attachment.get("dataBase64").and_then(Value::as_str).unwrap_or("");
+                if !(["image/png","image/jpeg","image/webp","image/gif"].contains(&mime) || mime == "application/pdf") || data.is_empty() { continue; }
+                let decoded = BASE64.decode(data).map_err(|_| "An AI attachment could not be decoded.")?;
+                if decoded.len() > 5 * 1024 * 1024 { return Err("Each multimodal attachment must be 5 MB or smaller.".into()); }
+                total_attachment_bytes += decoded.len(); if total_attachment_bytes > 20 * 1024 * 1024 { return Err("Multimodal attachments exceed the 20 MB total limit.".into()); }
+                attachments_clean.push(json!({"filename":attachment.get("filename").and_then(Value::as_str).unwrap_or("attachment"),"mimeType":mime,"dataBase64":data}));
+            }
+        }
+        if content.is_empty() && attachments_clean.is_empty() { return Err("An AI message is empty.".into()); }
+        if content.len() > 24000 { return Err("An AI message exceeds the 24 KB text limit.".into()); }
+        clean_messages.push(json!({"role":role,"content":content,"attachments":attachments_clean}));
     }
     if clean_messages.is_empty() { return Err("There are no valid AI messages to send.".into()); }
     let system = args.get("system").and_then(Value::as_str).unwrap_or("You are ClassWire AI, a read-only learning assistant.");
@@ -2255,23 +2332,38 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
     let key = Entry::new("ClassWire AI", provider).ok().and_then(|entry|entry.get_password().ok()).or_else(||state.ai_provider_keys.lock().ok().and_then(|keys|keys.get(provider).cloned())).unwrap_or_default();
     if provider != "ollama" && key.is_empty() { return Err(format!("Add an API key for {} in ClassWire AI settings.", provider)); }
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
+    if (provider == "openai" || provider == "ollama") && clean_messages.iter().any(|m| m["attachments"].as_array().map(|a| a.iter().any(|f| f["mimeType"] == "application/pdf")).unwrap_or(false)) { return Err(format!("{provider} chat does not accept PDF attachments in this integration. Choose Gemini or Anthropic for PDF analysis.")); }
     let (response, label) = match provider {
         "openai" => {
-            let mut all = vec![json!({"role":"system","content":system})]; all.extend(clean_messages);
+            let mut all = vec![json!({"role":"system","content":system})];
+            for message in &clean_messages {
+                let attachments = message["attachments"].as_array().cloned().unwrap_or_default();
+                if attachments.is_empty() { all.push(json!({"role":message["role"],"content":message["content"]})); continue; }
+                let mut parts = vec![json!({"type":"text","text":message["content"]})];
+                for attachment in attachments { let mime=attachment["mimeType"].as_str().unwrap_or("image/png");let data=attachment["dataBase64"].as_str().unwrap_or("");parts.push(json!({"type":"image_url","image_url":{"url":format!("data:{mime};base64,{data}")}})); }
+                all.push(json!({"role":message["role"],"content":parts}));
+            }
             let mut payload=json!({"model":model,"messages":all,"temperature":0.2});if !openai_tools.is_empty(){payload["tools"]=json!(openai_tools);payload["tool_choice"]=json!("auto");}
             let response = client.post("https://api.openai.com/v1/chat/completions").bearer_auth(key).json(&payload)
                 .send().await.map_err(|e| format!("Could not reach OpenAI: {e}"))?;
             (response, "OpenAI")
         },
         "anthropic" => {
-            let mut payload=json!({"model":model,"max_tokens":2200,"system":system,"messages":clean_messages});if !anthropic_tools.is_empty(){payload["tools"]=json!(anthropic_tools);}
+            let anthropic_messages: Vec<Value> = clean_messages.iter().map(|message| {
+                let attachments = message["attachments"].as_array().cloned().unwrap_or_default();
+                if attachments.is_empty() { return json!({"role":message["role"],"content":message["content"]}); }
+                let mut blocks = vec![json!({"type":"text","text":message["content"]})];
+                for attachment in attachments { let mime=attachment["mimeType"].as_str().unwrap_or("image/png");let data=attachment["dataBase64"].as_str().unwrap_or("");if mime=="application/pdf"{blocks.push(json!({"type":"document","source":{"type":"base64","media_type":mime,"data":data}}));}else{blocks.push(json!({"type":"image","source":{"type":"base64","media_type":mime,"data":data}}));} }
+                json!({"role":message["role"],"content":blocks})
+            }).collect();
+            let mut payload=json!({"model":model,"max_tokens":2200,"system":system,"messages":anthropic_messages});if !anthropic_tools.is_empty(){payload["tools"]=json!(anthropic_tools);}
             let response = client.post("https://api.anthropic.com/v1/messages")
                 .header("x-api-key", key).header("anthropic-version", "2023-06-01").header("content-type", "application/json")
                 .json(&payload).send().await.map_err(|e| format!("Could not reach Anthropic: {e}"))?;
             (response, "Anthropic")
         },
         "gemini" => {
-            let contents: Vec<Value> = clean_messages.iter().map(|m| json!({"role":if m["role"]=="assistant"{"model"}else{"user"},"parts":[{"text":m["content"]}]})).collect();
+            let contents: Vec<Value> = clean_messages.iter().map(|m| { let mut parts=vec![json!({"text":m["content"]})];if let Some(attachments)=m["attachments"].as_array(){for attachment in attachments{parts.push(json!({"inline_data":{"mime_type":attachment["mimeType"],"data":attachment["dataBase64"]}}));}}json!({"role":if m["role"]=="assistant"{"model"}else{"user"},"parts":parts}) }).collect();
             let url = Url::parse_with_params(&format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"), &[("key",key.as_str())]).map_err(|e| e.to_string())?;
             let mut payload=json!({"systemInstruction":{"parts":[{"text":system}]},"contents":contents,"generationConfig":{"temperature":0.2,"maxOutputTokens":2200}});if !gemini_tools.is_empty(){payload["tools"]=json!([{"functionDeclarations":gemini_tools}]);}
             let mut attempt=0u32;
@@ -2287,7 +2379,8 @@ async fn ai_provider_chat(state: &HostState, args: &Value) -> Result<Value, Stri
             (response, "Gemini")
         },
         "ollama" => {
-            let mut all = vec![json!({"role":"system","content":system})]; all.extend(clean_messages);
+            let mut all = vec![json!({"role":"system","content":system})];
+            for message in &clean_messages { let mut value=json!({"role":message["role"],"content":message["content"]});let images:Vec<Value>=message["attachments"].as_array().into_iter().flatten().filter(|a|a["mimeType"].as_str().unwrap_or("").starts_with("image/")).map(|a|a["dataBase64"].clone()).collect();if !images.is_empty(){value["images"]=json!(images);}all.push(value); }
             let mut payload=json!({"model":model,"messages":all,"stream":false});if !openai_tools.is_empty(){payload["tools"]=json!(openai_tools);}
             let response = client.post("http://127.0.0.1:11434/api/chat").json(&payload)
                 .send().await.map_err(|e| format!("Could not reach local Ollama at 127.0.0.1:11434: {e}"))?;
@@ -2358,6 +2451,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         },
         "ai-clear-provider-key" => {let provider=args.as_str().unwrap_or("");if let Ok(entry)=Entry::new("ClassWire AI",provider){let _=entry.delete_credential();}state.ai_provider_keys.lock().map_err(|_|"AI provider settings are unavailable.")?.remove(provider);Ok(json!(true))},
         "ai-has-provider-key" => {let provider=args.as_str().unwrap_or("");if !["openai","anthropic","gemini"].contains(&provider){return Ok(json!(false));}Ok(json!(Entry::new("ClassWire AI",provider).ok().and_then(|e|e.get_password().ok()).is_some()))},
+        "ai-generate-image" => ai_generate_image(&state,&args).await,
         "ai-chat" => ai_provider_chat(&state,&args).await,
         "ai-connect-google" => {
             #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -2467,6 +2561,7 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
         "submit-assignment-resource" => submit_assignment_resource(&app,&state,&args).await,
         "check-assignment-upload-permission" => check_assignment_upload_permission(&app,&state,&args).await,
         "submit-assignment-file" => upload_schoology_file(&app,&state,&args,true).await,
+        "submit-assignment-files" => submit_schoology_files(&app,&state,&args).await,
         "upload-schoology-file" => upload_schoology_file(&app,&state,&args,false).await,
         "download-file" => download_schoology_file(&app,&state,&args).await,
         "launch-course-app" => launch_course_app(&app,&state,&args).await,
@@ -2485,6 +2580,33 @@ async fn schoology_invoke(app: AppHandle, state: State<'_, HostState>, name: Str
                 }
             }
             Ok(json!(paths))
+        },
+        "pick-ai-files" => {
+            let picked = app.dialog().file().blocking_pick_files();
+            let mut attachments = Vec::new();
+            let mut inline_total = 0usize;
+            if let Some(files) = picked {
+                if files.len() > 5 { return Err("Attach no more than five files per AI message.".into()); }
+                for file in files {
+                    let path = file.into_path().map_err(|error| error.to_string())?;
+                    let metadata = fs::metadata(&path).map_err(|e| format!("Unable to inspect selected file: {e}"))?;
+                    let size = metadata.len() as usize;
+                    if size > 100 * 1024 * 1024 { return Err("A selected file exceeds the 100 MB attachment limit.".into()); }
+                    let filename = safe_filename(path.file_name().and_then(|s| s.to_str()).unwrap_or("attachment"));
+                    let mime = mime_for_path(&path, None);
+                    let mut item = json!({"filePath":path.to_string_lossy().to_string(),"filename":filename,"mimeType":mime,"size":size});
+                    let inline_supported = mime == "image/png" || mime == "image/jpeg" || mime == "image/webp" || mime == "image/gif" || mime == "application/pdf";
+                    if inline_supported && size > 0 && size <= 5 * 1024 * 1024 && inline_total + size <= 20 * 1024 * 1024 {
+                        let data = fs::read(&path).map_err(|e| format!("Unable to read selected attachment: {e}"))?;
+                        inline_total += data.len(); item["dataBase64"] = json!(BASE64.encode(&data));
+                    } else if (mime.starts_with("text/") || mime == "application/json" || mime == "application/xml" || mime == "application/rtf") && size > 0 && size <= 1024 * 1024 {
+                        let data = fs::read(&path).map_err(|e| format!("Unable to read selected text file: {e}"))?;
+                        if let Ok(text) = String::from_utf8(data) { item["textContent"] = json!(text); }
+                    }
+                    attachments.push(item);
+                }
+            }
+            Ok(json!(attachments))
         },
         "open-downloaded-file" => {
             let path = args.get("path").and_then(Value::as_str).ok_or("Missing downloaded file path")?;
