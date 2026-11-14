@@ -1,3 +1,13 @@
+## [2026.10.0-port.127]
+
+### Resources creation dropdown
+- Replace the modal-style resource creation chooser with a compact anchored dropdown that follows the existing assignment-submission menu pattern.
+- Keep New Resource Item and New Collection permission-gated, and expose New Folder alongside resource creation in both Resources and collection views.
+- Preserve the existing resource composer, folder destination handling, and server-side permission rechecks.
+
+### Build
+- Increment the npm, Tauri, and Rust package versions to `2026.10.0-port.127`.
+
 ## [2026.10.0-port.126]
 
 ### Standalone resource folder navigation
