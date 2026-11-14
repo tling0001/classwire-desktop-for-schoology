@@ -1,3 +1,11 @@
+## [2026.10.0-port.128]
+
+### Resource navigation and editing
+- Keep resource collections as navigation destinations and restore Course Materials-style recursive inline expansion for nested resource folders.
+- Add folder actions for creating a resource item or child folder in the selected folder.
+- Add permission-checked resource and folder editing for titles, notes, body content, and folder colors.
+- Preserve existing template fields and attachment identifiers when saving edits; verify Schoology's live multioptions PUT permission before updating.
+
 ## [2026.10.0-port.127]
 
 ### Resources creation dropdown

@@ -3439,7 +3439,7 @@ async function showResourceCollectionCreateDialog(){
   }catch(e){error.textContent='Unable to create collection: '+(e.message||String(e));button.disabled=false}
  });
 }
-async function showResourceTemplateCreateDialog(preferredCollectionId=null,initialKind='page'){
+async function showResourceTemplateCreateDialog(preferredCollectionId=null,initialKind='page',preferredFolderId=null,onCreated=null){
   const writable=(state.resourceCreatableCollections||[]).filter(item=>{
    const id=String(item.collection_id||item.collectionID||item.id||'');return id&&state.resourceCreatePermissions?.[id]===true;
   });
@@ -3513,7 +3513,7 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null,initi
     error.textContent='Creating…';
     if(!await verifyResourcePostPermission(permissionPath))throw new Error('Schoology no longer allows this account to add resources to the selected collection.');
     const templateFields={},payload={title,type:kind.startsWith('document')?'document':kind,resource_notes:notes};
-    const parentFolder=Number(state.resourceCollection?.folder_id||state.resourceCollection?.folderId||state.resourceCollection?.collection_folder_id||state.resourceCollection?.collectionFolderId||0);
+    const parentFolder=Number(preferredFolderId??state.resourceCollection?.folder_id??state.resourceCollection?.folderId??state.resourceCollection?.collection_folder_id??state.resourceCollection?.collectionFolderId??0);
     if(parentFolder>0)payload.folder_id=parentFolder;
     if(kind==='page'||kind==='discussion'){templateFields.body=text}
     else if(kind==='assignment'){templateFields.body=text;templateFields.max_points=Number.isFinite(points)?Math.floor(points):100}
@@ -3527,7 +3527,8 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null,initi
     if(Object.keys(templateFields).length)payload.template_fields=templateFields;
     await A.api({path:'collections/'+collectionId+'/resources',method:'POST',params:payload,json:true});
     close();
-    if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection,null,true)}
+    if(typeof onCreated==='function')await onCreated();
+    else if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection,null,true)}
     else await loadResourcesHome(document.getElementById('content'));
    }catch(e){error.textContent='Unable to create resource: '+(e.message||String(e));button.disabled=false;if(fileButton)fileButton.disabled=false}
   });
@@ -3546,6 +3547,93 @@ async function loadResourcesHome(c){
  document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
  document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');await A.openExternal(url).then(result=>{if(typeof result==='string'&&result)showAppDialog('Unable to open resource app',result)})}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
 }
+function resourceAttachmentPutItems(value){
+ if(Array.isArray(value))return value;
+ if(!value||typeof value!=='object')return [];
+ const result=[];
+ for(const group of Object.values(value)){
+  if(Array.isArray(group)){group.forEach(item=>{if(item&&typeof item==='object')result.push({...item})});continue}
+  if(!group||typeof group!=='object')continue;
+  for(const nested of Object.values(group)){
+   if(Array.isArray(nested))nested.forEach(item=>{if(item&&typeof item==='object')result.push({...item})});
+   else if(nested&&typeof nested==='object')result.push({...nested});
+  }
+ }
+ return result.length?result:value;
+}
+async function verifyResourcePutPermission(path){
+ const response=await A.api({path:'multioptions',method:'POST',params:{request:[path]},json:true});
+ const rows=Array.isArray(response?.response)?response.response:(Array.isArray(response?.responses)?response.responses:[]);
+ const row=rows.find(item=>String(item?.location||'')===path);
+ const body=typeof row?.body==='string'?row.body:JSON.stringify(row?.body??'');
+ return /\bput\b/i.test(body);
+}
+async function showResourceTemplateEditDialog(item){
+ const collection=state.resourceCollection;
+ const collectionId=Number(collection?.collection_id||collection?.collectionID||collection?.id||0);
+ const resourceId=Number(item?.id||item?.resource_id||item?.resourceId||item?.template_id||item?.templateID||0);
+ if(!collectionId||!resourceId){showAppDialog('Unable to edit resource','Schoology did not provide a valid collection and resource ID.');return}
+ const permissionPath='/v1/collections/'+collectionId+'/resources/'+resourceId;
+ try{
+  if(!await verifyResourcePutPermission(permissionPath))throw new Error('Schoology does not currently grant permission to edit this resource.');
+ }catch(error){showAppDialog('Unable to edit resource',error.message||String(error));return}
+ const rawFields=item.template_fields||item.templateFields||{};
+ const isFolder=resourceType(item)==='folder';
+ const hasBody=Object.prototype.hasOwnProperty.call(rawFields,'body');
+ const currentTitle=resourceTitle(item);
+ const currentNotes=String(item.resource_notes??item.resourceNotes??'');
+ const bodyHtml='<div class="androidSimpleDialogBody">'+
+  '<label for="resourceEditTitle">Title</label><input id="resourceEditTitle" class="androidDialogInput" maxlength="180" value="'+esc(currentTitle)+'">'+
+  (hasBody?'<label for="resourceEditBody">Body</label><textarea id="resourceEditBody" class="androidDialogInput" rows="6">'+esc(rawFields.body||'')+'</textarea>':'')+
+  '<label for="resourceEditNotes">Resource notes</label><textarea id="resourceEditNotes" class="androidDialogInput" rows="3">'+esc(currentNotes)+'</textarea>'+
+  (isFolder?'<label for="resourceEditFolderColor">Folder color</label><select id="resourceEditFolderColor" class="androidDialogInput">'+['blue','pink','orange','purple','yellow','red','gray','black','green'].map(color=>'<option value="'+color+'" '+(String(item.color||item.folder_color||'blue').toLowerCase()===color?'selected':'')+'>'+color[0].toUpperCase()+color.slice(1)+'</option>').join('')+'</select>':'')+
+  '<p class="resourceEditAttachmentNote">Existing attachments and template fields will be retained.</p><p id="resourceEditError" role="alert"></p></div>'+
+  '<footer><button type="button" id="resourceEditCancel" class="androidSecondary">Cancel</button><button type="button" id="resourceEditSave" class="androidPrimary">Save</button></footer>';
+ const wrap=createSchoologyDialogShell({id:'resourceTemplateEditDialog',title:isFolder?'Edit Folder':'Edit Resource',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml});
+ document.body.appendChild(wrap);
+ const close=()=>wrap.remove();
+ wrap.querySelector('#resourceEditCancel')?.addEventListener('click',close);
+ wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
+ wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
+ const save=wrap.querySelector('#resourceEditSave'),error=wrap.querySelector('#resourceEditError');
+ save?.addEventListener('click',async()=>{
+  const title=String(wrap.querySelector('#resourceEditTitle')?.value||'').trim();
+  const notes=String(wrap.querySelector('#resourceEditNotes')?.value||'').trim();
+  const body=String(wrap.querySelector('#resourceEditBody')?.value||'');
+  const color=String(wrap.querySelector('#resourceEditFolderColor')?.value||item.color||'blue');
+  if(!title){error.textContent='Enter a title.';return}
+  save.disabled=true;error.textContent='Checking permissions…';
+  try{
+   if(!await verifyResourcePutPermission(permissionPath))throw new Error('Schoology no longer grants permission to edit this resource.');
+   const payload={...item,title,resource_notes:notes};
+   delete payload.id;delete payload.collection_id;delete payload.uid;delete payload.created;delete payload.last_updated;delete payload.links;
+   const templateFieldKey=payload.template_fields?'template_fields':(payload.templateFields?'templateFields':'template_fields');
+   if(payload[templateFieldKey]&&hasBody)payload[templateFieldKey]={...payload[templateFieldKey],body};
+   const attachments=item.attachments??item.attachment;
+   if(attachments!==undefined){payload.attachments=resourceAttachmentPutItems(attachments);delete payload.attachment}
+   if(isFolder)payload.color=color;
+   await A.api({path:'collections/'+collectionId+'/resources/'+resourceId,method:'PUT',params:payload,json:true});
+   close();
+   await openResourceCollection(collection,null,true);
+  }catch(e){error.textContent='Unable to save changes: '+(e.message||String(e));save.disabled=false}
+ });
+ requestAnimationFrame(()=>wrap.querySelector('#resourceEditTitle')?.focus());
+}
+function renderResourceRows(items,depth=0){
+ return items.map(item=>{
+  const index=window.__resourceNextIndex++;
+  window.__resourceItems.set(index,item);
+  const type=resourceType(item),folder=type==='folder',title=resourceTitle(item);
+  const description=String(item.resource_notes||item.resourceNotes||item.description||'');
+  return '<div class="resourceRowWrap" style="--resource-depth:'+depth+'">'+
+   '<button class="resourceFileRow '+(folder?'resourceFolderRow':'')+'" data-resource-item-index="'+index+'" '+(folder?'aria-expanded="false"':'')+'>'+
+    resourceIconMarkup(resourceIconForType(type,title,item))+
+    '<span><b>'+esc(title)+'</b>'+(description?'<small>'+esc(description)+'</small>':'')+'</span>'+
+    '<span>'+(folder?'<span class="resourceFolderChevron" aria-hidden="true">⌄</span>':'›')+'</span></button>'+
+   '<button type="button" class="resourceRowMenuButton" data-resource-menu-index="'+index+'" aria-label="More actions for '+esc(title)+'" title="More actions">⋯</button>'+
+  '</div>';
+ }).join('');
+}
 async function openResourceCollection(col,button,nested=false){
  const c=document.getElementById('content');if(!c)return;
  if(!nested)state.resourceCollectionStack=[];
@@ -3555,8 +3643,68 @@ async function openResourceCollection(col,button,nested=false){
  syncToolbar();
  const folderId=col.folder_id||col.folderId||col.collection_folder_id||col.collectionFolderId||0;
  c.innerHTML='<section class="resourcesAndroidPage"><div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading resources…</span></div></section>';
- try{const x=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE',...(folderId?{f:folderId}:{})}});const arr=x.resource||x.resources||x.resource_list||[];c.innerHTML=`<section class="resourcesAndroidPage"><div class="resourceRows">${arr.length?arr.map((r,i)=>{const title=resourceTitle(r),type=resourceType(r);return `<button class="resourceFileRow" data-resource-item-index="${i}">${resourceIconMarkup(resourceIconForType(type,title,r))}<span><b>${esc(title)}</b></span><span>›</span></button>`}).join(''):'<div class="resourceEmpty">No resources</div>'}</div></section>`;window.__resourceItems=arr;document.querySelectorAll('[data-resource-item-index]').forEach(b=>b.onclick=async()=>{const stop=setResourceLoading(b,'Loading resource…');try{await openCollectionResource(window.__resourceItems[+b.dataset.resourceItemIndex],b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}})}catch(e){c.innerHTML=`<div class="error apiError">Schoology could not load resources.<br>${esc(e.message)}</div>`}
+ try{
+  const x=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE',...(folderId?{f:folderId}:{})}});
+  const arr=x.resource||x.resources||x.resource_list||[];
+  window.__resourceItems=new Map();window.__resourceNextIndex=0;
+  c.innerHTML='<section class="resourcesAndroidPage"><div class="resourceRows">'+
+   (arr.length?renderResourceRows(arr,0):'<div class="resourceEmpty">No resources</div>')+'</div></section>';
+  const container=c.querySelector('.resourceRows');
+  container.onclick=async event=>{
+   const menuButton=event.target?.closest?.('[data-resource-menu-index]');
+   if(menuButton&&container.contains(menuButton)){
+    const index=Number(menuButton.dataset.resourceMenuIndex),item=window.__resourceItems.get(index);
+    if(!item)return;
+    const old=menuButton.parentElement.querySelector('.resourceFolderMenu');
+    if(old){old.remove();return}
+    container.querySelectorAll('.resourceFolderMenu').forEach(menu=>menu.remove());
+    const folder=resourceType(item)==='folder';
+    const menu=document.createElement('div');menu.className='resourceFolderMenu';
+    menu.innerHTML='<button type="button" data-resource-action="edit" data-resource-action-index="'+index+'">Edit</button>'+
+     (folder?'<button type="button" data-resource-action="new-resource" data-resource-action-index="'+index+'">New Resource Item</button><button type="button" data-resource-action="new-folder" data-resource-action-index="'+index+'">New Folder</button>':'');
+    menuButton.parentElement.appendChild(menu);return;
+   }
+   const action=event.target?.closest?.('[data-resource-action]');
+   if(action&&container.contains(action)){
+    const index=Number(action.dataset.resourceActionIndex),item=window.__resourceItems.get(index);
+    if(!item)return;
+    const kind=action.dataset.resourceAction;
+    if(kind==='edit'){await showResourceTemplateEditDialog(item);return}
+    const folderId=Number(item.id||item.folder_id||item.folderId||0);
+    const collectionId=Number(state.resourceCollection?.collection_id||state.resourceCollection?.collectionID||state.resourceCollection?.id||0);
+    if(kind==='new-resource')await showResourceTemplateCreateDialog(collectionId,'page',folderId);
+    else if(kind==='new-folder')await showResourceTemplateCreateDialog(collectionId,'folder',folderId);
+    return;
+   }
+   const row=event.target?.closest?.('[data-resource-item-index]');
+   if(!row||!container.contains(row))return;
+   const index=Number(row.dataset.resourceItemIndex),item=window.__resourceItems.get(index);
+   if(!item)return;
+   if(resourceType(item)==='folder'){
+    const existing=row.parentElement.nextElementSibling?.classList?.contains('resourceNestedList')?row.parentElement.nextElementSibling:null;
+    if(existing){existing.remove();row.setAttribute('aria-expanded','false');row.parentElement.classList.remove('is-expanded');return}
+    const childFolderId=Number(item.id||item.folder_id||item.folderId||item.template_id||item.templateID||0);
+    if(!childFolderId){showAppDialog('Unable to open folder','Schoology did not provide a valid folder ID.');return}
+    row.disabled=true;
+    try{
+     const response=await A.api({path:`collections/${id}/resources`,params:{start:0,limit:200,with_attachments:'TRUE',f:childFolderId}});
+     const children=response.resource||response.resources||response.resource_list||[];
+     if(!row.isConnected)return;
+     const nested=document.createElement('div');nested.className='resourceNestedList';
+     nested.innerHTML=children.length?renderResourceRows(children,Number(row.closest('.resourceRowWrap')?.style.getPropertyValue('--resource-depth')||0)+1):'<div class="resourceNestedEmpty">This folder is empty</div>';
+     row.parentElement.after(nested);row.setAttribute('aria-expanded','true');row.parentElement.classList.add('is-expanded');
+    }catch(error){showAppDialog('Unable to load folder',error.message||String(error))}
+    finally{row.disabled=false}
+    return;
+   }
+   const stop=setResourceLoading(row,'Loading resource…');
+   try{await openCollectionResource(item,row)}
+   catch(e){showAppDialog('Unable to open resource',e.message||String(e))}
+   finally{stop()}
+  };
+ }catch(e){c.innerHTML=`<div class="error apiError">Schoology could not load resources.<br>${esc(e.message)}</div>`}
 }
+
 let homeLayoutMediaQuery=null;
 function installHomeLayoutWatcher(){const mq=window.matchMedia('(min-width: 801px)');if(homeLayoutMediaQuery===mq)return;window.__schoologyHomeLayoutChange=()=>{const savedHomeTab=state.homeTab,savedCourse=state.selectedCourse,savedCourseView=state.courseView,savedCourseTab=state.courseTab;if(state.courseView==='course'&&savedCourse){clearTimeout(resizeRefreshTimer);resizeRefreshTimer=setTimeout(()=>{if(state.courseView==='course'&&state.selectedCourse===savedCourse){showCourse(savedCourse,savedCourseTab||'materials',true)}},60);return;}if(state.tab==='home'){clearTimeout(resizeRefreshTimer);resizeRefreshTimer=setTimeout(()=>{if(state.tab==='home'&&state.courseView!=='course'){state.homeTab=savedHomeTab;loadTab()}},60)}};homeLayoutMediaQuery?.removeEventListener?.('change',window.__schoologyHomeLayoutChange);mq.addEventListener?.('change',window.__schoologyHomeLayoutChange);homeLayoutMediaQuery=mq}
 async function openRequest(r){if(!r)return;try{const type=String(r.requestType||r.type||r.request_type||'').toLowerCase();if(type==='friend'){const id=Number(r.requester_id||r.requesterId||r.user_id||r.uid||0);if(!id)throw new Error('This friend request is missing its user ID.');state.profileUser={id};state.tab='profile';state.toolbarTitle='Profile';render();loadTab();return}if(type==='group'){const gid=Number(r.realm_id||r.realmId||r.group_id||r.groupId||0);if(!gid)throw new Error('This group invitation is missing its group ID.');state.currentGroup={id:gid,name:r.name||r.title||'Group'};state.tab='groups';state.toolbarTitle=state.currentGroup.name;render();showGroup(state.currentGroup);return}if(type==='section'){const sid=Number(r.realm_id||r.realmId||r.section_id||r.sectionId||0);if(!sid)throw new Error('This course invitation is missing its section ID.');const x=await A.api({path:`sections/${sid}`,params:{}});showCourse(x?.section||x);return}throw new Error('Unknown request type.')}catch(e){alert('Unable to open request: '+e.message)}}

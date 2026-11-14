@@ -4741,3 +4741,25 @@ body.aiDocked .shell>.toolbar{margin-right:410px!important;width:calc(100% - 410
 .aiPendingAttachment button{width:22px!important;height:22px!important;min-height:22px!important;padding:0!important;background:transparent!important;color:var(--theme-muted,#74818c)!important;border:0!important}
 .aiMessageAttachments{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.aiMessageAttachment{margin:0;max-width:min(100%,280px)}.aiMessageAttachment img{display:block;max-width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid var(--theme-border,#d7e0e7)}.aiMessageAttachment figcaption{font-size:10px;color:var(--theme-muted,#74818c);margin-top:3px;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.aiThinkingSpinner{animation:none;border-top-color:var(--theme-accent,#1769aa);opacity:.8}}
+
+/* Resource collections are destinations; their child folders expand inline like Course Materials. */
+.resourceRowWrap{position:relative;display:flex;align-items:stretch;width:100%;background:#fff;border-bottom:1px solid #e5e5e5}
+.resourceRowWrap .resourceFileRow{flex:1 1 auto;min-width:0;border:0;padding-left:calc(32px + var(--resource-depth,0)*18px)}
+.resourceRowWrap .resourceFileRow[aria-expanded="true"] .resourceFolderChevron{transform:rotate(180deg)}
+.resourceFolderChevron{display:inline-block;transition:transform .16s ease}
+.resourceRowMenuButton{flex:0 0 42px;width:42px;border:0;background:transparent;color:#78848e;font-size:24px;cursor:pointer}
+.resourceRowMenuButton:hover,.resourceRowMenuButton:focus-visible{background:#eef3f7}
+.resourceFolderMenu{position:absolute;z-index:35;right:8px;top:46px;min-width:180px;padding:5px;border:1px solid #d5dce2;border-radius:9px;background:#fff;box-shadow:0 8px 24px #102a3b24}
+.resourceFolderMenu button{display:block;width:100%;padding:9px 11px;border:0;border-radius:6px;background:transparent;color:#26313b;text-align:left;cursor:pointer}
+.resourceFolderMenu button:hover{background:#f1f4f6}
+.resourceNestedList{margin-left:18px;border-left:2px solid #dce5ed;background:#fafbfd}
+.resourceNestedEmpty{padding:12px 20px;color:#78848e;font-size:12px}
+.resourceEditAttachmentNote{margin:10px 0 0;color:var(--theme-muted,#78848e);font-size:12px;line-height:1.4}
+:root[data-theme="dark"] .resourceRowWrap{background:#20262d;border-color:#3a4651}
+:root[data-theme="dark"] .resourceRowMenuButton{color:#a7b2bd}
+:root[data-theme="dark"] .resourceRowMenuButton:hover,:root[data-theme="dark"] .resourceRowMenuButton:focus-visible{background:#303c47}
+:root[data-theme="dark"] .resourceFolderMenu{background:#20262d;border-color:#3a4651;box-shadow:0 8px 24px #0006}
+:root[data-theme="dark"] .resourceFolderMenu button{color:#e8edf2}
+:root[data-theme="dark"] .resourceFolderMenu button:hover{background:#303c47}
+:root[data-theme="dark"] .resourceNestedList{background:#171c21;border-color:#3a4651}
+@media(prefers-reduced-motion:reduce){.resourceFolderChevron{transition:none!important}}
