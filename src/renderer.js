@@ -844,14 +844,14 @@ function syncToolbar(){
     const collectionId=Number(state.resourceCollection.collection_id||state.resourceCollection.collectionID||state.resourceCollection.id||0);
     if(collectionId>0&&state.resourceCreatePermissions?.[String(collectionId)]){
       slot.innerHTML='<button id="standaloneResourceCreatePlus" class="iconButton toolbarImageButton" aria-label="Create resource item or folder in this collection" title="Create">'+officialIcon('ic_action_new.png','')+'</button>';
-      document.getElementById('standaloneResourceCreatePlus')?.addEventListener('click',()=>showStandaloneResourceCreateMenu(collectionId));
+      document.getElementById('standaloneResourceCreatePlus')?.addEventListener('click',event=>{event.currentTarget.setAttribute('aria-expanded','false');showStandaloneResourceCreateMenu(collectionId)});
     }
     return;
   }
   if(state.tab==='resources'&&!state.resourceCollection){
     if(state.resourceCanCreateCollection||state.resourceCreatableCollections?.length){
       slot.innerHTML='<button id="standaloneResourcesCreatePlus" class="iconButton toolbarImageButton" aria-label="Create resource or collection" title="Create">'+officialIcon('ic_action_new.png','')+'</button>';
-      document.getElementById('standaloneResourcesCreatePlus')?.addEventListener('click',showStandaloneResourceCreateMenu);
+      document.getElementById('standaloneResourcesCreatePlus')?.addEventListener('click',event=>{event.currentTarget.setAttribute('aria-expanded','false');showStandaloneResourceCreateMenu()});
     }
     return;
   }
@@ -3372,20 +3372,47 @@ async function refreshResourceCreationPermissions(collections=[]){
 }
 
 function showStandaloneResourceCreateMenu(preferredCollectionId=null){
- const old=document.getElementById('standaloneResourceCreateMenu');old?.remove();
- const actions=[];
+ const old=document.getElementById('standaloneResourceCreateMenu');
+ if(old){old.__closeResourceCreateMenu?.();return;}
  const preferred=preferredCollectionId?String(preferredCollectionId):'';
- if(!preferred&&state.resourceCanCreateCollection)actions.push('<button type="button" id="resourceCreateCollectionChoice" class="androidPrimary"><span><b>New collection</b><small>Create a personal resource collection</small></span></button>');
- if(preferred||state.resourceCreatableCollections?.length){actions.push('<button type="button" id="resourceCreateTemplateChoice" class="androidSecondary"><span><b>New Resource Item</b><small>Create a page, discussion, assignment, document, video, or embed</small></span></button>');actions.push('<button type="button" id="resourceCreateFolderChoice" class="androidSecondary"><span><b>New Folder</b><small>Create a folder in this collection</small></span></button>');}
+ const actions=[];
+ if(!preferred&&state.resourceCanCreateCollection)actions.push({id:'resourceCreateCollectionChoice',label:'New Collection',icon:'folder-plus',run:()=>showResourceCollectionCreateDialog()});
+ if(preferred||state.resourceCreatableCollections?.length){
+  actions.push({id:'resourceCreateTemplateChoice',label:'New Resource Item',icon:'file-plus',run:()=>showResourceTemplateCreateDialog(preferred,'page')});
+  actions.push({id:'resourceCreateFolderChoice',label:'New Folder',icon:'folder-plus',run:()=>showResourceTemplateCreateDialog(preferred,'folder')});
+ }
  if(!actions.length)return;
- const wrap=createSchoologyDialogShell({id:'standaloneResourceCreateMenu',title:preferred?'Create in this collection':'Create in Resources',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:'<div class="androidSimpleDialogBody resourceCreateChoices">'+actions.join('')+'</div>'});
- document.body.appendChild(wrap);
- const close=()=>wrap.remove();
- wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
- wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
- wrap.querySelector('#resourceCreateCollectionChoice')?.addEventListener('click',()=>{close();showResourceCollectionCreateDialog()});
- wrap.querySelector('#resourceCreateTemplateChoice')?.addEventListener('click',()=>{close();showResourceTemplateCreateDialog(preferred,'page')});
- wrap.querySelector('#resourceCreateFolderChoice')?.addEventListener('click',()=>{close();showResourceTemplateCreateDialog(preferred,'folder')});
+ const menu=document.createElement('div');
+ menu.id='standaloneResourceCreateMenu';
+ menu.className='submissionMenu resourceCreateDropdown';
+ menu.setAttribute('role','menu');
+ menu.setAttribute('aria-label',preferred?'Create in this collection':'Create in Resources');
+ menu.innerHTML=actions.map(action=>'<button type="button" id="'+action.id+'" role="menuitem">'+esc(action.label)+'</button>').join('');
+ document.body.appendChild(menu);
+ const anchor=document.getElementById(preferred?'standaloneResourceCreatePlus':'standaloneResourcesCreatePlus');
+ const rect=anchor?.getBoundingClientRect();
+ if(rect){
+  menu.style.top=(rect.bottom+6)+'px';
+  menu.style.right=Math.max(8,window.innerWidth-rect.right)+'px';
+ }
+ let closed=false;
+ const close=()=>{
+  if(closed)return;
+  closed=true;
+  document.removeEventListener('pointerdown',onOutside,true);
+  document.removeEventListener('keydown',onKeyDown,true);
+  menu.remove();
+  anchor?.setAttribute('aria-expanded','false');
+ };
+ menu.__closeResourceCreateMenu=close;
+ const onOutside=event=>{if(!menu.contains(event.target)&&event.target!==anchor&&!anchor?.contains(event.target))close()};
+ const onKeyDown=event=>{if(event.key==='Escape'){event.preventDefault();close();anchor?.focus()}};
+ anchor?.setAttribute('aria-expanded','true');
+ document.addEventListener('pointerdown',onOutside,true);
+ document.addEventListener('keydown',onKeyDown,true);
+ for(const action of actions){
+  menu.querySelector('#'+action.id)?.addEventListener('click',()=>{close();action.run()});
+ }
 }
 async function verifyResourcePostPermission(path){
  const result=await A.api({path:'multioptions',method:'POST',params:{request:[path]}});
@@ -3486,6 +3513,8 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null,initi
     error.textContent='Creating…';
     if(!await verifyResourcePostPermission(permissionPath))throw new Error('Schoology no longer allows this account to add resources to the selected collection.');
     const templateFields={},payload={title,type:kind.startsWith('document')?'document':kind,resource_notes:notes};
+    const parentFolder=Number(state.resourceCollection?.folder_id||state.resourceCollection?.folderId||state.resourceCollection?.collection_folder_id||state.resourceCollection?.collectionFolderId||0);
+    if(parentFolder>0)payload.folder_id=parentFolder;
     if(kind==='page'||kind==='discussion'){templateFields.body=text}
     else if(kind==='assignment'){templateFields.body=text;templateFields.max_points=Number.isFinite(points)?Math.floor(points):100}
     else if(kind==='documentLink'){templateFields.document_type='link';payload.attachments=[{url:validHttpUrl(link).href}]}
@@ -3493,8 +3522,7 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null,initi
     else if(kind==='documentVideo'){templateFields.document_type='video';payload.attachments={videos:{video:[{url:validHttpUrl(video).href,title,type:'video'}]}}}
     else if(kind==='documentEmbed'){templateFields.document_type='embed';payload.attachments={embeds:{embed:[{embed_code:embed,type:'embed'}]}}}
     else if(kind==='folder'){
-     const parentFolder=state.resourceCollection?.folder_id||state.resourceCollection?.folderId||state.resourceCollection?.collection_folder_id||state.resourceCollection?.collectionFolderId||0;
-     payload.folder_id=Number(parentFolder)||0;payload.color=folderColor;
+     payload.folder_id=parentFolder;payload.color=folderColor;
     }
     if(Object.keys(templateFields).length)payload.template_fields=templateFields;
     await A.api({path:'collections/'+collectionId+'/resources',method:'POST',params:payload,json:true});
