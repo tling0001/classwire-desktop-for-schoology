@@ -1,3 +1,14 @@
+## [2026.10.0-port.126]
+
+### Standalone resource folder navigation
+- Preserve the parent collection/folder path while opening nested resource folders.
+- Make the title-bar Back action return to the immediately containing folder instead of jumping out to the Resources root.
+- Keep the active collection ID when navigating into folders so the existing permission-aware creation menu and resource loading continue to target the same collection.
+- Refresh the current folder after creating a resource item or folder without discarding its parent navigation path.
+
+### Build
+- Increment the Tauri renderer and desktop package version to `2026.10.0-port.126`.
+
 ## [2026.10.0-port.125]
 
 ### Resource creation consistency

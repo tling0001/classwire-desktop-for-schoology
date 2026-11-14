@@ -26,7 +26,7 @@ let pendingDeepLinkAfterLogin=null;
 let schoologyStartupComplete=false;
 let queuedIncomingDeepLink=null;
 let queuedNotificationOpen=null;
-let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,parentChildren:[],activeStudent:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,resourceCanCreateCollection:false,resourceCreatableCollections:[],resourceCreatePermissions:{},pageView:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false,groupCanCreateAlbum:false,groupCanAddResources:false};
+let state={openSchoologyLinks:true,desktopNotifications:true,notificationSound:false,appVersion:'',screen:'login',school:null,schools:[],q:'',loading:false,error:'',auth:null,user:null,parentChildren:[],activeStudent:null,tab:'home',homeTab:'recent',searchToken:0,drawerPage:null,message:null,messageTab:'inbox',messageFolder:'inbox',messageThread:null,composeMessage:false,selectedCourse:null,mobileMe:null,courseDashboardEnabled:false,preferredHomepage:'recent',toolbarTitle:'Home',embeddedReturn:null,embeddedCanOpenExternal:false,homeUpcomingReturn:false,assignmentTab:'info',assignmentCanSubmit:false,assignmentIsTeacher:false,assignmentSupportsAnnotations:false,assignmentSubpage:null,submissionMenu:false,assignmentAllowComments:false,assignmentLandscape:false,folderId:0,folderStack:[],currentFolderTitle:'Materials',courseView:null,activityUsers:{},activityComments:null,currentFolderId:0,currentGroup:null,profileUser:null,profileTab:'updates',groupTab:'updates',resourceCollection:null,resourceCollectionStack:[],resourceCanCreateCollection:false,resourceCreatableCollections:[],resourceCreatePermissions:{},pageView:null,windowChromeOverlay:true,homeCreateMenu:false,calendarDate:null,calendarSelectedDate:null,calendarCanCreate:false,calendarEvents:[],calendarEventsMonth:'',calendarTab:'calendar',calendarUpcomingEvents:null,groupJoinOpen:false,embeddedTheme:'',profileReturn:null,themeMode:'system',reducedMotion:false,canadianInstance:false,experimentalForceDark:false,peopleEnabled:false,courseCanAddResources:false,courseCanPostUpdates:false,groupCanCreateDiscussion:false,groupCanCreateEvent:false,groupCanPostUpdates:false,groupCanCreateAlbum:false,groupCanAddResources:false};
 window.__classWireAINavigate=async(kind,id,sectionId)=>{if(kind==='course'){const r=await A.api({path:'sections/'+Number(id),params:{}});await showCourse(r?.section||r,'materials',true);return true}if(kind==='group'){const r=await A.api({path:'groups/'+Number(id),params:{}});await showGroup(r?.group||r,'updates');return true}if(kind==='assignment'){if(!sectionId)throw new Error('Course ID missing for assignment navigation.');await showAssignment(Number(sectionId),Number(id));return true}if(kind==='messages'){state.courseView=null;state.selectedCourse=null;state.currentGroup=null;state.assignmentView=null;state.tab='messages';state.toolbarTitle='Messages';render();await loadTab();return true}throw new Error('Unsupported navigation target.')};
 window.__classWireAIContext=()=>({page:state.assignmentView?'assignment':state.pageView?'page':state.embeddedTitle?'embedded':state.currentGroup?'group':state.selectedCourse?'course':state.message?'message':state.tab||'home',title:state.toolbarTitle||'ClassWire',course:state.selectedCourse?{id:state.selectedCourse.id||state.selectedCourse.section_id||state.selectedCourse.sectionId,title:courseTitleOf(state.selectedCourse),section:sectionTitleOf(state.selectedCourse)}:null,assignment:state.assignmentView?{sectionId:state.assignmentView.sectionId,assignmentId:state.assignmentView.assignmentId}:null,gradeContext:state.aiGradeContext||null,group:state.currentGroup?{id:state.currentGroup.id||state.currentGroup.group_id,name:state.currentGroup.name||state.currentGroup.title}:null,tab:state.courseTab||state.groupTab||state.homeTab||state.tab||'',embeddedUrl:state.embeddedUrl||'',embeddedTitle:state.embeddedTitle||'',pageText:String(document.querySelector('#content')?.innerText||'').slice(0,24000)});
 function resolveTheme(mode){if(mode==='dark'||mode==='light')return mode;return window.matchMedia?.('(prefers-color-scheme: dark)').matches?'dark':'light'}
@@ -947,7 +947,12 @@ function navigateBack(){
     render();loadTab();return;
   }
   if(state.resourceCollection){
-    state.resourceCollection=null;state.toolbarTitle='Resources';state.tab='resources';
+    if(state.resourceCollectionStack?.length){
+      const parent=state.resourceCollectionStack.pop();
+      openResourceCollection(parent,null,true);
+      return;
+    }
+    state.resourceCollection=null;state.resourceCollectionStack=[];state.toolbarTitle='Resources';state.tab='resources';
     render();loadResourcesHome(document.getElementById('content'));return;
   }
   if(state.eventView||state.discussionView||state.albumView||state.pageView){
@@ -3305,7 +3310,12 @@ function resourceTitle(item){return item?.template_title||item?.templateTitle||i
 function resourceType(item){return String(item?.template_type||item?.templateType||item?.type||'').toLowerCase();}
 async function openCollectionResource(item,button){
  const t=resourceType(item),dt=resourceDocumentType(item),title=resourceTitle(item);
- if(t==='folder'){await openResourceCollection({...item,collection_id:item.collection_id||item.collectionID||state.resourceCollection?.collection_id||state.resourceCollection?.id,folder_id:item.id||item.template_id||item.templateID},button);return}
+ if(t==='folder'){
+   const parent=state.resourceCollection;
+   if(parent)state.resourceCollectionStack.push(parent);
+   await openResourceCollection({...item,collection_id:item.collection_id||item.collectionID||parent?.collection_id||parent?.collectionID||parent?.id,folder_id:item.id||item.folder_id||item.folderId||item.template_id||item.templateID},button,true);
+   return;
+ }
  if(['assignment','assessment','assessment_v2','managed_assessment','discussion','page','album','scorm','web_package','web_content'].includes(t)){
    const id=item.id||item.template_id||item.templateID||item.collection_id;
    if(id){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/${t==='assignment'?'assignment':t==='assessment'?'assignment':t}/${id}`,title);return}
@@ -3489,7 +3499,7 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null,initi
     if(Object.keys(templateFields).length)payload.template_fields=templateFields;
     await A.api({path:'collections/'+collectionId+'/resources',method:'POST',params:payload,json:true});
     close();
-    if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection)}
+    if(state.resourceCollection){const collection=state.resourceCollection;await openResourceCollection(collection,null,true)}
     else await loadResourcesHome(document.getElementById('content'));
    }catch(e){error.textContent='Unable to create resource: '+(e.message||String(e));button.disabled=false;if(fileButton)fileButton.disabled=false}
   });
@@ -3508,8 +3518,10 @@ async function loadResourcesHome(c){
  document.querySelectorAll('[data-resource-category]').forEach(b=>b.onclick=()=>b.parentElement.classList.toggle('open'));
  document.querySelectorAll('[data-resource-collection]').forEach(b=>b.onclick=async()=>{const col=window.__resourceCategories[b.dataset.resourceCollection][+b.dataset.resourceIndex];const stop=setResourceLoading(b,'Loading resources…');try{if(b.dataset.resourceCollection==='apps'){const j=await A.launchCourseApp({appId:col.collection_id||col.collectionID||col.id});const url=j?.url||j?.launch_token_url||j?.launchTokenUrl||j?.data?.url||j?.data?.launchTokenUrl;if(!url)throw new Error('Schoology did not return a resource-app launch URL.');await A.openExternal(url).then(result=>{if(typeof result==='string'&&result)showAppDialog('Unable to open resource app',result)})}else await openResourceCollection(col,b)}catch(e){alert('Unable to open resource: '+e.message)}finally{stop()}});
 }
-async function openResourceCollection(col){
- const c=document.getElementById('content');if(!c)return;state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.title||col.name||'Resources';
+async function openResourceCollection(col,button,nested=false){
+ const c=document.getElementById('content');if(!c)return;
+ if(!nested)state.resourceCollectionStack=[];
+ state.resourceCollection=col;state.toolbarTitle=col.collection_title||col.template_title||col.title||col.name||'Resources';
  const id=Number(col.collection_id||col.collectionID||col.id||0);if(!id)return;
  if(state.resourceCreatePermissions?.[String(id)]===undefined)await refreshResourceCreationPermissions([col]);
  syncToolbar();
