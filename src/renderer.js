@@ -843,8 +843,8 @@ function syncToolbar(){
   if(state.resourceCollection){
     const collectionId=Number(state.resourceCollection.collection_id||state.resourceCollection.collectionID||state.resourceCollection.id||0);
     if(collectionId>0&&state.resourceCreatePermissions?.[String(collectionId)]){
-      slot.innerHTML='<button id="standaloneResourceCreatePlus" class="iconButton toolbarImageButton" aria-label="Create resource in this collection" title="Create resource">'+officialIcon('ic_action_new.png','')+'</button>';
-      document.getElementById('standaloneResourceCreatePlus')?.addEventListener('click',()=>showResourceTemplateCreateDialog(collectionId));
+      slot.innerHTML='<button id="standaloneResourceCreatePlus" class="iconButton toolbarImageButton" aria-label="Create resource item or folder in this collection" title="Create">'+officialIcon('ic_action_new.png','')+'</button>';
+      document.getElementById('standaloneResourceCreatePlus')?.addEventListener('click',()=>showStandaloneResourceCreateMenu(collectionId));
     }
     return;
   }
@@ -3361,19 +3361,21 @@ async function refreshResourceCreationPermissions(collections=[]){
  syncToolbar();
 }
 
-function showStandaloneResourceCreateMenu(){
+function showStandaloneResourceCreateMenu(preferredCollectionId=null){
  const old=document.getElementById('standaloneResourceCreateMenu');old?.remove();
  const actions=[];
- if(state.resourceCanCreateCollection)actions.push('<button type="button" id="resourceCreateCollectionChoice" class="androidPrimary"><span><b>New collection</b><small>Create a personal resource collection</small></span></button>');
- if(state.resourceCreatableCollections?.length)actions.push('<button type="button" id="resourceCreateTemplateChoice" class="androidSecondary"><span><b>New resource</b><small>Create a page, discussion, assignment, document, video, embed, or folder</small></span></button>');
+ const preferred=preferredCollectionId?String(preferredCollectionId):'';
+ if(!preferred&&state.resourceCanCreateCollection)actions.push('<button type="button" id="resourceCreateCollectionChoice" class="androidPrimary"><span><b>New collection</b><small>Create a personal resource collection</small></span></button>');
+ if(preferred||state.resourceCreatableCollections?.length){actions.push('<button type="button" id="resourceCreateTemplateChoice" class="androidSecondary"><span><b>New Resource Item</b><small>Create a page, discussion, assignment, document, video, or embed</small></span></button>');actions.push('<button type="button" id="resourceCreateFolderChoice" class="androidSecondary"><span><b>New Folder</b><small>Create a folder in this collection</small></span></button>');}
  if(!actions.length)return;
- const wrap=createSchoologyDialogShell({id:'standaloneResourceCreateMenu',title:'Create in Resources',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:'<div class="androidSimpleDialogBody resourceCreateChoices">'+actions.join('')+'</div>'});
+ const wrap=createSchoologyDialogShell({id:'standaloneResourceCreateMenu',title:preferred?'Create in this collection':'Create in Resources',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:'<div class="androidSimpleDialogBody resourceCreateChoices">'+actions.join('')+'</div>'});
  document.body.appendChild(wrap);
  const close=()=>wrap.remove();
  wrap.querySelector('[data-dialog-close]')?.addEventListener('click',close);
  wrap.addEventListener('click',event=>{if(event.target===wrap)close()});
  wrap.querySelector('#resourceCreateCollectionChoice')?.addEventListener('click',()=>{close();showResourceCollectionCreateDialog()});
- wrap.querySelector('#resourceCreateTemplateChoice')?.addEventListener('click',()=>{close();showResourceTemplateCreateDialog()});
+ wrap.querySelector('#resourceCreateTemplateChoice')?.addEventListener('click',()=>{close();showResourceTemplateCreateDialog(preferred,'page')});
+ wrap.querySelector('#resourceCreateFolderChoice')?.addEventListener('click',()=>{close();showResourceTemplateCreateDialog(preferred,'folder')});
 }
 async function verifyResourcePostPermission(path){
  const result=await A.api({path:'multioptions',method:'POST',params:{request:[path]}});
@@ -3400,7 +3402,7 @@ async function showResourceCollectionCreateDialog(){
   }catch(e){error.textContent='Unable to create collection: '+(e.message||String(e));button.disabled=false}
  });
 }
-async function showResourceTemplateCreateDialog(preferredCollectionId=null){
+async function showResourceTemplateCreateDialog(preferredCollectionId=null,initialKind='page'){
   const writable=(state.resourceCreatableCollections||[]).filter(item=>{
    const id=String(item.collection_id||item.collectionID||item.id||'');return id&&state.resourceCreatePermissions?.[id]===true;
   });
@@ -3408,8 +3410,9 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null){
   const destinations=preferred?writable.filter(item=>String(item.collection_id||item.collectionID||item.id)===preferred):writable;
   if(!destinations.length){showAppDialog('No writable collections','Schoology has not granted permission to add resources to any available collection.');return}
   const collectionOptions=preferred?'':'<label for="resourceTemplateCollection">Save to collection</label><select id="resourceTemplateCollection" class="androidDialogInput">'+destinations.map(item=>{const id=item.collection_id||item.collectionID||item.id;return '<option value="'+esc(id)+'">'+esc(item.collection_title||item.title||item.name||'Collection')+'</option>'}).join('')+'</select>';
+  const typeOptions=initialKind==='folder'?'<option value="folder">Folder</option>':'<option value="page">Page</option><option value="discussion">Discussion</option><option value="assignment">Assignment</option><option value="documentLink">Document link</option><option value="documentFile">Upload a file</option><option value="documentVideo">Video link</option><option value="documentEmbed">Embed code</option>';
   const bodyHtml='<div class="androidSimpleDialogBody">'+collectionOptions+
-   '<label for="resourceTemplateType">Resource type</label><select id="resourceTemplateType" class="androidDialogInput"><option value="page">Page</option><option value="discussion">Discussion</option><option value="assignment">Assignment</option><option value="documentLink">Document link</option><option value="documentFile">Upload a file</option><option value="documentVideo">Video link</option><option value="documentEmbed">Embed code</option><option value="folder">Folder</option></select>'+
+   '<label for="resourceTemplateType">Resource type</label><select id="resourceTemplateType" class="androidDialogInput">'+typeOptions+'</select>'+
    '<label for="resourceTemplateTitle">Title</label><input id="resourceTemplateTitle" class="androidDialogInput" maxlength="180" placeholder="Resource title">'+
    '<div id="resourceTemplateBodyField"><label for="resourceTemplateBody">Body</label><textarea id="resourceTemplateBody" class="androidDialogInput" rows="5" placeholder="Describe this resource…"></textarea></div>'+
    '<div id="resourceTemplateLinkField" hidden><label for="resourceTemplateLink">Web address</label><input id="resourceTemplateLink" class="androidDialogInput" type="url" placeholder="https://example.com"></div>'+
@@ -3420,7 +3423,7 @@ async function showResourceTemplateCreateDialog(preferredCollectionId=null){
    '<div id="resourceTemplateFolderField" hidden><label for="resourceTemplateFolderColor">Folder color</label><select id="resourceTemplateFolderColor" class="androidDialogInput"><option value="blue">Blue</option><option value="pink">Pink</option><option value="orange">Orange</option><option value="purple">Purple</option><option value="yellow">Yellow</option><option value="red">Red</option><option value="gray">Gray</option><option value="black">Black</option><option value="green">Green</option></select></div>'+
    '<label for="resourceTemplateNotes">Resource notes (optional)</label><textarea id="resourceTemplateNotes" class="androidDialogInput" rows="2" placeholder="Notes"></textarea><p id="resourceTemplateCreateError" role="alert"></p></div>'+
    '<footer><button type="button" id="resourceTemplateCreateCancel" class="androidSecondary">Cancel</button><button type="button" id="resourceTemplateCreateSubmit" class="androidPrimary">Create</button></footer>';
-  const wrap=createSchoologyDialogShell({id:'resourceTemplateCreateDialog',title:'New Schoology Resource',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:bodyHtml});
+  const wrap=createSchoologyDialogShell({id:'resourceTemplateCreateDialog',title:initialKind==='folder'?'New Folder':'New Resource Item',leftButtonHtml:'<button type="button" data-dialog-close class="androidDialogIcon" aria-label="Close">×</button>',bodyHtml:bodyHtml});
   document.body.appendChild(wrap);const close=()=>wrap.remove();
   const type=wrap.querySelector('#resourceTemplateType'),bodyField=wrap.querySelector('#resourceTemplateBodyField'),linkField=wrap.querySelector('#resourceTemplateLinkField'),fileField=wrap.querySelector('#resourceTemplateFileField'),videoField=wrap.querySelector('#resourceTemplateVideoField'),embedField=wrap.querySelector('#resourceTemplateEmbedField'),pointsField=wrap.querySelector('#resourceTemplatePointsField'),folderField=wrap.querySelector('#resourceTemplateFolderField');
   const updateFields=()=>{const selected=type?.value||'page';bodyField.hidden=!['page','discussion','assignment'].includes(selected);linkField.hidden=selected!=='documentLink';fileField.hidden=selected!=='documentFile';videoField.hidden=selected!=='documentVideo';embedField.hidden=selected!=='documentEmbed';pointsField.hidden=selected!=='assignment';folderField.hidden=selected!=='folder'};

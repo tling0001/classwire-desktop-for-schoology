@@ -1,3 +1,13 @@
+## [2026.10.0-port.125]
+
+### Resource creation consistency
+- Standardize the creation action as **New Resource Item** and expose **New Folder** as a separate action in both the Resources list and collection toolbar.
+- Open the existing unified resource composer with the appropriate type and fields visible together; New Folder opens directly into the folder form, while resource items retain Page, Discussion, Assignment, document link, upload, video, and embed types.
+- Preserve collection selection, permission checks before upload and again before creation, file upload behavior, and nested-folder destination handling.
+
+### Build
+- Increment the npm, Tauri, and Rust package versions to `2026.10.0-port.125`.
+
 ## [2026.10.0-port.124]
 
 ### Standalone Resources creation
