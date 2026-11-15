@@ -1,3 +1,13 @@
+## [2026.10.0-port.129]
+
+### Resource attachment normalization and opening
+- Normalize file, link, video, embed, and external-tool attachment records through one renderer-side model shared by resource, page, activity, message, and assignment attachment surfaces.
+- Preserve original file download URLs, converted preview URLs and readiness, metadata IDs, checksums, filenames, MIME types, sizes, thumbnails, and tool/link destinations.
+- Route resource documents with one attachment directly to the appropriate file preview/download, link, video, embed, or LTI launch behavior; show the attachment chooser when multiple attachments are present.
+- Keep original-file downloads on the existing native `download-file` bridge, preserving its authenticated Schoology API signing and embedded-WebView cookie handling.
+- Use converted document URLs for preview only when Schoology reports conversion ready; never substitute converted previews for original downloads or playable media streams.
+- Increment the npm, Tauri, and Rust package versions to `2026.10.0-port.129`.
+
 ## [2026.10.0-port.128]
 
 ### Resource navigation and editing

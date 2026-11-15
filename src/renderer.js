@@ -198,17 +198,8 @@ function messageDetail(splitPane=false){
  return `<div class="shell"><header class="toolbar"><button id="messageBack" class="iconButton" aria-label="Back">${officialBackIcon()}</button><span class="toolbarTitle">${esc(subject)}</span>${actions}</header><main class="messageDetail">${thread?cards:'<div class="loading"><img class="androidInlineSpinner" src="../assets/android_loading_spinner_72.gif" alt=""><span>Loading message…</span></div>'}</main></div>`;
 }
 function renderMessageBody(value){const text=String(value??''),safe=sanitizeRichTextHtml(text);if(safe!==esc(text))return safe;const pattern=/https?:\/\/[^\s<>"']+/gi;let html='',last=0,m;while((m=pattern.exec(text))){let url=m[0],suffix='';while(/[),.!?;:]$/.test(url)){suffix=url.slice(-1)+suffix;url=url.slice(0,-1)}if(!url)continue;html+=esc(text.slice(last,m.index))+'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(url)+'</a>'+esc(suffix);last=m.index+m[0].length}return (html+esc(text.slice(last))).replace(/\n/g,'<br>')}
-function renderMessageAttachments(a){
- const files=a?.files?.file||a?.files?.list||a?.files||a?.['file-attachment']||[];
- const list=Array.isArray(files)?files:(files&&typeof files==='object'?(files.file||files.list||[files]):[]);
- const links=a?.links?.link||a?.links||[];
- const ll=Array.isArray(links)?links:(links?.link||[]);
- const shared=renderAttachments({files:{file:list},links:{link:ll}});
- const embeds=a?.embeds?.embed||a?.embeds||[];
- const ee=Array.isArray(embeds)?embeds:(embeds?.embed||[]);
- const embedHtml=ee.filter(e=>e&&(e.embed_code||e.embedCode)).map(e=>'<button type="button" class="activityAttachment embedAttachment" data-embed-html="'+esc(e.embed_code||e.embedCode)+'"><span class="attachmentFileIcon">'+(officialIcon('ic_attach_resourcesv3.png','Embedded content')||'▧')+'</span><span class="attachmentFileText"><b>Embedded content</b><small>Open embedded content</small></span><span class="attachmentDownloadIcon">›</span></button>').join('');
- return shared+(embedHtml?'<div class="activityMedia messageEmbeddedAttachments">'+embedHtml+'</div>':'');
-}
+function renderMessageAttachments(a){return renderAttachments(a);}
+
 function officialLinkIcon(){return "<svg class='officialLinkIcon' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><path fill='#8c8c8c' d='M12.8,15.8l1.5,1.5l-3.1,3.1c-1,1.1 -2.4,1.6 -3.8,1.6s-2.8,-0.5 -3.8,-1.6c-2.1,-2.1 -2.1,-5.5 0,-7.7l3.1,-3.1l1.5,1.5-3.1,3.1c-1.3,1.3 -1.3,3.3 0,4.6c1.3,1.3 3.3,1.3 4.6,0L12.8,15.8zM20.4,3.6c-2.1,-2.1 -5.5,-2.1 -7.7,0l-3,3l1.5,1.5L14.3,5c1.3,-1.3 3.3,-1.3 4.6,0c1.3,1.3 1.3,3.3 0,4.6l-3.1,3.1l1.5,1.5l3.1,-3.1C22.5,9.1 22.5,5.7 20.4,3.6zM17.4,8.2l-1.5,-1.5l-9.2,9.2l1.5,1.5L17.4,8.2z'/></svg>"}
 function officialBackIcon(){return "<svg class='officialBackIcon' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><path fill='currentColor' d='M22 10.9H6.2l5.7-5.7-1.5-1.5L2 12l8.4 8.4l1.5-1.5l-5.7-5.7H22V10.9z'/></svg>"}
 
@@ -1079,19 +1070,77 @@ async function schoologyAssignmentSupportsAnnotations(sectionId,assignmentId){
   }catch(error){console.debug('Could not verify Schoology annotation availability:',error);return false;}
 }
 
-function collectAssignmentAttachments(a){
-  const out=[],seen=new Set();
-  const add=(kind,v)=>{if(!v||typeof v!=='object')return;const id=String(v.id||v.file_id||v.fileId||v.link_id||v.linkId||v.url||v.href||v.title||'');const key=kind+':'+id;if(seen.has(key))return;seen.add(key);out.push({kind,...v});};
-  const walk=v=>{if(!v)return;if(Array.isArray(v)){v.forEach(walk);return}if(typeof v!=='object')return;
-    const files=v.files?.file||v.files?.list||v.files||v.file; if(files){for(const f of (Array.isArray(files)?files:(files.file||files.list||[files])))add('file',f)}
-    const links=v.links?.link||v.links||v.link; if(links){for(const l of (Array.isArray(links)?links:(links.link||links.list||[links])))add('link',l)}
-    const videos=v.videos?.video||v.videos||v.video; if(videos){for(const x of (Array.isArray(videos)?videos:(videos.video||videos.list||[videos])))add('video',x)}
-    const embeds=v.embeds?.embed||v.embeds||v.embed; if(embeds){for(const x of (Array.isArray(embeds)?embeds:(embeds.embed||embeds.list||[embeds])))add('embed',x)}
-    const tools=v.external_tools?.external_tool||v.external_tools||v.external_tool||v.externalTool||v.tools;if(tools){for(const x of (Array.isArray(tools)?tools:(tools.external_tool||tools.list||[tools])))add('external_tool',x)}
-    const t=String(v.type||v.attachmentType||v.attachment_type||'').toLowerCase();if(t==='file'||v.download_path||v.downloadPath||v.resolveDownloadUrl)add('file',v);if(t==='link'||v.linkURL||v.linkUrl)add('link',v);if(['external_tool','externaltool','lti'].includes(t)||v.launch_url||v.launchUrl)add('external_tool',v);
-    for(const k of ['attachment','attachments','files','links','videos','embeds','external_tools','external_tool','tools','file','link','video','embed'])if(v[k]&&v[k]!==a)walk(v[k]);
-  };walk(a);return out;
+function schoologyAttachmentConversionReady(status){
+  return ['success','converted','complete','completed','ready','1','true'].includes(String(status||'').trim().toLowerCase());
 }
+function normalizeSchoologyAttachments(value){
+  const out=[],seen=new Set();
+  const groups={files:'file',file:'file','file-attachment':'file',links:'link',link:'link',videos:'video',video:'video',embeds:'embed',embed:'embed',external_tools:'external_tool',external_tool:'external_tool',externalTool:'external_tool',tools:'external_tool',attachments:'',attachment:'',items:'',data:'',response:''};
+  const add=(hint,item)=>{
+    if(!item||typeof item!=='object'||Array.isArray(item))return;
+    const explicit=String(item.attachment_type||item.attachmentType||item.kind||item.type||item.document_type||item.documentType||'').toLowerCase().replace(/[\s-]+/g,'_');
+    const kind=hint||(
+      explicit.includes('external')||['tool','lti'].includes(explicit)?'external_tool':
+      explicit.includes('embed')?'embed':
+      explicit.includes('video')?'video':
+      explicit.includes('link')||explicit==='web_content'?'link':
+      explicit==='file'?'file':
+      (item.file_download_url||item.fileDownloadURL||item.download_path||item.downloadPath||item.resolveDownloadUrl||item.resolve_download_url||item.file_converted_download_url||item.fileConvertedDownloadURL)?'file':
+      (item.link_url||item.linkURL||item.linkUrl||item.href)?'link':
+      (item.video_url||item.videoUrl)?'video':
+      (item.embed_code||item.embedCode)?'embed':
+      (item.launch_url||item.launchUrl||item.launch_uri||item.launchURI)?'external_tool':''
+    );
+    if(!kind)return;
+    const originalDownloadUrl=item.file_download_url||item.fileDownloadURL||item.download_path||item.downloadPath||item.download_url||item.downloadUrl||item.resolveDownloadUrl||item.resolve_download_url||item.original_download_url||item.originalDownloadURL||item.original_url||item.originalUrl||(kind==='file'?item.url||'':'');
+    const convertedDownloadUrl=item.file_converted_download_url||item.fileConvertedDownloadURL||item.converted_download_path||item.convertedDownloadPath||item.converted_download_url||item.convertedDownloadURL||'';
+    const conversionStatus=item.converted_status||item.convertedStatus||item.file_converted_status||item.fileConvertedStatus||item.conversion_status||item.conversionStatus||'';
+    const linkUrl=item.link_url||item.linkURL||item.linkUrl||item.href||item.web_url||item.webUrl||(kind==='link'?item.url:'')||'';
+    const videoUrl=item.video_url||item.videoUrl||(kind==='video'?item.url:'')||'';
+    const launchUrl=item.launch_url||item.launchUrl||item.launch_uri||item.launchURI||item.tool_url||item.toolUrl||(kind==='external_tool'?item.url:'')||'';
+    const embedCode=item.embed_code||item.embedCode||item.html||item.code||'';
+    const primaryUrl=kind==='link'?linkUrl:kind==='video'?videoUrl:kind==='external_tool'?launchUrl:kind==='file'?(originalDownloadUrl||convertedDownloadUrl):'';
+    if(kind==='file'&&!primaryUrl||kind==='link'&&!linkUrl||kind==='video'&&!videoUrl||kind==='external_tool'&&!launchUrl||kind==='embed'&&!embedCode)return;
+    const fileName=item.filename||item.fileName||item.file_name||item.fileNameOriginal||item.name||'';
+    const title=item.title||item.file_title||item.fileTitle||item.link_title||item.linkTitle||item.video_title||item.videoTitle||item.tool_name||item.toolName||fileName||(primaryUrl?primaryUrl.split('/').pop():'')||'Attachment';
+    const mimeType=item.filemime||item.fileMIME||item.mime_type||item.mimeType||item.mime||item.content_type||item.contentType||'application/octet-stream';
+    const playableMedia=/^audio\//i.test(String(mimeType))||/^video\//i.test(String(mimeType))||/\.(?:mp3|m4a|aac|wav|aiff|aif|flac|ogg|oga|opus|wma|caf|mp4|m4v|mov|webm|avi|mkv|3gp|wmv|mpeg|mpg)$/i.test(String(fileName||title));
+    const convertedReady=schoologyAttachmentConversionReady(conversionStatus)&&!playableMedia;
+    const attachmentID=item.attachment_id||item.attachmentId||item.id||item.file_id||item.fileId||'';
+    const fileMetadataID=item.file_metadata_id||item.fileMetadataId||item.metadata_id||item.metadataId||'';
+    const thumbnailUrl=item.thumbnail_url||item.thumbnailURL||item.file_thumbnail_url||item.fileThumbnailURL||item.video_thumbnail_url||item.videoThumbnailURL||item.thumbnail||'';
+    const identity=String(attachmentID||fileMetadataID||primaryUrl||embedCode||title);
+    const key=kind+':'+identity;
+    if(seen.has(key))return;
+    seen.add(key);
+    out.push({...item,kind,title:String(title),fileName:String(fileName||title),mimeType:String(mimeType),attachmentID:String(attachmentID||''),fileMetadataID:String(fileMetadataID||''),fileSize:item.filesize||item.file_size||item.fileSize||item.size||null,originalDownloadUrl:String(originalDownloadUrl),convertedDownloadUrl:String(convertedDownloadUrl),conversionStatus:String(conversionStatus),convertedReady,linkUrl:String(linkUrl),videoUrl:String(videoUrl),launchUrl:String(launchUrl),embedCode:String(embedCode),thumbnailUrl:String(thumbnailUrl),checksum:String(item.checksum||item.md5||item.file_md5||item.fileMD5||item.hash||''),convertedFileName:String(item.converted_filename||item.convertedFilename||item.file_converted_filename||item.fileConvertedFilename||''),convertedMimeType:String(item.converted_filemime||item.convertedFileMime||item.file_converted_mime||item.fileConvertedMime||''),url:String(primaryUrl||'')});
+  };
+  const walk=(node,hint='',depth=0)=>{
+    if(!node||depth>8)return;
+    if(Array.isArray(node)){node.forEach(item=>walk(item,hint,depth+1));return;}
+    if(typeof node!=='object')return;
+    const explicit=String(node.attachment_type||node.attachmentType||node.kind||node.type||node.document_type||node.documentType||'').toLowerCase().replace(/[\s-]+/g,'_');
+    const inferred=hint||(
+      explicit.includes('external')||['tool','lti'].includes(explicit)?'external_tool':
+      explicit.includes('embed')?'embed':explicit.includes('video')?'video':
+      explicit.includes('link')||explicit==='web_content'?'link':explicit==='file'?'file':
+      (node.file_download_url||node.fileDownloadURL||node.download_path||node.downloadPath||node.resolveDownloadUrl||node.resolve_download_url||node.file_converted_download_url||node.fileConvertedDownloadURL)?'file':
+      (node.link_url||node.linkURL||node.linkUrl||node.href)?'link':
+      (node.video_url||node.videoUrl)?'video':
+      (node.embed_code||node.embedCode)?'embed':
+      (node.launch_url||node.launchUrl||node.launch_uri||node.launchURI)?'external_tool':''
+    );
+    const hasPayload=!!(node.file_download_url||node.fileDownloadURL||node.download_path||node.downloadPath||node.download_url||node.downloadUrl||node.resolveDownloadUrl||node.resolve_download_url||node.file_converted_download_url||node.fileConvertedDownloadURL||node.link_url||node.linkURL||node.linkUrl||node.href||node.video_url||node.videoUrl||node.embed_code||node.embedCode||node.launch_url||node.launchUrl||node.launch_uri||node.launchURI||(inferred&&node.url));
+    if(inferred&&hasPayload){add(inferred,node);return;}
+    for(const [key,childHint] of Object.entries(groups)){
+      if(node[key]!==undefined&&node[key]!==null)walk(node[key],childHint||hint,depth+1);
+    }
+  };
+  walk(value);
+  return out;
+}
+function collectAssignmentAttachments(value){return normalizeSchoologyAttachments(value);}
+
 function assignmentAttachmentIcon(item){
   if(item.kind==='video')return 'ic_attach_audio.png';
   if(item.kind==='link'||item.kind==='external_tool')return 'attachment_link_icon.png';
@@ -1119,11 +1168,12 @@ function assignmentAttachmentIconUrl(item){return assignmentAttachmentIconData[a
 async function openAssignmentAttachmentItem(item,button,dialog){
   try{
     if(item.kind==='file'){
-      const viewUrl=item.file_converted_download_url||item.fileConvertedDownloadURL||item.converted_download_path||item.convertedDownloadPath||'';
-      const url=item.file_download_url||item.fileDownloadURL||item.download_path||item.downloadPath||item.download_url||item.downloadUrl||item.resolveDownloadUrl||item.resolve_download_url||item.url||viewUrl;
-      if(!url)throw new Error('Schoology did not provide a file URL.');
-      const info={url,viewUrl,filename:item.filename||item.fileName||item.title||item.fileTitle||'Schoology file',mime:item.filemime||item.fileMIME||'application/octet-stream'};
-      const download=async()=>{const result=await downloadWithFeedback(button,info);const error=await A.openDownloadedFile({path:result.path});if(error)throw new Error(error)};
+      const originalUrl=item.originalDownloadUrl||item.file_download_url||item.fileDownloadURL||item.download_path||item.downloadPath||item.download_url||item.downloadUrl||item.resolveDownloadUrl||item.resolve_download_url||'';
+      const viewUrl=item.convertedReady?(item.convertedDownloadUrl||item.file_converted_download_url||item.fileConvertedDownloadURL||item.converted_download_path||item.convertedDownloadPath||''):'';
+      const url=originalUrl||viewUrl;
+      if(!url)throw new Error('Schoology did not provide an original file URL or a ready preview.');
+      const info={url,viewUrl,filename:item.fileName||item.filename||item.title||item.fileTitle||'Schoology file',mime:item.mimeType||item.filemime||item.fileMIME||'application/octet-stream'};
+      const download=async()=>{if(!originalUrl)throw new Error('The original file download URL is unavailable; only the converted preview can be viewed.');const result=await downloadWithFeedback(button,info);const error=await A.openDownloadedFile({path:result.path});if(error)throw new Error(error)};
       if(isAudioVideoAttachment(info)){dialog?.classList.remove('open');showMediaAttachmentOptions(info,download);return;}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){dialog?.classList.remove('open');showPdfAttachmentOptions(info,download);return;}
       await download();
       dialog?.classList.remove('open');
@@ -1135,9 +1185,10 @@ async function openAssignmentAttachmentItem(item,button,dialog){
       await A.prepareWebSession();showEmbeddedWeb(url,item.linkTitle||item.title||item.videoTitle||item.video_title||'Link');
     }else if(item.kind==='embed'){
       const code=item.embed_code||item.embedCode||'';
-      if(!code)throw new Error('Schoology did not provide embedded content.');
+      const source=(String(code).match(/\bsrc\s*=\s*["']([^"']+)["']/ii)||[])[1]||item.url||'';
+      if(!source)throw new Error('Schoology did not provide an embedded content URL.');
       dialog?.classList.remove('open');
-      showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),item.title||'Embedded content',{allowBrowser:false});
+      await A.prepareWebSession();await showEmbeddedWeb(source,item.title||'Embedded content',{allowBrowser:false});
     }else if(item.kind==='external_tool'){
       const url=item.launch_url||item.launchUrl||item.url||item.tool_url||item.toolUrl||item.web_url||item.webUrl;
       if(!url)throw new Error('Schoology did not provide a launch URL for this tool.');
@@ -1180,7 +1231,8 @@ async function showSchoologyPage(sectionId,pageId,title='Page'){
    try{if(isAudioVideoAttachment(info))showMediaAttachmentOptions(info,download);else if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl)showPdfAttachmentOptions(info,download);else await download()}catch(error){alert('Unable to open attachment: '+(error?.message||error))}
   });
   c.querySelectorAll('[data-open-url]').forEach(button=>button.onclick=async()=>{try{const result=await A.openExternal(button.dataset.openUrl);if(typeof result==='string'&&result)throw new Error(result)}catch(error){alert('Unable to open link: '+(error?.message||error))}});
-  c.querySelectorAll('[data-embed-html]').forEach(button=>button.onclick=()=>showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(button.dataset.embedHtml),'Embedded content',{allowBrowser:false}));
+  c.querySelectorAll('[data-embed-html]').forEach(button=>button.onclick=async()=>{const source=button.dataset.embedUrl||((button.dataset.embedHtml||'').match(/\bsrc\s*=\s*["']([^"']+)["']/i)||[])[1]||'';if(!source){showAppDialog('Unable to open embedded content','Schoology did not provide an embedded content URL.');return;}try{await A.prepareWebSession();await showEmbeddedWeb(source,button.dataset.attachmentTitle||'Embedded content',{allowBrowser:false});}catch(error){showAppDialog('Unable to open embedded content',error?.message||String(error));}});
+  c.querySelectorAll('[data-open-external-tool-url]').forEach(button=>button.onclick=async()=>{try{await A.prepareWebSession();await showEmbeddedWeb(button.dataset.openExternalToolUrl,button.dataset.attachmentTitle||'External Tool',{allowBrowser:false,lti:true});}catch(error){showAppDialog('Unable to open external tool',error?.message||String(error));}});
   fixDarkRichTextColors(c);
  }catch(error){
   c.innerHTML=`<div class="error apiError">Schoology could not load this page.<br>${esc(error?.message||error)}</div>`;
@@ -1897,37 +1949,32 @@ async function openSharedPdfViewer(info){
  }catch(error){if(closed||!root.isConnected)return;clearPageLayers();pages.innerHTML='<div class="sharedPdfViewerError"><b>Unable to view this PDF</b><p>'+esc(error?.message||String(error))+'</p><button type="button" data-pdf-viewer-back>Back</button></div>';root.querySelector('[data-pdf-viewer-back]')?.addEventListener('click',close)}
 }
 function renderAttachments(a,submissionContext=null){
-  if(!a)return '';
+  const attachments=normalizeSchoologyAttachments(a);
+  if(!attachments.length)return '';
   const out=[];
-  const addFile=(f)=>{
-    const viewUrl=f?.file_converted_download_url||f?.fileConvertedDownloadURL||f?.converted_download_path||f?.convertedDownloadPath||'';
-    const originalUrl=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url||f?.url||'';
-    const title=(f.filename||f.fileName||f.file_title||f.fileTitle||f.title||'File').trim();
-    const officeFile=/\.(?:docx?|pptx?|xlsx?)$/i.test(title);
-    const url=originalUrl||viewUrl;
-    if(!url)return;
-    const mime=f.filemime||f.fileMIME||f.mime||f.convertedFileMime||f.converted_filemime||'application/octet-stream';
-    const ctx=submissionContext&&f?.id?` data-submission-file-id="${esc(f.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
-    out.push(`<button class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-pdf-view-url="${esc(viewUrl)}" data-download-name="${esc(title)}" data-download-mime="${esc(mime)}"${ctx}><span class="attachmentFileIcon">${officialOrAssetIcon(mimeIconForFilename(title,mime),'')}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
-    if (submissionContext?.allowAnnotation && f?.id && (String(mime).toLowerCase().includes('pdf') || /\.pdf$/i.test(title))) {
-      out.push(`<button type="button" class="activityAttachment annotationLaunchButton" data-annotate-pdf data-annotate-url="${esc(url)}" data-annotate-file-id="${esc(f.id)}" data-annotate-file-type="${esc(f.fileType||f.file_type||mime)}" data-annotate-name="${esc(title)}" data-annotate-section-id="${esc(submissionContext.sectionId||'')}" data-annotate-assignment-id="${esc(submissionContext.assignmentId||submissionContext.gradeItemId||'')}"><span class="attachmentFileIcon">✎</span><span class="attachmentFileText"><b>Annotate PDF</b><small>${esc(title)}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
+  for(const item of attachments){
+    const title=item.title||'Attachment';
+    if(item.kind==='file'){
+      const viewUrl=item.convertedReady?item.convertedDownloadUrl:'';
+      const url=item.originalDownloadUrl||viewUrl;
+      if(!url)continue;
+      const mime=item.mimeType||'application/octet-stream';
+      const ctx=submissionContext&&item.id? ` data-submission-file-id="${esc(item.id)}" data-submission-revision-id="${esc(submissionContext.revisionId||'')}" data-submission-submission-id="${esc(submissionContext.submissionId||'')}" data-submission-section-id="${esc(submissionContext.sectionId||'')}" data-submission-grade-item-id="${esc(submissionContext.gradeItemId||'')}" data-submission-user-id="${esc(submissionContext.userId||'')}"`:'';
+      out.push(`<button type="button" class="activityAttachment fileAttachment" data-download-url="${esc(url)}" data-pdf-view-url="${esc(viewUrl)}" data-original-download-available="${item.originalDownloadUrl?'true':'false'}" data-download-name="${esc(item.fileName||title)}" data-download-mime="${esc(mime)}" data-file-metadata-id="${esc(item.fileMetadataID||'')}" data-file-checksum="${esc(item.checksum||'')}" data-converted-filename="${esc(item.convertedFileName||'')}" data-converted-mime="${esc(item.convertedMimeType||'')}"${ctx}><span class="attachmentFileIcon">${officialOrAssetIcon(mimeIconForFilename(item.fileName||title,mime),'')}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>${esc((mime||'File').split('/').pop().toUpperCase())}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
+      if(submissionContext?.allowAnnotation&&item.id&&(String(mime).toLowerCase().includes('pdf')||/\.pdf$/i.test(item.fileName||title))){
+        out.push(`<button type="button" class="activityAttachment annotationLaunchButton" data-annotate-pdf data-annotate-url="${esc(url)}" data-annotate-file-id="${esc(item.id)}" data-annotate-file-type="${esc(item.fileType||item.file_type||mime)}" data-annotate-name="${esc(item.fileName||title)}" data-annotate-section-id="${esc(submissionContext.sectionId||'')}" data-annotate-assignment-id="${esc(submissionContext.assignmentId||submissionContext.gradeItemId||'')}"><span class="attachmentFileIcon">✎</span><span class="attachmentFileText"><b>Annotate PDF</b><small>${esc(title)}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
+      }
+    }else if(item.kind==='link'||item.kind==='video'){
+      const url=item.kind==='video'?item.videoUrl:item.linkUrl;
+      if(url)out.push(`<button type="button" class="activityAttachment linkAttachment" data-open-url="${esc(url)}" data-attachment-kind="${esc(item.kind)}" data-attachment-title="${esc(title)}"><span class="attachmentFileIcon">${officialLinkIcon()}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>${item.kind==='video'?'Video':'Link'}</small></span><span class="attachmentDownloadIcon">›</span></button>`);
+    }else if(item.kind==='embed'){
+      const source=(item.embedCode.match(/\bsrc\s*=\s*["']([^"']+)["']/i)||[])[1]||'';
+      out.push(`<button type="button" class="activityAttachment embedAttachment" data-embed-html="${esc(item.embedCode)}" data-embed-url="${esc(source)}" data-attachment-title="${esc(title)}"><span class="attachmentFileIcon">${officialIcon('ic_attach_resourcesv3.png','Embedded content')||'▧'}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>Embedded content</small></span><span class="attachmentDownloadIcon">›</span></button>`);
+    }else if(item.kind==='external_tool'&&item.launchUrl){
+      out.push(`<button type="button" class="activityAttachment linkAttachment" data-open-external-tool-url="${esc(item.launchUrl)}" data-attachment-title="${esc(title)}"><span class="attachmentFileIcon">${officialLinkIcon()}</span><span class="attachmentFileText"><b>${esc(title)}</b><small>External tool</small></span><span class="attachmentDownloadIcon">›</span></button>`);
     }
-  };
-  const addLink=(url,title)=>{if(url)out.push(`<button type="button" class="activityAttachment linkAttachment" data-open-url="${esc(url)}"><span class="attachmentFileIcon">${officialLinkIcon()}</span><span class="attachmentFileText"><b>${esc(title||url)}</b><small>Link</small></span><span class="attachmentDownloadIcon">›</span></button>`)};
-  const walk=(v)=>{
-    if(!v)return;
-    if(Array.isArray(v)){v.forEach(walk);return}
-    if(typeof v!=='object')return;
-    const files=v.files?.file||v.files?.list||v.files||v['file-attachment']||v.file;
-    if(files){const list=Array.isArray(files)?files:(files.file||files.list||[files]);list.filter(x=>x&&typeof x==='object').forEach(addFile)}
-    const type=String(v.type||v.attachmentType||'').toLowerCase();
-    const title=v.title||v.fileTitle||v.fileName||v.linkTitle||v.videoTitle||'Attachment';
-    if(type==='file'||v.download_path||v.downloadPath||v.converted_download_path||v.convertedDownloadPath||v.resolveDownloadUrl||v.fileDownloadURL){addFile(v)}
-    else if(v.thumbnail||v.fileThumbnailURL||v.videoThumbnailURL){const thumb=v.thumbnail||v.fileThumbnailURL||v.videoThumbnailURL;out.push(`<img class="activityMediaImage authenticatedMediaImage" data-media-image-url="${esc(normalizeImageUrl(thumb))}" alt="${esc(title)}" loading="lazy" style="display:none">`)}
-    const linkUrl=v.linkURL||v.linkUrl||v.href||((type==='link'||type==='web_content'||(v.url&&!v.download_path&&!v.downloadPath&&!v.resolveDownloadUrl&&!v.file_download_url&&!v.fileDownloadURL))?v.url:null);if(type!=='file')addLink(linkUrl,title);
-    for(const k of ['attachment','file','link','video','embed','links','videos'])if(v[k])walk(v[k]);
-  };
-  walk(a);
+    if(item.thumbnailUrl)out.push(`<img class="activityMediaImage authenticatedMediaImage" data-media-image-url="${esc(normalizeImageUrl(item.thumbnailUrl))}" alt="${esc(title)}" loading="lazy" style="display:none">`);
+  }
   return out.length?`<div class="activityMedia">${out.join('')}</div>`:'';
 }
 
@@ -1937,6 +1984,8 @@ async function hydrateMediaImages(root=document){
     const u=el.getAttribute('data-media-image-url');try{const data=await A.fetchImage(u);if(data){el.src=data;el.style.display='block';if(el.nextElementSibling)el.nextElementSibling.style.display='none'}}catch{}
   }));
   root.querySelectorAll?.('[data-open-url]')?.forEach(b=>{if(b.dataset.boundOpen)return;b.dataset.boundOpen='1';b.onclick=async()=>{const url=b.dataset.openUrl||'';try{const result=await A.openExternal(url);if(typeof result==='string'&&result)showAppDialog('Unable to open link',result)}catch(e){showAppDialog('Unable to open link',e.message||String(e))}}});
+  root.querySelectorAll?.('[data-embed-html]')?.forEach(button=>{if(button.dataset.boundEmbed)return;button.dataset.boundEmbed='1';button.onclick=async()=>{const source=button.dataset.embedUrl||((button.dataset.embedHtml||'').match(/\bsrc\s*=\s*["']([^"']+)["']/i)||[])[1]||'';if(!source){showAppDialog('Unable to open embedded content','Schoology did not provide an embedded content URL.');return;}try{await A.prepareWebSession();await showEmbeddedWeb(source,button.dataset.attachmentTitle||'Embedded content',{allowBrowser:false});}catch(error){showAppDialog('Unable to open embedded content',error?.message||String(error));}}});
+  root.querySelectorAll?.('[data-open-external-tool-url]')?.forEach(button=>{if(button.dataset.boundExternalTool)return;button.dataset.boundExternalTool='1';button.onclick=async()=>{try{await A.prepareWebSession();await showEmbeddedWeb(button.dataset.openExternalToolUrl,button.dataset.attachmentTitle||'External Tool',{allowBrowser:false,lti:true});}catch(error){showAppDialog('Unable to open external tool',error?.message||String(error));}}});
   root.querySelectorAll?.('[data-annotate-pdf]')?.forEach(b=>{if(b.dataset.boundAnnotate)return;b.dataset.boundAnnotate='1';b.onclick=async()=>{if(!window.schoologyAnnotationEditor?.open){showAppDialog('Annotation unavailable','The PDF annotation editor did not load.');return;}try{await window.schoologyAnnotationEditor.open({sectionId:b.dataset.annotateSectionId,assignmentId:b.dataset.annotateAssignmentId,fileId:b.dataset.annotateFileId,fileType:b.dataset.annotateFileType,pdfUrl:b.dataset.annotateUrl,filename:b.dataset.annotateName,onSubmitted:async()=>{await openAssignmentSubmissions(b.dataset.annotateSectionId,b.dataset.annotateAssignmentId,state.assignmentData||{},false)}})}catch(e){showAppDialog('Unable to open annotation editor',e?.message||String(e))}}});
   root.querySelectorAll?.('[data-download-url]')?.forEach(b=>{if(b.dataset.boundDownload)return;b.dataset.boundDownload='1';b.onclick=async()=>{
  try{
@@ -1947,7 +1996,7 @@ async function hydrateMediaImages(root=document){
      for(const rv of list){const files=rv?.attachments?.files?.file||rv?.attachments?.files||rv?.attachments?.file||[],fs=Array.isArray(files)?files:(files?[files]:[]),hit=fs.find(f=>String(f?.id??f?.fid??'')===String(b.dataset.submissionFileId));if(hit){exact=hit;break}}
      if(exact){const convertedOk=['success','converted','1'].includes(String(exact.converted_status??exact.convertedStatus??'').toLowerCase()),rawUrl=exact.file_download_url||exact.fileDownloadURL||exact.download_path||exact.downloadPath||'',convertedUrl=exact.file_converted_download_url||exact.fileConvertedDownloadURL||exact.converted_download_path||exact.convertedDownloadPath||'';info.viewUrl=convertedOk?convertedUrl:'';info.url=rawUrl||convertedUrl;info.filename=exact.filename||exact.title||info.filename;info.mime=exact.filemime||exact.fileMIME||info.mime}
    }
-   const download=async()=>{const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};
+   const download=async()=>{if(b.dataset.originalDownloadAvailable!=='true')throw new Error('The original file download URL is unavailable; only the converted preview can be viewed.');const r=await downloadWithFeedback(b,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};
    if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}
    await download();
  }catch(e){alert('Unable to open file: '+e.message)}
@@ -3321,13 +3370,17 @@ async function openCollectionResource(item,button){
    if(id){await A.prepareWebSession();showEmbeddedWeb(`https://app.schoology.com/${t==='assignment'?'assignment':t==='assessment'?'assignment':t}/${id}`,title);return}
  }
  if(t==='document'){
+   const attachments=normalizeSchoologyAttachments(item);
+   if(attachments.length===1){await openAssignmentAttachmentItem(attachments[0],button,null);return}
+   if(attachments.length>1){showAssignmentAttachmentDialog(attachments);return}
    if(dt==='link'){
      const link=firstAttachment(item,'links');let u=link?.link_url||link?.linkURL||link?.url||link?.href||item.url||item.web_url||item.webUrl;
      if(u){u=normalizeSchoologyWebUrl(u);const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return}
    }
    if(dt==='embed'){
      const embed=firstAttachment(item,'embeds');const code=embed?.embed_code||embed?.embedCode;
-     if(code){showEmbeddedWeb('data:text/html;charset=utf-8,'+encodeURIComponent(code),title,{allowBrowser:false});return}
+     const source=(String(code||'').match(/\bsrc\s*=\s*["']([^"']+)["']/i)||[])[1]||'';
+     if(source){await A.prepareWebSession();await showEmbeddedWeb(source,title,{allowBrowser:false});return}
    }
    if(dt==='video'){
      const video=firstAttachment(item,'videos');const url=video?.url||video?.video_url||video?.videoUrl||item.url||item.web_url||item.webUrl;
@@ -3335,11 +3388,11 @@ async function openCollectionResource(item,button){
    }
    if(dt==='external_tool'){
      const u=item.launch_url||item.launchUrl||item.web_url||item.webUrl||item.url||item.href;
-     if(u){const result=await A.openExternal(u);if(typeof result==='string'&&result)throw new Error(result);return}
+     if(u){await A.prepareWebSession();await showEmbeddedWeb(u,title,{allowBrowser:false,lti:true});return}
    }
    if(dt==='file'){
-     const f=firstAttachment(item,'files');const u=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url||f?.url||f?.converted_download_path||f?.convertedDownloadPath;
-     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||f?.converted_filemime||f?.convertedFileMime||'application/octet-stream';const info={url:u,filename,mime};const download=async()=>{const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)alert(err);return}
+     const f=firstAttachment(item,'files');const u=f?.file_download_url||f?.fileDownloadURL||f?.download_path||f?.downloadPath||f?.download_url||f?.downloadUrl||f?.resolveDownloadUrl||f?.resolve_download_url;
+     if(u){const filename=f?.filename||f?.fileName||title;const mime=f?.filemime||f?.fileMIME||'application/octet-stream';const view=f?.file_converted_download_url||f?.fileConvertedDownloadURL||f?.converted_download_path||f?.convertedDownloadPath||'';const status=f?.converted_status||f?.convertedStatus||f?.conversion_status||f?.conversionStatus||'';const info={url:u,viewUrl:schoologyAttachmentConversionReady(status)?view:'',filename,mime};const download=async()=>{const r=await downloadWithFeedback(button,info);const err=await A.openDownloadedFile({path:r.path});if(typeof err==='string'&&err)throw new Error(err)};if(isAudioVideoAttachment(info)){showMediaAttachmentOptions(info,download);return}if(isPdfAttachment(info)||isImageAttachment(info)||info.viewUrl){showPdfAttachmentOptions(info,download);return}await download();return}
    }
  }
  const u=item.web_url||item.webUrl||item.url||item.href||item.location||item.download_path||item.downloadPath||item.file_url||item.fileUrl;
